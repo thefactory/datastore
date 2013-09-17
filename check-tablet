@@ -1,0 +1,164 @@
+#!/usr/bin/env python
+
+import argparse
+import collections
+import os
+import struct
+
+Footer = collections.namedtuple(
+    "Footer", "meta_offset, meta_length, data_offset, data_length, magic")
+
+IndexRecord = collections.namedtuple("IndexRecord", "offset, length, name")
+
+
+def check_tablet(filename):
+    with open(filename, "rb") as fd:
+        print "[ %s ]" % filename
+        print "checking footer..."
+        foot = check_footer(fd)
+
+        print "checking meta index..."
+        check_meta_index(fd, foot.meta_offset, foot.meta_length)
+        print "checking data index..."
+        check_data_index(fd, foot.data_offset, foot.data_length)
+
+        print "checking data..."
+        check_data(fd, foot.meta_offset)
+
+
+def check_footer(fd):
+    # 9 byte meta index offset
+    # 9 byte meta index length
+    # 9 byte data index offset
+    # 9 byte data index length
+    # 4 byte magic number
+    #   = 40 bytes total
+    fd.seek(-40, os.SEEK_END)
+    foot_start = fd.tell()
+    footer = struct.unpack(">BQBQBQBQI", fd.read(40))
+
+    assert footer[-1] == 0x0b501e7e, "bad tablet magic number"
+
+    assert footer[0] == 0xcf, "[footer] meta offset not uint64"
+    assert footer[2] == 0xcf, "[footer] meta length not uint64"
+    assert footer[4] == 0xcf, "[footer] data offset not uint64"
+    assert footer[6] == 0xcf, "[footer] data length not uint64"
+
+    meta_offset, meta_length, data_offset, data_length, magic \
+        = (footer[1], footer[3], footer[5], footer[7], footer[8])
+
+    # make sure all the file offsets make sense, working backward
+    assert data_offset + data_length == foot_start
+    assert meta_offset + meta_length == data_offset
+
+    return Footer(meta_offset, meta_length, data_offset, data_length, magic)
+
+
+def read_index_record(fd):
+    # read (offset uint64, length uint32, name raw)
+    offset_flag, offset, length_flag, length \
+        = struct.unpack(">BQBI", fd.read(14))
+
+    assert offset_flag == 0xcf, "[index] offset not uint64"
+    assert length_flag == 0xce, "[index] offset not uint32"
+
+    name = read_raw(fd)
+
+    return IndexRecord(offset, length, name)
+
+
+def check_meta_index(fd, meta_offset, meta_length):
+    fd.seek(meta_offset)
+
+    magic, = struct.unpack(">I", fd.read(4))
+    assert magic == 0x0ea7da7a, "[meta index] bad magic number"
+
+    while fd.tell() < meta_offset + meta_length:
+        record = read_index_record(fd)
+        assert record.offset + record.length < meta_offset
+
+    assert fd.tell() == meta_offset + meta_length
+
+
+def check_data_index(fd, data_offset, data_length):
+    fd.seek(data_offset)
+
+    magic, = struct.unpack(">I", fd.read(4))
+    assert magic == 0xda7aba5e, "[data index] bad magic number"
+
+    while fd.tell() < data_offset + data_length:
+        record = read_index_record(fd)
+        assert record.offset + record.length < data_offset
+
+        check_first_key(fd, record.offset, record.name)
+
+    assert fd.tell() == data_offset + data_length
+
+
+def check_first_key(fd, offset, name):
+    here = fd.tell()
+    try:
+        fd.seek(offset, os.SEEK_SET)
+        assert name == read_raw(fd), "[data index] bad first key for block"
+    finally:
+        fd.seek(here, os.SEEK_SET)
+
+
+def read_raw(fd):
+    flag = ord(fd.read(1))
+    if (flag & 0b11100000) == 0b10100000:
+        # fix raw
+        length = flag & 0b11111
+    elif flag == 0xda:
+        # raw 16
+        length = struct.unpack(">H", fd.read(2))
+    elif flag == 0xdb:
+        # raw 32
+        length = struct.unpack(">I", fd.read(4))
+    elif flag == 0xc0:
+        # nil
+        return None
+    else:
+        assert False, "[raw] unknown flag byte for raw data: 0x%x" % flag
+
+    return fd.read(length)
+
+
+def read_data_items(fd, offset, length):
+    fd.seek(offset, os.SEEK_SET)
+
+    while fd.tell() < offset + length:
+        key = read_raw(fd)
+        value = read_raw(fd)
+
+        yield key, value
+
+
+def check_data(fd, meta_offset):
+    # make sure data is in order
+    # make sure data ends exactly at meta index
+
+    prev_key = None
+    for key, value in read_data_items(fd, 0, meta_offset):
+        assert key is not None
+
+        if prev_key is not None:
+            assert prev_key < key
+
+        prev_key = key
+
+    assert fd.tell() == meta_offset
+
+
+parser = argparse.ArgumentParser(description="Check Datastore tablets")
+parser.add_argument("files", nargs="+", help="tablet files to check")
+
+
+def main():
+    args = parser.parse_args()
+
+    for tablet in args.files:
+        check_tablet(tablet)
+
+if __name__ == "__main__":
+    main()
