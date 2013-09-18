@@ -2,8 +2,12 @@
 
 import argparse
 import collections
+import gzip
 import os
+import StringIO
 import struct
+import tempfile
+import urllib2
 
 Footer = collections.namedtuple(
     "Footer", "meta_offset, meta_length, data_offset, data_length, magic")
@@ -11,8 +15,33 @@ Footer = collections.namedtuple(
 IndexRecord = collections.namedtuple("IndexRecord", "offset, length, name")
 
 
+def open_or_download(filename):
+    if filename.startswith("http"):
+        return download(filename)
+
+    return open(filename, "rb")
+
+
+def download(url):
+    fd = tempfile.NamedTemporaryFile()
+
+    request = urllib2.Request(url)
+    request.add_header("Accept-encoding", "gzip")
+    response = urllib2.urlopen(request)
+
+    if response.info().get("Content-Encoding") == "gzip":
+        buf = StringIO.StringIO(response.read())
+        f = gzip.GzipFile(fileobj=buf)
+        data = f.read()
+    else:
+        data = response.read()
+
+    fd.write(data)
+    return fd
+
+
 def check_tablet(filename):
-    with open(filename, "rb") as fd:
+    with open_or_download(filename) as fd:
         print "[ %s ]" % filename
         print "checking footer..."
         foot = check_footer(fd)
@@ -111,10 +140,10 @@ def read_raw(fd):
         length = flag & 0b11111
     elif flag == 0xda:
         # raw 16
-        length = struct.unpack(">H", fd.read(2))
+        length, = struct.unpack(">H", fd.read(2))
     elif flag == 0xdb:
         # raw 32
-        length = struct.unpack(">I", fd.read(4))
+        length, = struct.unpack(">I", fd.read(4))
     elif flag == 0xc0:
         # nil
         return None
