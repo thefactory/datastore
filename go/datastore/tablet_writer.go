@@ -30,21 +30,55 @@ type IndexRecord struct {
 	name   []byte
 }
 
-func WriteTablet(w io.Writer, kvs []*KV) {
+type TabletOptions struct {
+	BlockSize uint32
+}
+
+func WriteTablet(w io.Writer, kvs Iterator, opts *TabletOptions) {
 	headLen := uint64(writeHeader(w))
-	dataLen, _ := writeKvs(w, kvs)
+	dataBlocks := writeDataBlocks(w, kvs, headLen, opts)
 	metaIndexLen := writeIndex(w, metaIndexMagic, nil)
+
+	lastBlock := dataBlocks[len(dataBlocks)-1]
+	dataLen := lastBlock.offset + uint64(lastBlock.length)
 
 	// For the moment we only support one data index record, so
 	// its length must be cast to uint32 to fit.
-	rec := IndexRecord{headLen, uint32(dataLen), kvs[0].Key}
-	dataIndexLen := writeIndex(w, dataIndexMagic, []IndexRecord{rec})
+	dataIndexLen := writeIndex(w, dataIndexMagic, dataBlocks)
 
-	metaIndexHandle := BlockHandle{headLen + dataLen, metaIndexLen}
-	dataIndexHandle := BlockHandle{headLen + dataLen + metaIndexLen,
-		dataIndexLen}
+	metaIndexHandle := BlockHandle{dataLen, metaIndexLen}
+	dataIndexHandle := BlockHandle{dataLen + metaIndexLen, dataIndexLen}
 
 	writeFooter(w, metaIndexHandle, dataIndexHandle)
+}
+
+func writeDataBlocks(w io.Writer, kvs Iterator, pos uint64, opts *TabletOptions) []*IndexRecord {
+	blocks := make([]*IndexRecord, 0)
+
+	for kvs.Next() {
+		var thisBlock *IndexRecord
+		if len(blocks) > 0 {
+			thisBlock = blocks[len(blocks)-1]
+		}
+
+		if thisBlock == nil || thisBlock.length > opts.BlockSize {
+			thisBlock = &IndexRecord{pos, 0, kvs.Key()}
+			blocks = append(blocks, thisBlock)
+		}
+
+		rec := writeKv(w, kvs.Key(), kvs.Value())
+		thisBlock.length += rec
+		pos += uint64(rec)
+	}
+
+	return blocks
+}
+
+func writeKv(w io.Writer, key []byte, value []byte) uint32 {
+	keyCount := writeRaw(w, key)
+	valCount := writeRaw(w, value)
+
+	return keyCount + valCount
 }
 
 func writeKvs(w io.Writer, kvs []*KV) (uint64, error) {
@@ -101,7 +135,7 @@ func writeUint64(w io.Writer, n uint64) uint32 {
 	return uint32(n1) + 8
 }
 
-func writeIndex(w io.Writer, magic uint32, recs []IndexRecord) uint64 {
+func writeIndex(w io.Writer, magic uint32, recs []*IndexRecord) uint64 {
 	binary.Write(w, binary.BigEndian, magic)
 
 	var n uint64
