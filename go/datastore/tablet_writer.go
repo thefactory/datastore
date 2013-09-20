@@ -30,7 +30,7 @@ type IndexRecord struct {
 	name   []byte
 }
 
-func WriteTablet(w io.Writer, kvs []KV) {
+func WriteTablet(w io.Writer, kvs []*KV) {
 	headLen := uint64(writeHeader(w))
 	dataLen, _ := writeKvs(w, kvs)
 	metaIndexLen := writeIndex(w, metaIndexMagic, nil)
@@ -47,7 +47,7 @@ func WriteTablet(w io.Writer, kvs []KV) {
 	writeFooter(w, metaIndexHandle, dataIndexHandle)
 }
 
-func writeKvs(w io.Writer, kvs []KV) (uint64, error) {
+func writeKvs(w io.Writer, kvs []*KV) (uint64, error) {
 	var count uint64
 
 	for i, kv := range kvs {

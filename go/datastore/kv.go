@@ -10,34 +10,17 @@ type KV struct {
 	Value []byte
 }
 
-func Sort(kvs []KV) {
-	bytes := func(kv1, kv2 *KV) bool {
-		return bytes.Compare(kv1.Key, kv2.Key) < 0
-	}
+type KVs []*KV
 
-	By(bytes).Sort(kvs)
+func (kvs KVs) Len() int      { return len(kvs) }
+func (kvs KVs) Swap(i, j int) { kvs[i], kvs[j] = kvs[j], kvs[i] }
+
+type ByBytes struct{ KVs }
+
+func (kvs ByBytes) Less(i, j int) bool {
+	return bytes.Compare(kvs.KVs[i].Key, kvs.KVs[j].Key) < 0
 }
 
-type By func(kv1, kv2 *KV) bool
-
-func (by By) Sort(kvs []KV) {
-	sorter := &kvSorter{kvs: kvs, by: by}
-	sort.Sort(sorter)
-}
-
-type kvSorter struct {
-	kvs []KV
-	by  func(kv1, kv2 *KV) bool
-}
-
-func (s *kvSorter) Len() int {
-	return len(s.kvs)
-}
-
-func (s *kvSorter) Swap(i, j int) {
-	s.kvs[i], s.kvs[j] = s.kvs[j], s.kvs[i]
-}
-
-func (s *kvSorter) Less(i, j int) bool {
-	return s.by(&s.kvs[i], &s.kvs[j])
+func Sort(kvs []*KV) {
+	sort.Sort(ByBytes{kvs})
 }
