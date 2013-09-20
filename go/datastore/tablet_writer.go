@@ -39,12 +39,10 @@ func WriteTablet(w io.Writer, kvs Iterator, opts *TabletOptions) {
 	dataBlocks := writeDataBlocks(w, kvs, headLen, opts)
 	metaIndexLen := writeIndex(w, metaIndexMagic, nil)
 
+	dataIndexLen := writeIndex(w, dataIndexMagic, dataBlocks)
+
 	lastBlock := dataBlocks[len(dataBlocks)-1]
 	dataLen := lastBlock.offset + uint64(lastBlock.length)
-
-	// For the moment we only support one data index record, so
-	// its length must be cast to uint32 to fit.
-	dataIndexLen := writeIndex(w, dataIndexMagic, dataBlocks)
 
 	metaIndexHandle := BlockHandle{dataLen, metaIndexLen}
 	dataIndexHandle := BlockHandle{dataLen + metaIndexLen, dataIndexLen}
