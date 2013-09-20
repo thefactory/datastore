@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	footerMagic    uint32 = 0x0b501e7e
+	tabletMagic    uint32 = 0x0b501e7e
 	metaIndexMagic uint32 = 0x0ea7da7a
 	dataIndexMagic uint32 = 0xda7aba5e
 
@@ -31,18 +31,18 @@ type IndexRecord struct {
 }
 
 func WriteTablet(w io.Writer, kvs []KV) {
-	firstKey := kvs[0].Key
-
+	headLen := uint64(writeHeader(w))
 	dataLen, _ := writeKvs(w, kvs)
 	metaIndexLen := writeIndex(w, metaIndexMagic, nil)
 
 	// For the moment we only support one data index record, so
 	// its length must be cast to uint32 to fit.
-	rec := IndexRecord{0, uint32(dataLen), firstKey}
+	rec := IndexRecord{headLen, uint32(dataLen), kvs[0].Key}
 	dataIndexLen := writeIndex(w, dataIndexMagic, []IndexRecord{rec})
 
-	metaIndexHandle := BlockHandle{dataLen, metaIndexLen}
-	dataIndexHandle := BlockHandle{dataLen + metaIndexLen, dataIndexLen}
+	metaIndexHandle := BlockHandle{headLen + dataLen, metaIndexLen}
+	dataIndexHandle := BlockHandle{headLen + dataLen + metaIndexLen,
+		dataIndexLen}
 
 	writeFooter(w, metaIndexHandle, dataIndexHandle)
 }
@@ -115,10 +115,18 @@ func writeIndex(w io.Writer, magic uint32, recs []IndexRecord) uint64 {
 	return n + 4
 }
 
+func writeHeader(w io.Writer) uint32 {
+	binary.Write(w, binary.BigEndian, tabletMagic)
+	binary.Write(w, binary.BigEndian, uint32(0))
+
+	// bytes written
+	return 8
+}
+
 func writeFooter(w io.Writer, meta BlockHandle, data BlockHandle) {
 	writeUint64(w, meta.offset)
 	writeUint64(w, meta.length)
 	writeUint64(w, data.offset)
 	writeUint64(w, data.length)
-	binary.Write(w, binary.BigEndian, footerMagic)
+	binary.Write(w, binary.BigEndian, tabletMagic)
 }

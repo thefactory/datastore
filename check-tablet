@@ -43,6 +43,9 @@ def download(url):
 def check_tablet(filename):
     with open_or_download(filename) as fd:
         print "[ %s ]" % filename
+        print "checking header..."
+        head = check_header(fd)
+
         print "checking footer..."
         foot = check_footer(fd)
 
@@ -51,8 +54,16 @@ def check_tablet(filename):
         print "checking data index..."
         check_data_index(fd, foot.data_offset, foot.data_length)
 
-        print "checking data..."
-        check_data(fd, foot.meta_offset)
+
+def check_header(fd):
+    # 4 byte magic number
+    # 1 byte block format indicator
+    # 3 bytes (reserved)
+    fd.seek(0, os.SEEK_SET)
+    header = struct.unpack(">II", fd.read(8))
+
+    assert header[0] == 0x0b501e7e, "[header] bad tablet magic number"
+    assert header[1] == 0x00000000, "[header] bad block format indicator"
 
 
 def check_footer(fd):
@@ -66,7 +77,7 @@ def check_footer(fd):
     foot_start = fd.tell()
     footer = struct.unpack(">BQBQBQBQI", fd.read(40))
 
-    assert footer[-1] == 0x0b501e7e, "bad tablet magic number"
+    assert footer[-1] == 0x0b501e7e, "[footer] bad tablet magic number"
 
     assert footer[0] == 0xcf, "[footer] meta offset not uint64"
     assert footer[2] == 0xcf, "[footer] meta length not uint64"
@@ -102,11 +113,17 @@ def check_meta_index(fd, meta_offset, meta_length):
     magic, = struct.unpack(">I", fd.read(4))
     assert magic == 0x0ea7da7a, "[meta index] bad magic number"
 
+    blocks = []
     while fd.tell() < meta_offset + meta_length:
         record = read_index_record(fd)
         assert record.offset + record.length < meta_offset
+        blocks.append(record)
 
     assert fd.tell() == meta_offset + meta_length
+
+    for i, block in enumerate(blocks):
+        print "checking meta block %d" % enumerate
+        check_data_block(fd, block)
 
 
 def check_data_index(fd, data_offset, data_length):
@@ -115,22 +132,17 @@ def check_data_index(fd, data_offset, data_length):
     magic, = struct.unpack(">I", fd.read(4))
     assert magic == 0xda7aba5e, "[data index] bad magic number"
 
+    blocks = []
     while fd.tell() < data_offset + data_length:
         record = read_index_record(fd)
         assert record.offset + record.length < data_offset
-
-        check_first_key(fd, record.offset, record.name)
+        blocks.append(record)
 
     assert fd.tell() == data_offset + data_length
 
-
-def check_first_key(fd, offset, name):
-    here = fd.tell()
-    try:
-        fd.seek(offset, os.SEEK_SET)
-        assert name == read_raw(fd), "[data index] bad first key for block"
-    finally:
-        fd.seek(here, os.SEEK_SET)
+    for i, block in enumerate(blocks):
+        print "checking data block %d" % i
+        check_data_block(fd, block)
 
 
 def read_raw(fd):
@@ -163,20 +175,20 @@ def read_data_items(fd, offset, length):
         yield key, value
 
 
-def check_data(fd, meta_offset):
-    # make sure data is in order
-    # make sure data ends exactly at meta index
-
+def check_data_block(fd, block):
     prev_key = None
-    for key, value in read_data_items(fd, 0, meta_offset):
+
+    for key, value in read_data_items(fd, block.offset, block.length):
         assert key is not None
 
-        if prev_key is not None:
-            assert prev_key < key
+        if prev_key is None:
+            assert key == block.name, "[block] bad block first key"
+        else:
+            assert prev_key < key, "[block] out of order data"
 
         prev_key = key
 
-    assert fd.tell() == meta_offset
+    assert fd.tell() == block.offset + block.length
 
 
 parser = argparse.ArgumentParser(description="Check Datastore tablets")
