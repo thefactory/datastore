@@ -1,31 +1,69 @@
 package datastore
 
 import (
-	"bytes"
-	"testing"
+	. "launchpad.net/gocheck"
 )
 
-func Test_SliceIterator(t *testing.T) {
+type SliceIteratorSuite struct{}
+
+var _ = Suite(&SliceIteratorSuite{})
+
+func SimpleData() []*KV {
 	kvs := []*KV{
-		{[]byte("foo"), []byte("bar")},
 		{[]byte("bar"), []byte("baz")},
+		{[]byte("foo"), []byte("bar")},
 	}
 
-	expected := [][]byte{[]byte("foo"), []byte("bar")}
+	Sort(kvs)
+	return kvs
+}
 
-	iter := NewSliceIterator(kvs)
+func (s *SliceIteratorSuite) TestSliceIterator(c *C) {
+	iter := NewSliceIterator(SimpleData())
+	CheckSimpleIterator(c, iter)
+}
 
-	for _, key := range expected {
-		if !iter.Next() {
-			t.Error("Early end of iterator")
-		}
+func (s *SliceIteratorSuite) TestSliceFind(c *C) {
+	iter := NewSliceIterator(SimpleData())
+	CheckSimpleIterator(c, iter)
+}
 
-		if bytes.Compare(iter.Key(), key) != 0 {
-			t.Error("Bad key from iterator: ", string(key))
-		}
-	}
+func CheckSimpleIterator(c *C, iter Iterator) {
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(iter.Key(), DeepEquals, []byte("bar"))
+	c.Assert(iter.Value(), DeepEquals, []byte("baz"))
 
-	if iter.Next() {
-		t.Error("Iterator should be finished")
-	}
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(iter.Key(), DeepEquals, []byte("foo"))
+	c.Assert(iter.Value(), DeepEquals, []byte("bar"))
+
+	c.Assert(iter.Next(), Equals, false)
+	c.Assert(iter.Key(), IsNil)
+	c.Assert(iter.Value(), IsNil)
+}
+
+func CheckSimpleFind(c *C, iter Iterator) {
+	// seek to nil
+	iter.Find(nil)
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(iter.Key(), DeepEquals, []byte("bar"))
+
+	// seek before the first element
+	iter.Find([]byte("ba"))
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(iter.Key(), DeepEquals, []byte("bar"))
+
+	// seek to the actual first element
+	iter.Find([]byte("bar"))
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(iter.Key(), DeepEquals, []byte("bar"))
+
+	// seek to the actual second element
+	iter.Find([]byte("foo"))
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(iter.Key(), DeepEquals, []byte("foo"))
+
+	// seek beyond the last element
+	iter.Find([]byte("fooo"))
+	c.Assert(iter.Next(), Equals, false)
 }

@@ -35,7 +35,7 @@ type TabletOptions struct {
 }
 
 func WriteTablet(w io.Writer, kvs Iterator, opts *TabletOptions) {
-	headLen := uint64(writeHeader(w))
+	headLen := uint64(writeHeader(w, opts))
 	dataBlocks := writeDataBlocks(w, kvs, headLen, opts)
 	metaIndexLen := writeIndex(w, metaIndexMagic, nil)
 
@@ -68,6 +68,8 @@ func writeDataBlocks(w io.Writer, kvs Iterator, pos uint64, opts *TabletOptions)
 		thisBlock.length += rec
 		pos += uint64(rec)
 	}
+
+	kvs.Close()
 
 	return blocks
 }
@@ -147,7 +149,7 @@ func writeIndex(w io.Writer, magic uint32, recs []*IndexRecord) uint64 {
 	return n + 4
 }
 
-func writeHeader(w io.Writer) uint32 {
+func writeHeader(w io.Writer, opts *TabletOptions) uint32 {
 	binary.Write(w, binary.BigEndian, tabletMagic)
 	binary.Write(w, binary.BigEndian, uint32(0))
 
