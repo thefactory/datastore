@@ -21,6 +21,11 @@ func (s *TabletSuite) TestRawBlockIterator(c *C) {
 	CheckSimpleIterator(c, iter)
 }
 
+func (s *TabletSuite) TestEmptyRawBlockIterator(c *C) {
+	iter := NewRawBlockIterator([]byte{})
+	c.Assert(iter.Next(), Equals, false)
+}
+
 func (s *TabletSuite) TestRawBlockFind(c *C) {
 	// bar -> baz, foo -> bar
 	block := []byte{
@@ -33,12 +38,10 @@ func (s *TabletSuite) TestRawBlockFind(c *C) {
 }
 
 func (s *TabletSuite) TestSimpleEncodeDecode(c *C) {
-	kvs := []*KV{
-		{[]byte("bar"), []byte("baz")},
-		{[]byte("foo"), []byte("bar")},
-	}
+	kvs := SimpleData()
 
 	CheckEncodeDecode(c, kvs, &TabletOptions{BlockSize: 4096})
+	CheckEncodeDecode(c, kvs, &TabletOptions{BlockSize: 1})
 }
 
 func CheckEncodeDecode(c *C, kvs []*KV, opts *TabletOptions) {
@@ -63,4 +66,32 @@ func CheckEncodeDecode(c *C, kvs []*KV, opts *TabletOptions) {
 	c.Check(i, Equals, len(kvs))
 
 	os.Remove(file.Name())
+}
+
+func (s *TabletSuite) TestTabletIterator(c *C) {
+	file, err := ioutil.TempFile("", "tablet_test")
+	c.Check(err, IsNil)
+
+	opts := &TabletOptions{BlockSize: 4096}
+	WriteTablet(file, NewSliceIterator(SimpleData()), opts)
+	file.Close()
+
+	tab, err := OpenTabletFile(file.Name())
+	c.Check(err, IsNil)
+
+	CheckSimpleIterator(c, tab.Iterator())
+}
+
+func (s *TabletSuite) TestTabletFind(c *C) {
+	file, err := ioutil.TempFile("", "tablet_test")
+	c.Check(err, IsNil)
+
+	opts := &TabletOptions{BlockSize: 4096}
+	WriteTablet(file, NewSliceIterator(SimpleData()), opts)
+	file.Close()
+
+	tab, err := OpenTabletFile(file.Name())
+	c.Check(err, IsNil)
+
+	CheckSimpleFind(c, tab.Iterator())
 }
