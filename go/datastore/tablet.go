@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -24,7 +25,7 @@ type Tablet struct {
 
 type Header struct {
 	magic         uint32
-	blockEncoding uint8
+	blockEncoding BlockEncodingType
 	future1       uint8
 	future2       uint8
 	future3       uint8
@@ -38,7 +39,7 @@ type Footer struct {
 	magic      uint32
 }
 
-type BlockEncodingType int
+type BlockEncodingType uint8
 
 const (
 	// msgpack-encoded key-value pairs, raw(key1) raw(val1) raw(key2) ...
@@ -49,6 +50,12 @@ func OpenTablet(r TabletFile) (*Tablet, error) {
 	header, err := readHeader(r)
 	if err != nil {
 		return nil, err
+	}
+
+	if header.blockEncoding > Raw {
+		msg := fmt.Sprintf("unsupported block encoding: 0x%x",
+			header.blockEncoding)
+		return nil, errors.New(msg)
 	}
 
 	footer, err := readFooter(r)
@@ -80,16 +87,34 @@ func readHeader(r io.Reader) (*Header, error) {
 		return nil, err
 	}
 
-	if magic != tabletMagic {
-		return nil, errors.New("bad magic number in header")
-	}
-
 	err = binary.Read(r, binary.BigEndian, &flags)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Header{magic, flags[0], flags[1], flags[2], flags[3]}, nil
+	h := Header{magic, BlockEncodingType(flags[0]),
+		flags[1], flags[2], flags[3]}
+
+	err = validateHeader(&h)
+	if err != nil {
+		return nil, err
+	}
+
+	return &h, nil
+}
+
+func validateHeader(h *Header) error {
+	if h.magic != tabletMagic {
+		return errors.New("bad magic number in header")
+	}
+
+	if h.blockEncoding > Raw {
+		msg := fmt.Sprintf("unknown block encoding: 0x%x",
+			h.blockEncoding)
+		return errors.New(msg)
+	}
+
+	return nil
 }
 
 func readFooter(r TabletFile) (*Footer, error) {

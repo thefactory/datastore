@@ -153,7 +153,7 @@ func writeBinary(w io.Writer, data interface{}) (uint32, error) {
 }
 
 func writeHeader(w io.Writer, opts *TabletOptions) uint32 {
-	h := Header{tabletMagic, uint8(opts.BlockEncoding), 0, 0, 0}
+	h := Header{tabletMagic, opts.BlockEncoding, 0, 0, 0}
 	n, _ := writeBinary(w, &h)
 	return n
 }
