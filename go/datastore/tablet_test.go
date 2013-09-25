@@ -42,6 +42,8 @@ func (s *TabletSuite) TestSimpleEncodeDecode(c *C) {
 
 	CheckEncodeDecode(c, kvs, &TabletOptions{BlockSize: 4096})
 	CheckEncodeDecode(c, kvs, &TabletOptions{BlockSize: 1})
+	CheckEncodeDecode(c, kvs, &TabletOptions{BlockSize: 4096,
+		BlockCompression: Snappy})
 }
 
 func CheckEncodeDecode(c *C, kvs []*KV, opts *TabletOptions) {
@@ -58,8 +60,8 @@ func CheckEncodeDecode(c *C, kvs []*KV, opts *TabletOptions) {
 
 	var i int
 	for i = 0; iter.Next(); i++ {
-		c.Check(iter.Key(), DeepEquals, kvs[i].Key)
-		c.Check(iter.Value(), DeepEquals, kvs[i].Value)
+		c.Assert(iter.Key(), DeepEquals, kvs[i].Key)
+		c.Assert(iter.Value(), DeepEquals, kvs[i].Value)
 	}
 
 	// ensure all the expected elements were checked

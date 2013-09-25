@@ -2,6 +2,7 @@ package datastore
 
 import (
 	"bytes"
+	"code.google.com/p/snappy-go/snappy"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -24,11 +25,11 @@ type Tablet struct {
 }
 
 type Header struct {
-	magic         uint32
-	blockEncoding BlockEncodingType
-	future1       uint8
-	future2       uint8
-	future3       uint8
+	magic            uint32
+	blockEncoding    BlockEncodingType
+	blockCompression BlockCompressionType
+	future1          uint8
+	future2          uint8
 }
 
 type Footer struct {
@@ -38,6 +39,13 @@ type Footer struct {
 	dataLength uint64
 	magic      uint32
 }
+
+type BlockCompressionType uint8
+
+const (
+	None BlockCompressionType = iota
+	Snappy
+)
 
 type BlockEncodingType uint8
 
@@ -93,7 +101,7 @@ func readHeader(r io.Reader) (*Header, error) {
 	}
 
 	h := Header{magic, BlockEncodingType(flags[0]),
-		flags[1], flags[2], flags[3]}
+		BlockCompressionType(flags[1]), flags[2], flags[3]}
 
 	err = validateHeader(&h)
 	if err != nil {
@@ -111,6 +119,12 @@ func validateHeader(h *Header) error {
 	if h.blockEncoding > Raw {
 		msg := fmt.Sprintf("unknown block encoding: 0x%x",
 			h.blockEncoding)
+		return errors.New(msg)
+	}
+
+	if h.blockCompression > Snappy {
+		msg := fmt.Sprintf("unknown block compression: 0x%x",
+			h.blockCompression)
 		return errors.New(msg)
 	}
 
@@ -152,7 +166,7 @@ func readIndex(r TabletFile, magic uint32, offset uint64, length uint64) ([]*Ind
 	var head uint32
 	binary.Read(br, binary.BigEndian, &head)
 	if head != magic {
-		return nil, errors.New("unexpected magic number in index")
+		return nil, errors.New(fmt.Sprintf("unexpected magic number in index: %x (wanted %x)", head, magic))
 	}
 
 	return readIndexRecords(br), nil
@@ -267,10 +281,30 @@ func (iter *RawBlockIterator) Close() error {
 // A key-value iterator for a single block
 func (t *Tablet) BlockIterator(rec *IndexRecord) Iterator {
 	buf := make([]byte, rec.length)
-
 	t.r.ReadAt(buf, int64(rec.offset))
 
-	return NewRawBlockIterator(buf)
+	block, _ := decompress(t.header.blockCompression, buf)
+
+	return NewRawBlockIterator(block)
+}
+
+func decompress(t BlockCompressionType, input []byte) ([]byte, error) {
+	switch t {
+	case Snappy:
+		// Even a compressed file may contain uncompressed
+		// blocks if there was no space savings. Use the first
+		// byte as a flag.
+		flag := input[0]
+		data := input[1:len(input)]
+
+		if BlockCompressionType(flag) == None {
+			return data, nil
+		}
+
+		return snappy.Decode(nil, data)
+	default:
+		return input, nil
+	}
 }
 
 func (t *Tablet) Iterator() Iterator {

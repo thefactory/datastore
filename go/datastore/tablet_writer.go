@@ -2,6 +2,7 @@ package datastore
 
 import (
 	"bytes"
+	"code.google.com/p/snappy-go/snappy"
 	"encoding/binary"
 	"io"
 	"log"
@@ -31,8 +32,9 @@ type IndexRecord struct {
 }
 
 type TabletOptions struct {
-	BlockSize     uint32
-	BlockEncoding BlockEncodingType
+	BlockSize        uint32
+	BlockEncoding    BlockEncodingType
+	BlockCompression BlockCompressionType
 }
 
 func WriteTablet(w io.Writer, kvs Iterator, opts *TabletOptions) {
@@ -56,13 +58,15 @@ func writeDataBlocks(w io.Writer, kvs Iterator, pos uint64, opts *TabletOptions)
 	builder := NewBlockBuilder(opts)
 
 	finishBlock := func(builder BlockBuilder) {
-		firstKey, data := builder.Finish()
+		firstKey, block := builder.Finish()
 		if firstKey != nil {
-			rec := &IndexRecord{pos, uint32(len(data)), firstKey}
-			index = append(index, rec)
+			comp, _ := compress(opts.BlockCompression, block)
 
-			w.Write(data)
-			pos += uint64(rec.length)
+			index = append(index,
+				&IndexRecord{pos, uint32(len(comp)), firstKey})
+
+			w.Write(comp)
+			pos += uint64(len(comp))
 			builder.Reset()
 		}
 	}
@@ -87,6 +91,27 @@ func writeDataBlocks(w io.Writer, kvs Iterator, pos uint64, opts *TabletOptions)
 	finishBlock(builder)
 
 	return index
+}
+
+func compress(t BlockCompressionType, input []byte) ([]byte, error) {
+	var buf bytes.Buffer
+
+	switch t {
+	case Snappy:
+		comp, err := snappy.Encode(nil, input)
+		if len(comp) > len(input) {
+			// no gains, write an uncompressed block
+			buf.Write([]byte{byte(None)})
+			buf.Write(input)
+			return buf.Bytes(), err
+		} else {
+			buf.Write([]byte{byte(Snappy)})
+			buf.Write(comp)
+			return buf.Bytes(), err
+		}
+	default:
+		return input, nil
+	}
 }
 
 func writeKv(w io.Writer, key []byte, value []byte) uint32 {
@@ -153,7 +178,7 @@ func writeBinary(w io.Writer, data interface{}) (uint32, error) {
 }
 
 func writeHeader(w io.Writer, opts *TabletOptions) uint32 {
-	h := Header{tabletMagic, opts.BlockEncoding, 0, 0, 0}
+	h := Header{tabletMagic, opts.BlockEncoding, opts.BlockCompression, 0, 0}
 	n, _ := writeBinary(w, &h)
 	return n
 }
