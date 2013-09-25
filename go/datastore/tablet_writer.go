@@ -31,7 +31,8 @@ type IndexRecord struct {
 }
 
 type TabletOptions struct {
-	BlockSize uint32
+	BlockSize     uint32
+	BlockEncoding BlockEncodingType
 }
 
 func WriteTablet(w io.Writer, kvs Iterator, opts *TabletOptions) {
@@ -51,27 +52,41 @@ func WriteTablet(w io.Writer, kvs Iterator, opts *TabletOptions) {
 }
 
 func writeDataBlocks(w io.Writer, kvs Iterator, pos uint64, opts *TabletOptions) []*IndexRecord {
-	blocks := make([]*IndexRecord, 0)
+	index := make([]*IndexRecord, 0)
+	builder := NewBlockBuilder(opts)
 
+	finishBlock := func(builder BlockBuilder) {
+		firstKey, data := builder.Finish()
+		if firstKey != nil {
+			rec := &IndexRecord{pos, uint32(len(data)), firstKey}
+			index = append(index, rec)
+
+			w.Write(data)
+			pos += uint64(rec.length)
+			builder.Reset()
+		}
+	}
+
+	var prevKey []byte
 	for kvs.Next() {
-		var thisBlock *IndexRecord
-		if len(blocks) > 0 {
-			thisBlock = blocks[len(blocks)-1]
+		key := kvs.Key()
+		if prevKey != nil && bytes.Compare(prevKey, key) >= 0 {
+			log.Printf("writing non-increasing keys: %s -> %s",
+				prevKey, key)
 		}
 
-		if thisBlock == nil || thisBlock.length > opts.BlockSize {
-			thisBlock = &IndexRecord{pos, 0, kvs.Key()}
-			blocks = append(blocks, thisBlock)
-		}
+		builder.Append(kvs.Key(), kvs.Value())
 
-		rec := writeKv(w, kvs.Key(), kvs.Value())
-		thisBlock.length += rec
-		pos += uint64(rec)
+		if builder.Size() > opts.BlockSize {
+			finishBlock(builder)
+		}
 	}
 
 	kvs.Close()
 
-	return blocks
+	finishBlock(builder)
+
+	return index
 }
 
 func writeKv(w io.Writer, key []byte, value []byte) uint32 {
@@ -79,24 +94,6 @@ func writeKv(w io.Writer, key []byte, value []byte) uint32 {
 	valCount := writeRaw(w, value)
 
 	return keyCount + valCount
-}
-
-func writeKvs(w io.Writer, kvs []*KV) (uint64, error) {
-	var count uint64
-
-	for i, kv := range kvs {
-		if i > 0 && bytes.Compare(kvs[i-1].Key, kv.Key) >= 0 {
-			log.Printf("writing non-increasing keys: %s -> %s",
-				kvs[i-1].Key, kv.Key)
-		}
-
-		keyCount := writeRaw(w, kv.Key)
-		valCount := writeRaw(w, kv.Value)
-
-		count += uint64(keyCount) + uint64(valCount)
-	}
-
-	return count, nil
 }
 
 func writeRaw(w io.Writer, raw []byte) uint32 {
@@ -149,12 +146,16 @@ func writeIndex(w io.Writer, magic uint32, recs []*IndexRecord) uint64 {
 	return n + 4
 }
 
-func writeHeader(w io.Writer, opts *TabletOptions) uint32 {
-	binary.Write(w, binary.BigEndian, tabletMagic)
-	binary.Write(w, binary.BigEndian, uint32(0))
+func writeBinary(w io.Writer, data interface{}) (uint32, error) {
+	n := uint32(binary.Size(data))
+	err := binary.Write(w, binary.BigEndian, data)
+	return n, err
+}
 
-	// bytes written
-	return 8
+func writeHeader(w io.Writer, opts *TabletOptions) uint32 {
+	h := Header{tabletMagic, uint8(opts.BlockEncoding), 0, 0, 0}
+	n, _ := writeBinary(w, &h)
+	return n
 }
 
 func writeFooter(w io.Writer, meta BlockHandle, data BlockHandle) {
@@ -163,4 +164,55 @@ func writeFooter(w io.Writer, meta BlockHandle, data BlockHandle) {
 	writeUint64(w, data.offset)
 	writeUint64(w, data.length)
 	binary.Write(w, binary.BigEndian, tabletMagic)
+}
+
+type BlockBuilder interface {
+	Append(key []byte, value []byte)
+	Size() uint32
+
+	// returns the first key and the encoded key-value block
+	Finish() ([]byte, []byte)
+	Reset()
+}
+
+func NewBlockBuilder(opts *TabletOptions) BlockBuilder {
+	switch opts.BlockEncoding {
+	case Raw:
+		return NewRawBlockBuilder(opts)
+	default:
+		return nil
+	}
+}
+
+type RawBlockBuilder struct {
+	opts     *TabletOptions
+	buf      *bytes.Buffer
+	firstKey []byte
+}
+
+func NewRawBlockBuilder(opts *TabletOptions) *RawBlockBuilder {
+	// initialize to 2*BlockSize to minimize resizes
+	buf := bytes.NewBuffer(make([]byte, 0, 2*opts.BlockSize))
+	return &RawBlockBuilder{opts, buf, nil}
+}
+
+func (b *RawBlockBuilder) Append(key []byte, value []byte) {
+	if b.buf.Len() == 0 {
+		b.firstKey = key
+	}
+
+	writeKv(b.buf, key, value)
+}
+
+func (b *RawBlockBuilder) Size() uint32 {
+	return uint32(b.buf.Len())
+}
+
+func (b *RawBlockBuilder) Finish() (firstKey []byte, buf []byte) {
+	return b.firstKey, b.buf.Bytes()
+}
+
+func (b *RawBlockBuilder) Reset() {
+	b.firstKey = nil
+	b.buf.Reset()
 }

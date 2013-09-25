@@ -23,8 +23,11 @@ type Tablet struct {
 }
 
 type Header struct {
-	magic     uint32
-	blockType byte
+	magic         uint32
+	blockEncoding uint8
+	future1       uint8
+	future2       uint8
+	future3       uint8
 }
 
 type Footer struct {
@@ -69,7 +72,9 @@ func OpenTabletFile(path string) (*Tablet, error) {
 }
 
 func readHeader(r io.Reader) (*Header, error) {
-	var magic, flags uint32
+	var magic uint32
+	var flags [4]byte
+
 	err := binary.Read(r, binary.BigEndian, &magic)
 	if err != nil {
 		return nil, err
@@ -84,7 +89,7 @@ func readHeader(r io.Reader) (*Header, error) {
 		return nil, err
 	}
 
-	return &Header{magic, byte(flags >> 24)}, nil
+	return &Header{magic, flags[0], flags[1], flags[2], flags[3]}, nil
 }
 
 func readFooter(r TabletFile) (*Footer, error) {
