@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"code.google.com/p/snappy-go/snappy"
 	"encoding/binary"
+	"errors"
 	"io"
 	"log"
 )
@@ -13,6 +14,9 @@ const (
 	metaIndexMagic uint32 = 0x0ea7da7a
 	dataIndexMagic uint32 = 0xda7aba5e
 
+	msgFixPos byte = 0x00
+	msgUint8  byte = 0xcc
+	msgUint16 byte = 0xcd
 	msgUint32 byte = 0xce
 	msgUint64 byte = 0xcf
 	msgFixRaw byte = 0xa0
@@ -32,9 +36,10 @@ type IndexRecord struct {
 }
 
 type TabletOptions struct {
-	BlockSize        uint32
-	BlockEncoding    BlockEncodingType
-	BlockCompression BlockCompressionType
+	BlockSize          uint32
+	BlockEncoding      BlockEncodingType
+	BlockCompression   BlockCompressionType
+	KeyRestartInterval uint
 }
 
 func WriteTablet(w io.Writer, kvs Iterator, opts *TabletOptions) {
@@ -141,6 +146,24 @@ func writeRawHeader(w io.Writer, n int) uint32 {
 		binary.Write(w, binary.BigEndian, uint32(n))
 		return 5
 	}
+}
+
+func writeUint(w io.Writer, n uint) (int, error) {
+	if n <= 0x7f {
+		return w.Write([]byte{byte(n)})
+	} else if n <= 0xff {
+		return w.Write([]byte{msgUint8, byte(n)})
+	} else if n <= 0xffff {
+		w.Write([]byte{msgUint16})
+		err := binary.Write(w, binary.BigEndian, uint16(n))
+		return 3, err
+	} else if n <= 0xffffffff {
+		w.Write([]byte{msgUint32})
+		err := binary.Write(w, binary.BigEndian, uint32(n))
+		return 5, err
+	}
+
+	return 0, errors.New("uint too large")
 }
 
 func writeUint32(w io.Writer, n uint32) uint32 {
