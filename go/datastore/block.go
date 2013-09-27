@@ -86,24 +86,6 @@ func (b block) Find(needle []byte) Iterator {
 	return &iter
 }
 
-func peekRaw(data []byte) []byte {
-	var flag byte = data[0]
-	var ret []byte
-
-	if flag&msgFixRaw == msgFixRaw {
-		length := uint32(flag & (^msgFixRaw))
-		ret = data[1 : length+1]
-	} else if flag == msgRaw16 {
-		length := uint32(binary.BigEndian.Uint16(data[1:3]))
-		ret = data[3 : length+3]
-	} else if flag == msgRaw32 {
-		length := uint32(binary.BigEndian.Uint32(data[1:5]))
-		ret = data[5 : length+5]
-	}
-
-	return ret
-}
-
 func (iter *BlockIterator) Next() bool {
 	if iter.r.Len() == 0 {
 		iter.Close()
