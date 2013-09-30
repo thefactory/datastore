@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"code.google.com/p/snappy-go/snappy"
 	"encoding/binary"
-	"errors"
 	"io"
 	"log"
 )
@@ -13,15 +12,6 @@ const (
 	tabletMagic    uint32 = 0x0b501e7e
 	metaIndexMagic uint32 = 0x0ea7da7a
 	dataIndexMagic uint32 = 0xda7aba5e
-
-	msgFixPos byte = 0x00
-	msgUint8  byte = 0xcc
-	msgUint16 byte = 0xcd
-	msgUint32 byte = 0xce
-	msgUint64 byte = 0xcf
-	msgFixRaw byte = 0xa0
-	msgRaw16  byte = 0xda
-	msgRaw32  byte = 0xdb
 )
 
 type BlockHandle struct {
@@ -124,60 +114,6 @@ func writeKv(w io.Writer, key []byte, value []byte) uint32 {
 	valCount := writeRaw(w, value)
 
 	return keyCount + valCount
-}
-
-func writeRaw(w io.Writer, raw []byte) uint32 {
-	n1 := writeRawHeader(w, len(raw))
-	n2, _ := w.Write(raw)
-
-	return n1 + uint32(n2)
-}
-
-func writeRawHeader(w io.Writer, n int) uint32 {
-	if n < 32 {
-		binary.Write(w, binary.BigEndian, msgFixRaw|byte(n))
-		return 1
-	} else if n < 65536 {
-		w.Write([]byte{msgRaw16})
-		binary.Write(w, binary.BigEndian, uint16(n))
-		return 3
-	} else {
-		w.Write([]byte{msgRaw32})
-		binary.Write(w, binary.BigEndian, uint32(n))
-		return 5
-	}
-}
-
-func writeUint(w io.Writer, n uint) (int, error) {
-	if n <= 0x7f {
-		return w.Write([]byte{byte(n)})
-	} else if n <= 0xff {
-		return w.Write([]byte{msgUint8, byte(n)})
-	} else if n <= 0xffff {
-		w.Write([]byte{msgUint16})
-		err := binary.Write(w, binary.BigEndian, uint16(n))
-		return 3, err
-	} else if n <= 0xffffffff {
-		w.Write([]byte{msgUint32})
-		err := binary.Write(w, binary.BigEndian, uint32(n))
-		return 5, err
-	}
-
-	return 0, errors.New("uint too large")
-}
-
-func writeUint32(w io.Writer, n uint32) uint32 {
-	n1, _ := w.Write([]byte{msgUint32})
-	binary.Write(w, binary.BigEndian, n)
-
-	return uint32(n1) + 4
-}
-
-func writeUint64(w io.Writer, n uint64) uint32 {
-	n1, _ := w.Write([]byte{msgUint64})
-	binary.Write(w, binary.BigEndian, n)
-
-	return uint32(n1) + 8
 }
 
 func writeIndex(w io.Writer, magic uint32, recs []*IndexRecord) uint64 {
