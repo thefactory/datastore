@@ -47,6 +47,9 @@ type BlockIterator struct {
 	// current key and value (during iteration)
 	key   []byte
 	value []byte
+
+	// previous key
+	prevKey []byte
 }
 
 func (b block) Find(needle []byte) Iterator {
@@ -95,8 +98,14 @@ func (iter *BlockIterator) Next() bool {
 	common := readUint(iter.r)
 	keySuffix := readRaw(iter.r)
 
-	iter.key = append(iter.key[:common], keySuffix...)
+	if common > 0 {
+		iter.key = append(iter.prevKey[:common], keySuffix...)
+	} else {
+		iter.key = keySuffix
+	}
+
 	iter.value = readRaw(iter.r)
+	iter.prevKey = iter.key
 	return true
 }
 
@@ -123,5 +132,6 @@ func (iter *BlockIterator) Value() []byte {
 func (iter *BlockIterator) Close() error {
 	iter.key = nil
 	iter.value = nil
+	iter.prevKey = nil
 	return nil
 }

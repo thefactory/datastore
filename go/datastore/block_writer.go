@@ -31,6 +31,8 @@ func commonPrefix(bin1 []byte, bin2 []byte) uint {
 	for i := 0; i < length; i++ {
 		if bin1[i] == bin2[i] {
 			count++
+		} else {
+			break
 		}
 	}
 
@@ -71,5 +73,6 @@ func (b *BlockWriter) Finish() (firstKey []byte, buf []byte) {
 
 func (b *BlockWriter) Reset() {
 	b.firstKey = nil
+	b.prevKey = nil
 	b.buf.Reset()
 }
