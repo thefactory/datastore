@@ -49,7 +49,6 @@ const (
 type BlockEncodingType uint8
 
 const (
-	// msgpack-encoded key-value pairs, raw(key1) raw(val1) raw(key2) ...
 	Raw BlockEncodingType = iota
 )
 
@@ -70,8 +69,15 @@ func OpenTablet(r TabletFile) (*Tablet, error) {
 		return nil, err
 	}
 
-	metaBlocks, _ := readIndex(r, metaIndexMagic, footer.metaOffset, footer.metaLength)
-	dataBlocks, _ := readIndex(r, dataIndexMagic, footer.dataOffset, footer.dataLength)
+	metaBlocks, err := readIndex(r, metaIndexMagic, footer.metaOffset, footer.metaLength)
+	if err != nil {
+		return nil, err
+	}
+
+	dataBlocks, err := readIndex(r, dataIndexMagic, footer.dataOffset, footer.dataLength)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Tablet{r, header, metaBlocks, dataBlocks}, nil
 }
@@ -185,85 +191,38 @@ func readIndexRecords(b *bytes.Reader) []*IndexRecord {
 	return ret
 }
 
-type RawBlockIterator struct {
-	buf   *bytes.Reader
-	key   []byte
-	value []byte
-}
+func loadBlock(tf TabletFile, rec *IndexRecord) (block, error) {
+	buf := make([]byte, rec.length)
+	tf.ReadAt(buf, int64(rec.offset))
 
-func NewRawBlockIterator(data []byte) *RawBlockIterator {
-	return &RawBlockIterator{buf: bytes.NewReader(data)}
-}
+	// grab the block checksum, compression type, and length
+	r := bytes.NewReader(buf)
+	readUint(r)
+	blockType := BlockCompressionType(readUint(r))
+	length := readUint(r)
 
-func (iter *RawBlockIterator) Next() bool {
-	if iter.buf.Len() == 0 {
-		iter.key = nil
-		iter.value = nil
-		return false
+	// grab the unread bytes in buf as the block data
+	data := buf[len(buf)-int(length):]
+
+	var b block
+	var err error
+
+	if blockType == Snappy {
+		tmp, err0 := snappy.Decode(nil, data)
+		b = block(tmp)
+		err = err0
+	} else {
+		b = block(data)
 	}
 
-	iter.key = readRaw(iter.buf)
-	iter.value = readRaw(iter.buf)
-
-	return true
-}
-
-func (iter *RawBlockIterator) Find(key []byte) {
-	iter.buf.Seek(0, 0)
-
-	if key == nil {
-		return
-	}
-
-	loc := iter.buf.Len()
-	for iter.Next() && bytes.Compare(iter.Key(), key) < 0 {
-		// a raw block reader can't do better than linear search
-		loc = iter.buf.Len()
-	}
-
-	// rewind back to the best location
-	iter.buf.Seek(-int64(loc), 2)
-}
-
-func (iter *RawBlockIterator) Key() []byte {
-	return iter.key
-}
-
-func (iter *RawBlockIterator) Value() []byte {
-	return iter.value
-}
-
-func (iter *RawBlockIterator) Close() error {
-	return nil
+	return b, err
 }
 
 // A key-value iterator for a single block
 func (t *Tablet) BlockIterator(rec *IndexRecord) Iterator {
-	buf := make([]byte, rec.length)
-	t.r.ReadAt(buf, int64(rec.offset))
+	b, _ := loadBlock(t.r, rec)
 
-	block, _ := decompress(t.header.blockCompression, buf)
-
-	return NewRawBlockIterator(block)
-}
-
-func decompress(t BlockCompressionType, input []byte) ([]byte, error) {
-	switch t {
-	case Snappy:
-		// Even a compressed file may contain uncompressed
-		// blocks if there was no space savings. Use the first
-		// byte as a flag.
-		flag := input[0]
-		data := input[1:len(input)]
-
-		if BlockCompressionType(flag) == None {
-			return data, nil
-		}
-
-		return snappy.Decode(nil, data)
-	default:
-		return input, nil
-	}
+	return block(b).Find(nil)
 }
 
 func (t *Tablet) Iterator() Iterator {

@@ -10,40 +10,15 @@ type TabletSuite struct{}
 
 var _ = Suite(&TabletSuite{})
 
-func (s *TabletSuite) TestRawBlockIterator(c *C) {
-	// bar -> baz, foo -> bar
-	block := []byte{
-		0xa3, 'b', 'a', 'r', 0xa3, 'b', 'a', 'z',
-		0xa3, 'f', 'o', 'o', 0xa3, 'b', 'a', 'r',
-	}
-
-	iter := NewRawBlockIterator(block)
-	CheckSimpleIterator(c, iter)
-}
-
-func (s *TabletSuite) TestEmptyRawBlockIterator(c *C) {
-	iter := NewRawBlockIterator([]byte{})
-	c.Assert(iter.Next(), Equals, false)
-}
-
-func (s *TabletSuite) TestRawBlockFind(c *C) {
-	// bar -> baz, foo -> bar
-	block := []byte{
-		0xa3, 'b', 'a', 'r', 0xa3, 'b', 'a', 'z',
-		0xa3, 'f', 'o', 'o', 0xa3, 'b', 'a', 'r',
-	}
-
-	iter := NewRawBlockIterator(block)
-	CheckSimpleFind(c, iter)
-}
-
 func (s *TabletSuite) TestSimpleEncodeDecode(c *C) {
 	kvs := SimpleData()
 
-	CheckEncodeDecode(c, kvs, &TabletOptions{BlockSize: 4096})
-	CheckEncodeDecode(c, kvs, &TabletOptions{BlockSize: 1})
 	CheckEncodeDecode(c, kvs, &TabletOptions{BlockSize: 4096,
-		BlockCompression: Snappy})
+		KeyRestartInterval: 10})
+	CheckEncodeDecode(c, kvs, &TabletOptions{BlockSize: 1,
+		KeyRestartInterval: 10})
+	CheckEncodeDecode(c, kvs, &TabletOptions{BlockSize: 4096,
+		BlockCompression: Snappy, KeyRestartInterval: 10})
 }
 
 func CheckEncodeDecode(c *C, kvs []*KV, opts *TabletOptions) {
@@ -74,7 +49,7 @@ func (s *TabletSuite) TestTabletIterator(c *C) {
 	file, err := ioutil.TempFile("", "tablet_test")
 	c.Check(err, IsNil)
 
-	opts := &TabletOptions{BlockSize: 4096}
+	opts := &TabletOptions{BlockSize: 4096, KeyRestartInterval: 10}
 	WriteTablet(file, NewSliceIterator(SimpleData()), opts)
 	file.Close()
 
@@ -88,7 +63,7 @@ func (s *TabletSuite) TestTabletFind(c *C) {
 	file, err := ioutil.TempFile("", "tablet_test")
 	c.Check(err, IsNil)
 
-	opts := &TabletOptions{BlockSize: 4096}
+	opts := &TabletOptions{BlockSize: 4096, KeyRestartInterval: 10}
 	WriteTablet(file, NewSliceIterator(SimpleData()), opts)
 	file.Close()
 

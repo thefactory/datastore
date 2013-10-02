@@ -129,7 +129,7 @@ func readRaw(r io.Reader) []byte {
 	} else if flag == msgRaw32 {
 		binary.Read(r, binary.BigEndian, &length)
 	} else {
-		log.Printf("ERROR: bad flag in readRaw\n", flag)
+		log.Printf("ERROR: bad flag in readRaw: 0x%x", flag)
 	}
 
 	buf := make([]byte, length)
