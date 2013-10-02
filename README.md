@@ -67,6 +67,25 @@ Items are sorted by key, using lexicographical ordering. Keys and values are
 binary safe. Keys can be tombstoned with a msgpack Nil byte as their value
 (0xc0).
 
+ block packing
+--------------
+
+Each block is packed into the tablet with a checksum, a type byte, and
+its length. These are all included in the offset and length pointed to
+by the data index below.
+
+These values are msgpacked. The type byte must be one of:
+
+    0x00: uncompressed block data
+    0x01: Snappy compressed block data
+
+The key-value data (including restarts index described above) follows
+the packing information.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    [ checksum (uint32) | type (fixpos) | length (uint32) | key-value data ]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 meta block
 ----------
 
