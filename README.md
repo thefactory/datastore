@@ -26,7 +26,10 @@ data block
 ----------
 
 An uncompressed data block contains a series of key-value pairs,
-encoded as msgpack raw bytes.
+encoded as msgpack raw bytes. The type that follows the field names
+below (uint32, fixpos, etc) denotes the maximum value of that
+field. Because msgpack uints are a variable width encoding,
+e.g. uint32 may be packed in 1, 3, or 5 bytes.
 
 It contains a prefix-encoded key-value section followed by a list of
 prefix restarts. Each key is preceded by the number of bytes it has in
@@ -63,9 +66,9 @@ of the block. This can be used to search the block.
 
 Note: these are encoded as fixed 4 byte integers, not msgpack encoded.
 
-Items are sorted by key, using lexicographical ordering. Keys and values are
-binary safe. Keys can be tombstoned with a msgpack Nil byte as their value
-(0xc0).
+Items are sorted by key, using lexical ordering. Keys and values are
+binary safe. Keys can be tombstoned with a msgpack Nil byte as their
+value (0xc0).
 
  block packing
 --------------
