@@ -25,17 +25,43 @@ Block formats
 data block
 ----------
 
-An uncompressed data block contains a series of key-value pairs, encoded as
-msgpack raw bytes:
+An uncompressed data block contains a series of key-value pairs,
+encoded as msgpack raw bytes.
+
+It contains a prefix-encoded key-value section followed by a list of
+prefix restarts. Each key is preceded by the number of bytes it has in
+common with the previous key:
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[ key1 (raw) | value1 (raw) | key2 (raw) | value2 (raw) ... ]
+      # common bytes         key                           value
+    --------------------------------------------------------------
+    [ 0                      key1                          val1  ]
+    [ num_common(key1, key2) key2[num_common(key1, key2):] val2  ]
+    [ num_common(key2, key3) key3[num_common(key2, key3):] val3  ]
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The encoding can be fix raw, raw 16, or raw 32 as appropriate for the key or
-value length: [msgpack raw bytes][1]
+The common bytes are encoded as a msgpack uint, and can be positive
+fixnum, uint8, uint16, or uint32.
 
-[1]: <http://wiki.msgpack.org/display/MSGPACK/Format+specification#Formatspecification-Rawbytes>
+http://wiki.msgpack.org/display/MSGPACK/Format+specification#Formatspecification-Integers
+
+Keys and values are encoded as msgpack raw, and can be fix raw, raw
+16, or raw 32 depending on length.
+http://wiki.msgpack.org/display/MSGPACK/Format+specification#Formatspecification-fixraw
+
+Following this section is an index of the restarts (positions with 0
+common bytes), encoded as big-endian 32-bit offsets from the beginning
+of the block. This can be used to search the block.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    [ restart1 ]
+    [ restart2 ]
+    [ restart3 ]
+    [ restart4 ]
+    [ num_restarts ]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Note: these are encoded as fixed 4 byte integers, not msgpack encoded.
 
 Items are sorted by key, using lexicographical ordering. Keys and values are
 binary safe. Keys can be tombstoned with a msgpack Nil byte as their value
@@ -44,8 +70,8 @@ binary safe. Keys can be tombstoned with a msgpack Nil byte as their value
 meta block
 ----------
 
-Metadata block formats TBD. These are user-defined, but we will likely have some
-blocks with known names for commonly useful data.
+Metadata blocks are formatted the same as data blocks, but they're
+used for higher level organization by a tablet-using application.
 
  data index block
 -----------------
