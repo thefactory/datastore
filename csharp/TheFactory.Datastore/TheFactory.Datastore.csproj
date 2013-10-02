@@ -44,11 +44,16 @@
   <ItemGroup>
     <Compile Include="src\Block.cs" />
     <Compile Include="src\Helpers.cs" />
+    <Compile Include="src\Tablet.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\msgpack-cli\MsgPack.mono.iOS\MsgPack.mono.iOS.csproj">
       <Project>{88644B60-C039-40EC-8D58-67AD2454ED57}</Project>
       <Name>MsgPack.mono.iOS</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Snappy.Sharp\Snappy.Sharp.iOS\Snappy.Sharp.iOS.csproj">
+      <Project>{379A46BA-1EBB-4BD0-BEB5-B850F174E0D8}</Project>
+      <Name>Snappy.Sharp.iOS</Name>
     </ProjectReference>
   </ItemGroup>
 </Project>
