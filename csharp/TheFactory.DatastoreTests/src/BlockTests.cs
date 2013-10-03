@@ -1,23 +1,10 @@
 using System;
-using System.IO;
 using NUnit.Framework;
 using TheFactory.Datastore;
 
-namespace TheFactory.DatastoreTests
-{
+namespace TheFactory.DatastoreTests {
     [TestFixture]
-    public class BlockTests
-    {
-        private bool CompareByteArray(byte[] b1, int b1Offset, byte[] b2, int b2Offset, int count) {
-            for (var i = 0; i < count; i++) {
-                if (b1[b1Offset + i] != b2[b2Offset + i]) {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
+    public class BlockTests {
         [Test]
         public void TestBlockIterateOne() {
             // Simple block segment without key prefix.
@@ -28,8 +15,8 @@ namespace TheFactory.DatastoreTests
             var block = new Block(bytes, 0, bytes.Length);
             var count = 0;
             foreach (var p in block.Find()) {
-                Assert.True(CompareByteArray(p.Key, 0, new byte[] {1, 2, 3}, 0, p.Key.Length));
-                Assert.True(CompareByteArray(p.Value, 0, new byte[] {4, 5, 6}, 0, p.Value.Length));
+                Assert.True(p.Key.CompareBytes(0, new byte[] {1, 2, 3}, 0, p.Key.Length));
+                Assert.True(p.Value.CompareBytes(0, new byte[] {4, 5, 6}, 0, p.Value.Length));
                 count += 1;
             }
             Assert.True(count == 1);
@@ -49,8 +36,8 @@ namespace TheFactory.DatastoreTests
             var block = new Block(bytes, 0, bytes.Length);
             var count = 0;
             foreach (var p in block.Find()) {
-                Assert.True(CompareByteArray(p.Key, 0, new byte[] {1, 2, 3}, 0, p.Key.Length));
-                Assert.True(CompareByteArray(p.Value, 0, new byte[] {4, 5, 6}, 0, p.Value.Length));
+                Assert.True(p.Key.CompareBytes(0, new byte[] {1, 2, 3}, 0, p.Key.Length));
+                Assert.True(p.Value.CompareBytes(0, new byte[] {4, 5, 6}, 0, p.Value.Length));
                 count += 1;
             }
             Assert.True(count == 2);
@@ -76,8 +63,8 @@ namespace TheFactory.DatastoreTests
             var block = new Block(bytes, 0, bytes.Length);
             var count = 0;
             foreach (var p in block.Find()) {
-                Assert.True(CompareByteArray(p.Key, 0, new byte[] {1, 2, 3}, 0, p.Key.Length));
-                Assert.True(CompareByteArray(p.Value, 0, new byte[] {4, 5, 6}, 0, p.Value.Length));
+                Assert.True(p.Key.CompareBytes(0, new byte[] {1, 2, 3}, 0, p.Key.Length));
+                Assert.True(p.Value.CompareBytes(0, new byte[] {4, 5, 6}, 0, p.Value.Length));
                 count += 1;
             }
             Assert.True(count == 4);
@@ -99,8 +86,8 @@ namespace TheFactory.DatastoreTests
             var block = new Block(bytes, 0, bytes.Length);
             var count = 0;
             foreach (var p in block.Find()) {
-                Assert.True(CompareByteArray(p.Key, 0, new byte[] {1, 2, 3}, 0, p.Key.Length));
-                Assert.True(CompareByteArray(p.Value, 0, new byte[] {4, 5, 6}, 0, p.Value.Length));
+                Assert.True(p.Key.CompareBytes(0, new byte[] {1, 2, 3}, 0, p.Key.Length));
+                Assert.True(p.Value.CompareBytes(0, new byte[] {4, 5, 6}, 0, p.Value.Length));
                 count += 1;
             }
             Assert.True(count == 2);
@@ -125,8 +112,8 @@ namespace TheFactory.DatastoreTests
             var block = new Block(bytes, 13, 13);  // read the middle block.
             var count = 0;
             foreach (var p in block.Find()) {
-                Assert.True(CompareByteArray(p.Key, 0, new byte[] {1, 2, 3}, 0, p.Key.Length));
-                Assert.True(CompareByteArray(p.Value, 0, new byte[] {4, 5, 6}, 0, p.Value.Length));
+                Assert.True(p.Key.CompareBytes(0, new byte[] {1, 2, 3}, 0, p.Key.Length));
+                Assert.True(p.Value.CompareBytes(0, new byte[] {4, 5, 6}, 0, p.Value.Length));
                 count += 1;
             }
             Assert.True(count == 1);
@@ -152,7 +139,7 @@ namespace TheFactory.DatastoreTests
             var block = new Block(bytes, 0, bytes.Length);
             var term = new byte[] {2, 3, 4};
             foreach (var p in block.Find(term)) {
-                Assert.True(CompareByteArray(p.Key, 0, term, 0, p.Key.Length));
+                Assert.True(p.Key.CompareBytes(0, term, 0, p.Key.Length));
                 break;
             }
         }
@@ -177,7 +164,7 @@ namespace TheFactory.DatastoreTests
             var block = new Block(bytes, 0, bytes.Length);
             var term = new byte[] {1, 2, 4};
             foreach (var p in block.Find(term)) {
-                Assert.True(CompareByteArray(p.Key, 0, term, 0, p.Key.Length));
+                Assert.True(p.Key.CompareBytes(0, term, 0, p.Key.Length));
                 break;
             }
         }
@@ -200,7 +187,7 @@ namespace TheFactory.DatastoreTests
             var block = new Block(bytes, 0, bytes.Length);
             var term = new byte[] {1, 2, 5};
             foreach (var p in block.Find(term)) {
-                Assert.True(CompareByteArray(p.Key, 0, term, 0, p.Key.Length));
+                Assert.True(p.Key.CompareBytes(0, term, 0, p.Key.Length));
                 break;
             }
         }
@@ -225,7 +212,7 @@ namespace TheFactory.DatastoreTests
             var block = new Block(bytes, 0, bytes.Length);
             var expected = new byte[] {1, 2, 3};
             foreach (var p in block.Find(new byte[] {0, 1, 2})) {
-                Assert.True(CompareByteArray(p.Key, 0, expected, 0, p.Key.Length));
+                Assert.True(p.Key.CompareBytes(0, expected, 0, p.Key.Length));
                 break;
             }
         }
@@ -277,7 +264,7 @@ namespace TheFactory.DatastoreTests
             var block = new Block(bytes, 0, bytes.Length);
             var expected = new byte[] {1, 2, 4};
             foreach (var p in block.Find(new byte[] {1, 2, 3, 4})) {
-                Assert.True(CompareByteArray(p.Key, 0, expected, 0, p.Key.Length));
+                Assert.True(p.Key.CompareBytes(0, expected, 0, p.Key.Length));
                 break;
             }
         }

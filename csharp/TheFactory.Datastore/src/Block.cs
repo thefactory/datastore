@@ -58,7 +58,7 @@ namespace TheFactory.Datastore {
         }
 
         public IEnumerable<BlockPair> Find() {
-            return Pairs(start);
+            return Find(null);
         }
 
         public IEnumerable<BlockPair> Find(byte[] term) {

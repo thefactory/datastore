@@ -99,12 +99,18 @@
     <Compile Include="src\Main.cs" />
     <Compile Include="src\UnitTestAppDelegate.cs" />
     <Compile Include="src\BlockTests.cs" />
+    <Compile Include="src\Helpers.cs" />
+    <Compile Include="src\TabletTests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <ProjectReference Include="..\TheFactory.Datastore\TheFactory.Datastore.csproj">
       <Project>{7B0B8E22-7BA3-4882-A445-BB8F96B6578E}</Project>
       <Name>TheFactory.Datastore</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Snappy.Sharp\Snappy.Sharp.iOS\Snappy.Sharp.iOS.csproj">
+      <Project>{379A46BA-1EBB-4BD0-BEB5-B850F174E0D8}</Project>
+      <Name>Snappy.Sharp.iOS</Name>
     </ProjectReference>
   </ItemGroup>
 </Project>
