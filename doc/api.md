@@ -18,7 +18,7 @@ For read-only support, the following components are necessary:
 * A tablet reader
 
   This is a parser for the on-disk tablet format described in
-  `README.md`. It must parse the tablet footer, read the metadata and
+  `tablet.md`. It must parse the tablet footer, read the metadata and
   data block indexes, and provide iterator support (described below)
   for the tablet's key-value pairs.
 
@@ -109,3 +109,10 @@ For read-write support, a few more components are required:
 
   This writes key-value pairs from the in-memory tablet into a new
   immutable tablet file.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+type WritableDatastore interface {
+     Put(key []byte, value []byte)
+     Delete(key []byte)
+}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
