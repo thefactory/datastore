@@ -10,8 +10,32 @@ read-only, read-write, and read-write with secondary indexes.
 Read-only Datastore API
 -----------------------
 
-Datastore provides `Get(key)` and iterator based APIs for reading
-collections of tablets.
+A read-only API provides `Get(key)` and Iterator based APIs for
+reading collections of tablets.
+
+For read-only support, the following components are necessary:
+
+* A tablet reader
+
+  This is a parser for the on-disk tablet format described in
+  `README.md`. It must parse the tablet footer, read the metadata and
+  data block indexes, and provide iterator support (described below)
+  for the tablet's key-value pairs.
+
+  Necessary subcomponents are a key-value block reader and the ability
+  to binary search the block index and block restarts indexes.
+
+  A Snappy decompressor will be required, though compression may be
+  turned off per-application if one is unavailable.
+
+* An iterator merger
+
+  In order to combine several tablets into a single view, we must
+  merge together their iterators. Since these provide key-value pairs
+  in sorted order, each can be treated as a stream. At each step, we
+  yield the minimum key-value from all iterators. When the same key is
+  available on several iterators, its value will be yielded from the
+  tablet most recently added to the datastore.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // An Iterator for a series of key-value pairs.
@@ -60,3 +84,28 @@ type Datastore interface {
 Thread safety considerations: the above should be thread-safe with
 multiple readers iterating over the same database. A running iterator
 need not be updated when new tablet files are pushed or popped.
+
+
+Read-write Datastore API
+------------------------
+
+For read-write support, a few more components are required:
+
+* An in-memory tablet
+
+  This gathers newly written items in memory before they're written to
+  an immutable tablet. This must provide in-order iterative access as
+  well as key `Get()` and `Set()`, so the recommended implementation
+  includes a sorted data structure: consider a built-in sorted
+  dictionary, if one is available, or implement a skiplist.
+
+* A transaction logger
+
+  This logs new key-value pairs to disk for durability as they're
+  inserted into the in-memory tablet. On application restart, the
+  active in-memory tablet will be rebuilt from the log.
+
+* A tablet writer
+
+  This writes key-value pairs from the in-memory tablet into a new
+  immutable tablet file.
