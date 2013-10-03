@@ -72,7 +72,9 @@ func (b *BlockWriter) Finish() (firstKey []byte, buf []byte) {
 }
 
 func (b *BlockWriter) Reset() {
+	b.buf.Reset()
+	b.count = 0
+	b.restarts = nil
 	b.firstKey = nil
 	b.prevKey = nil
-	b.buf.Reset()
 }
