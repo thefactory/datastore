@@ -2,7 +2,6 @@ package datastore
 
 import (
 	"encoding/binary"
-	"errors"
 	"io"
 	"log"
 )
@@ -52,22 +51,26 @@ func readUint64(r io.Reader) uint64 {
 	return ret
 }
 
-func writeUint(w io.Writer, n uint) (int, error) {
+func writeUint(w io.Writer, n uint) int {
 	if n <= 0x7f {
-		return w.Write([]byte{byte(n)})
+		c, _ := w.Write([]byte{byte(n)})
+		return c
 	} else if n <= 0xff {
-		return w.Write([]byte{msgUint8, byte(n)})
+		c, _ := w.Write([]byte{msgUint8, byte(n)})
+		return c
 	} else if n <= 0xffff {
 		w.Write([]byte{msgUint16})
-		err := binary.Write(w, binary.BigEndian, uint16(n))
-		return 3, err
+		binary.Write(w, binary.BigEndian, uint16(n))
+		return 3
 	} else if n <= 0xffffffff {
 		w.Write([]byte{msgUint32})
-		err := binary.Write(w, binary.BigEndian, uint32(n))
-		return 5, err
+		binary.Write(w, binary.BigEndian, uint32(n))
+		return 5
+	} else {
+		w.Write([]byte{msgUint64})
+		binary.Write(w, binary.BigEndian, uint64(n))
+		return 9
 	}
-
-	return 0, errors.New("uint too large")
 }
 
 func readUint(r io.Reader) uint {
@@ -86,6 +89,10 @@ func readUint(r io.Reader) uint {
 		return uint(value)
 	} else if flag == msgUint32 {
 		var value uint32
+		binary.Read(r, binary.BigEndian, &value)
+		return uint(value)
+	} else if flag == msgUint64 {
+		var value uint64
 		binary.Read(r, binary.BigEndian, &value)
 		return uint(value)
 	}

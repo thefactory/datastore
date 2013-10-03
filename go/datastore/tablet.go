@@ -181,8 +181,8 @@ func readIndexRecords(b *bytes.Reader) []*IndexRecord {
 	ret := make([]*IndexRecord, 0)
 
 	for b.Len() > 0 {
-		offset := readUint64(b)
-		length := readUint32(b)
+		offset := uint64(readUint(b))
+		length := uint32(readUint(b))
 		name := readRaw(b)
 
 		ret = append(ret, &IndexRecord{offset, length, name})

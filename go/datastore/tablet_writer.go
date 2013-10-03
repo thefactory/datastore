@@ -97,9 +97,9 @@ func writeBlock(w io.Writer, pos uint64, bw *BlockWriter, opts *TabletOptions) *
 	var checksum uint32 = 0
 	var length uint32 = uint32(len(comp))
 
-	a, _ := writeUint(w, uint(checksum))
-	b, _ := writeUint(w, uint(blockType))
-	c, _ := writeUint(w, uint(length))
+	a := writeUint(w, uint(checksum))
+	b := writeUint(w, uint(blockType))
+	c := writeUint(w, uint(length))
 
 	length += uint32(a + b + c)
 
@@ -139,8 +139,8 @@ func writeIndex(w io.Writer, magic uint32, recs []*IndexRecord) uint64 {
 
 	var n uint64
 	for _, rec := range recs {
-		n += uint64(writeUint64(w, rec.offset))
-		n += uint64(writeUint32(w, rec.length))
+		n += uint64(writeUint(w, uint(rec.offset)))
+		n += uint64(writeUint(w, uint(rec.length)))
 		n += uint64(writeRaw(w, rec.name))
 	}
 
