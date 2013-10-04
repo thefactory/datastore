@@ -218,72 +218,25 @@ func loadBlock(tf TabletFile, rec *IndexRecord) (block, error) {
 	return b, err
 }
 
+func (t *Tablet) Find(key []byte) Iterator {
+	// find the first block that may contain key
+	blocks := t.dataBlocks
+
+	i := sort.Search(len(blocks)-1, func(i int) bool {
+		return bytes.Compare(blocks[i].name, key) >= 0
+	})
+
+	// eliminate any blocks before key
+	blocks = blocks[i:]
+
+	return Chain(len(blocks), func(i int) Iterator {
+		return t.blockIterator(blocks[i], key)
+	})
+}
+
 // A key-value iterator for a single block
-func (t *Tablet) BlockIterator(rec *IndexRecord) Iterator {
+func (t *Tablet) blockIterator(rec *IndexRecord, key []byte) Iterator {
 	b, _ := loadBlock(t.r, rec)
 
-	return block(b).Find(nil)
-}
-
-func (t *Tablet) Iterator() Iterator {
-	return &TabletIterator{tab: t}
-}
-
-type TabletIterator struct {
-	tab  *Tablet
-	cur  int
-	iter Iterator
-	eoi  bool
-}
-
-func (ti *TabletIterator) Next() bool {
-	if ti.iter == nil {
-		ti.setBlock(0)
-	}
-
-	if ti.eoi {
-		return false
-	}
-
-	if ti.iter.Next() == false {
-		ti.setBlock(ti.cur + 1)
-		return ti.iter.Next()
-	}
-
-	return true
-}
-
-func (ti *TabletIterator) setBlock(n int) {
-	if ti.iter != nil {
-		ti.iter.Close()
-	}
-
-	if n < len(ti.tab.dataBlocks) {
-		ti.cur = n
-		ti.iter = ti.tab.BlockIterator(ti.tab.dataBlocks[n])
-	} else {
-		ti.eoi = true
-	}
-}
-
-func (ti *TabletIterator) Find(key []byte) {
-	f := func(i int) bool {
-		return bytes.Compare(ti.tab.dataBlocks[i].name, key) >= 0
-	}
-
-	ti.setBlock(sort.Search(len(ti.tab.dataBlocks)-1, f))
-	ti.iter.Find(key)
-}
-
-func (ti *TabletIterator) Key() []byte {
-	return ti.iter.Key()
-}
-
-func (ti *TabletIterator) Value() []byte {
-	return ti.iter.Value()
-}
-
-func (ti *TabletIterator) Close() error {
-	ti.setBlock(len(ti.tab.dataBlocks))
-	return nil
+	return b.Find(key)
 }

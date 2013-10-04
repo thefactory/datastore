@@ -42,28 +42,44 @@ func CheckSimpleIterator(c *C, iter Iterator) {
 	c.Assert(iter.Value(), IsNil)
 }
 
-func CheckSimpleFind(c *C, iter Iterator) {
-	// seek to nil
-	iter.Find(nil)
-	c.Assert(iter.Next(), Equals, true)
-	c.Assert(iter.Key(), DeepEquals, []byte("bar"))
+type SerialIteratorSuite struct{}
 
-	// seek before the first element
-	iter.Find([]byte("ba"))
-	c.Assert(iter.Next(), Equals, true)
-	c.Assert(iter.Key(), DeepEquals, []byte("bar"))
+var _ = Suite(&SerialIteratorSuite{})
 
-	// seek to the actual first element
-	iter.Find([]byte("bar"))
-	c.Assert(iter.Next(), Equals, true)
-	c.Assert(iter.Key(), DeepEquals, []byte("bar"))
+func (s *SerialIteratorSuite) TestSerialIterator(c *C) {
+	items1 := []*KV{
+		{[]byte("foo"), []byte("foo")},
+		{[]byte("bar"), []byte("bar")},
+	}
 
-	// seek to the actual second element
-	iter.Find([]byte("foo"))
+	items2 := []*KV{
+		{[]byte("baz"), []byte("baz")},
+		{[]byte("quux"), []byte("quux")},
+	}
+
+	chained := [][]*KV{items1, items2}
+
+	iter := Chain(len(chained), func(n int) Iterator {
+		return NewSliceIterator(chained[n])
+	})
+
 	c.Assert(iter.Next(), Equals, true)
 	c.Assert(iter.Key(), DeepEquals, []byte("foo"))
+	c.Assert(iter.Value(), DeepEquals, []byte("foo"))
 
-	// seek beyond the last element
-	iter.Find([]byte("fooo"))
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(iter.Key(), DeepEquals, []byte("bar"))
+	c.Assert(iter.Value(), DeepEquals, []byte("bar"))
+
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(iter.Key(), DeepEquals, []byte("baz"))
+	c.Assert(iter.Value(), DeepEquals, []byte("baz"))
+
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(iter.Key(), DeepEquals, []byte("quux"))
+	c.Assert(iter.Value(), DeepEquals, []byte("quux"))
+
 	c.Assert(iter.Next(), Equals, false)
+	c.Assert(iter.Key(), IsNil)
+	c.Assert(iter.Value(), IsNil)
 }

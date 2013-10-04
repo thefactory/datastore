@@ -31,7 +31,7 @@ func CheckEncodeDecode(c *C, kvs []*KV, opts *TabletOptions) {
 	tab, err := OpenTabletFile(file.Name())
 	c.Check(err, IsNil)
 
-	iter := tab.Iterator()
+	iter := tab.Find(nil)
 
 	var i int
 	for i = 0; iter.Next(); i++ {
@@ -41,6 +41,15 @@ func CheckEncodeDecode(c *C, kvs []*KV, opts *TabletOptions) {
 
 	// ensure all the expected elements were checked
 	c.Check(i, Equals, len(kvs))
+
+	// ensure that Find() works in possibly later blocks
+	iter = tab.Find([]byte("foo"))
+
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(iter.Key(), DeepEquals, []byte("foo"))
+	c.Assert(iter.Value(), DeepEquals, []byte("bar"))
+
+	c.Assert(iter.Next(), Equals, false)
 
 	os.Remove(file.Name())
 }
@@ -56,7 +65,7 @@ func (s *TabletSuite) TestTabletIterator(c *C) {
 	tab, err := OpenTabletFile(file.Name())
 	c.Check(err, IsNil)
 
-	CheckSimpleIterator(c, tab.Iterator())
+	CheckSimpleIterator(c, tab.Find(nil))
 }
 
 func (s *TabletSuite) TestTabletFind(c *C) {
@@ -70,5 +79,11 @@ func (s *TabletSuite) TestTabletFind(c *C) {
 	tab, err := OpenTabletFile(file.Name())
 	c.Check(err, IsNil)
 
-	CheckSimpleFind(c, tab.Iterator())
+	iter := tab.Find([]byte("foo"))
+
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(iter.Key(), DeepEquals, []byte("foo"))
+	c.Assert(iter.Value(), DeepEquals, []byte("bar"))
+
+	c.Assert(iter.Next(), Equals, false)
 }
