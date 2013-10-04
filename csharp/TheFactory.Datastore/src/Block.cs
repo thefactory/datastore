@@ -85,7 +85,8 @@ namespace TheFactory.Datastore {
                     index = i == 0 ? 0 : i - 1;
                 }
 
-                candidate = restarts + (index * 4);
+                stream.Seek(restarts + (index * 4), SeekOrigin.Begin);
+                candidate = (int)stream.ReadInt();
             }
 
             foreach (var p in Pairs(candidate)) {

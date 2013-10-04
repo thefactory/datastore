@@ -149,24 +149,27 @@ namespace TheFactory.DatastoreTests {
             var bytes = new byte[] {0,              // 0-byte key prefix.
                                     0xa3, 1, 2, 3,  // 3-byte key suffix.
                                     0xa3, 4, 5, 6,  // 3-byte value.
-                                    0,              // 1-byte key prefix.
-                                    0xa3, 1, 2, 4,  // 2-byte key suffix.
+                                    0,              // 0-byte key prefix.
+                                    0xa3, 1, 2, 4,  // 3-byte key suffix.
                                     0xa3, 4, 5, 6,  // 3-byte value.
-                                    0,              // 2-byte key prefix.
-                                    0xa3, 1, 2, 5,  // 1-byte key suffix.
+                                    0,              // 0-byte key prefix.
+                                    0xa3, 1, 2, 5,  // 3-byte key suffix.
                                     0xa3, 4, 5, 6,  // 3-byte value.
-                                    0,              // 3-byte key prefix.
-                                    0xa3, 1, 2, 6,  // 0-byte key suffix.
+                                    0,              // 0-byte key prefix.
+                                    0xa3, 1, 2, 6,  // 3-byte key suffix.
                                     0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0,     // first restart.
                                     0, 0, 0, 18,    // second restart.
                                     0, 0, 0, 2};    // 2 restart indexes.
             var block = new Block(bytes, 0, bytes.Length);
             var term = new byte[] {1, 2, 4};
+            var count = 0;
             foreach (var p in block.Find(term)) {
+                count += 1;
                 Assert.True(p.Key.CompareBytes(0, term, 0, p.Key.Length));
                 break;
             }
+            Assert.True(count == 1);
         }
 
         [Test]
