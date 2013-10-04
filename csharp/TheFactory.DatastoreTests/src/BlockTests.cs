@@ -9,8 +9,8 @@ namespace TheFactory.DatastoreTests {
         public void TestBlockIterateOne() {
             // Simple block segment without key prefix.
             var bytes = new byte[] {0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0};    // no restart indexes.
             var block = new Block(bytes, 0, bytes.Length);
             var count = 0;
@@ -27,11 +27,11 @@ namespace TheFactory.DatastoreTests {
             // Simple block segment without key prefixes.
             // Note: we don't enforce unique keys.
             var bytes = new byte[] {0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0};    // no restart indexes.
             var block = new Block(bytes, 0, bytes.Length);
             var count = 0;
@@ -48,17 +48,17 @@ namespace TheFactory.DatastoreTests {
             // Simple block segment without key prefixes.
             // Note: we don't enforce unique keys.
             var bytes = new byte[] {0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     1,              // 1-byte key prefix.
-                                    0x2, 2, 3,      // 2-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa2, 2, 3,     // 2-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     2,              // 2-byte key prefix.
-                                    0x1, 3,         // 1-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa1, 3,        // 1-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     3,              // 3-byte key prefix.
-                                    0x0,            // 0-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa0,           // 0-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0};    // no restart indexes.
             var block = new Block(bytes, 0, bytes.Length);
             var count = 0;
@@ -75,11 +75,11 @@ namespace TheFactory.DatastoreTests {
             // Simple block segment without key prefixes.
             // Note: we don't enforce unique keys.
             var bytes = new byte[] {0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0,     // first restart.
                                     0, 0, 0, 9,     // second restart.
                                     0, 0, 0, 2};    // 2 restart indexes.
@@ -98,16 +98,16 @@ namespace TheFactory.DatastoreTests {
             // Simple block starts and ends mid-[tablet]-stream.
             // This is really three data blocks in a row.
             var bytes = new byte[] {0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0,     // no restart indexes.
                                     0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0,     // no restart indexes.
                                     0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0};    // no restart indexes.
             var block = new Block(bytes, 13, 13);  // read the middle block.
             var count = 0;
@@ -124,14 +124,14 @@ namespace TheFactory.DatastoreTests {
             // Simple block segment without key prefixes.
             // Note: we don't enforce unique keys.
             var bytes = new byte[] {0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 0-byte key prefix.
-                                    0x3, 2, 3, 4,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 2, 3, 4,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 0-byte key prefix.
-                                    0x3, 3, 4, 5,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 3, 4, 5,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0,     // first restart.
                                     0, 0, 0, 9,     // second restart.
                                     0, 0, 0, 18,    // third restart.
@@ -147,17 +147,17 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestBlockFindOffRestart() {
             var bytes = new byte[] {0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 1-byte key prefix.
-                                    0x3, 1, 2, 4,   // 2-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 4,  // 2-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 2-byte key prefix.
-                                    0x3, 1, 2, 5,   // 1-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 5,  // 1-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 3-byte key prefix.
-                                    0x3, 1, 2, 6,   // 0-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 6,  // 0-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0,     // first restart.
                                     0, 0, 0, 18,    // second restart.
                                     0, 0, 0, 2};    // 2 restart indexes.
@@ -172,17 +172,17 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestBlockFindNoRestarts() {
             var bytes = new byte[] {0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     1,              // 1-byte key prefix.
-                                    0x2, 2, 4,      // 2-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa2, 2, 4,     // 2-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     2,              // 2-byte key prefix.
-                                    0x1, 5,         // 1-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa1, 5,        // 1-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     2,              // 3-byte key prefix.
-                                    0x1, 6,         // 0-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa1, 6,        // 0-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0};    // no restart indexes.
             var block = new Block(bytes, 0, bytes.Length);
             var term = new byte[] {1, 2, 5};
@@ -195,17 +195,17 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestBlockFindUnmatchedBefore() {
             var bytes = new byte[] {0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 1-byte key prefix.
-                                    0x3, 1, 2, 4,   // 2-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 4,  // 2-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 2-byte key prefix.
-                                    0x3, 1, 2, 5,   // 1-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 5,  // 1-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 3-byte key prefix.
-                                    0x3, 1, 2, 6,   // 0-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 6,  // 0-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0,     // first restart.
                                     0, 0, 0, 18,    // second restart.
                                     0, 0, 0, 2};    // 2 restart indexes.
@@ -220,17 +220,17 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestBlockFindUnmatchedAfter() {
             var bytes = new byte[] {0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 1-byte key prefix.
-                                    0x3, 1, 2, 4,   // 2-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 4,  // 2-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 2-byte key prefix.
-                                    0x3, 1, 2, 5,   // 1-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 5,  // 1-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 3-byte key prefix.
-                                    0x3, 1, 2, 6,   // 0-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 6,  // 0-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0,     // first restart.
                                     0, 0, 0, 18,    // second restart.
                                     0, 0, 0, 2};    // 2 restart indexes.
@@ -247,17 +247,17 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestBlockFindUnmatchedMiddle() {
             var bytes = new byte[] {0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 1-byte key prefix.
-                                    0x3, 1, 2, 4,   // 2-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 4,  // 2-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 2-byte key prefix.
-                                    0x3, 1, 2, 5,   // 1-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 5,  // 1-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0,              // 3-byte key prefix.
-                                    0x3, 1, 2, 6,   // 0-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 6,  // 0-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0,     // first restart.
                                     0, 0, 0, 18,    // second restart.
                                     0, 0, 0, 2};    // 2 restart indexes.

@@ -33,14 +33,14 @@ namespace TheFactory.Datastore {
 
         private BlockPair ReadNext() {
             var prefix = Unpacking.UnpackObject(stream).AsInt32();
-            var suffix = Unpacking.UnpackObject(stream).AsInt32();
+            var suffix = (int)Unpacking.UnpackByteStream(stream).Length;
             var key = new byte[prefix + suffix];
             if (prefix > 0) {
                 Buffer.BlockCopy(pair.Key, 0, key, 0, prefix);
             }
             stream.Read(key, prefix, suffix);
             pair.Key = key;
-            pair.ValueLength = Unpacking.UnpackObject(stream).AsInt32();
+            pair.ValueLength = (int)Unpacking.UnpackByteStream(stream).Length;
             pair.ValueOffset = stream.Position;
             stream.Seek(pair.ValueLength, SeekOrigin.Current);  // cue.
             return pair;
@@ -131,7 +131,7 @@ namespace TheFactory.Datastore {
             private byte[] ReadKey(long offset) {
                 // Ignore prefix -- restart means it's 0 (one-byte fixpos).
                 stream.Seek(start + offset + 1, SeekOrigin.Begin);
-                var length = Unpacking.UnpackObject(stream).AsInt32();
+                var length = (int)Unpacking.UnpackByteStream(stream).Length;
                 var key = new byte[length];
                 stream.Read(key, 0, length);
                 return key;

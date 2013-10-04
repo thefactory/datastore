@@ -29,8 +29,8 @@ namespace TheFactory.DatastoreTests {
                                     0,              // H: type (uncompressed).
                                     13,             // H: length.
                                     0,              // 0-byte key prefix.
-                                    0x3, 1, 2, 3,   // 3-byte key suffix.
-                                    0x3, 4, 5, 6,   // 3-byte value.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0};    // no restart indexes.
             var stream = new MemoryStream(bytes);
             var tablet = new Tablet(stream);
@@ -46,8 +46,8 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTabletIteratorOneSnappy() {
             var blockBytes = new byte[] {0,              // 0-byte key prefix.
-                                         0x3, 1, 2, 3,   // 3-byte key suffix.
-                                         0x3, 4, 5, 6,   // 3-byte value.
+                                         0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                         0xa3, 4, 5, 6,  // 3-byte value.
                                          0, 0, 0, 0};    // no restart indexes.
             var bytes = SnappyCompressedBlock(blockBytes);
             var stream = new MemoryStream(bytes);
