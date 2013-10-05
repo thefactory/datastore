@@ -2,6 +2,8 @@ package datastore
 
 import (
 	"bytes"
+	"container/heap"
+	"log"
 	"sort"
 )
 
@@ -132,4 +134,108 @@ func (si *SerialIterator) Close() error {
 	si.iter = nil
 
 	return ret
+}
+
+// Merge together n in-order iterators. When duplicate keys are
+// presented on several iterators, use the one with the highest index.
+func Merge(n int, f func(int) Iterator) Iterator {
+	keyQueue := &keyQueue{}
+	heap.Init(keyQueue)
+
+	iters := make([]Iterator, 0, n)
+
+	// fill the queue with the first item from each iterator
+	for i := 0; i < n; i++ {
+		iter := f(i)
+		iter.Next()
+
+		heap.Push(keyQueue, &priorityKey{-i, iter.Key()})
+
+		iters = append(iters, iter)
+	}
+
+	return &ParallelIterator{iters, keyQueue, nil, nil}
+}
+
+type ParallelIterator struct {
+	iters []Iterator
+	keys  *keyQueue
+
+	key   []byte
+	value []byte
+}
+
+func (pi *ParallelIterator) Next() bool {
+	if len(*pi.keys) == 0 {
+		pi.key = nil
+		pi.value = nil
+		return false
+	}
+
+	item := heap.Pop(pi.keys).(*priorityKey)
+	iter := pi.iters[-item.priority]
+
+	pi.key = iter.Key()
+	pi.value = iter.Value()
+
+	if iter.Next() {
+		heap.Push(pi.keys, &priorityKey{item.priority, iter.Key()})
+	}
+
+	return true
+}
+
+func (pi *ParallelIterator) Key() []byte {
+	return pi.key
+}
+
+func (pi *ParallelIterator) Value() []byte {
+	return pi.value
+}
+
+func (pi *ParallelIterator) Close() error {
+	for _, iter := range pi.iters {
+		iter.Close()
+	}
+
+	return nil
+}
+
+// this is a key with a priority; minimum priority wins
+type priorityKey struct {
+	priority int
+	key      []byte
+}
+
+type keyQueue []*priorityKey
+
+func (q keyQueue) Len() int {
+	return len(q)
+}
+
+func (q keyQueue) Less(i, j int) bool {
+	return q[i].priority < q[j].priority &&
+		bytes.Compare(q[i].key, q[j].key) < 0
+}
+
+func (q keyQueue) Swap(i, j int) {
+	q[i], q[j] = q[j], q[i]
+}
+
+func (q *keyQueue) Push(x interface{}) {
+	*q = append(*q, x.(*priorityKey))
+}
+
+func (q *keyQueue) Pop() interface{} {
+	old := *q
+	n := len(old)
+	x := old[n-1]
+	*q = old[0 : n-1]
+	return x
+}
+
+func (q *keyQueue) dump() {
+	for i := 0; i < len(*q); i++ {
+		log.Printf("Queue[%n] %s", i, (*q)[i])
+	}
 }

@@ -83,3 +83,47 @@ func (s *SerialIteratorSuite) TestSerialIterator(c *C) {
 	c.Assert(iter.Key(), IsNil)
 	c.Assert(iter.Value(), IsNil)
 }
+
+type ParallelIteratorSuite struct{}
+
+var _ = Suite(&ParallelIteratorSuite{})
+
+func (s *ParallelIteratorSuite) TestParallelIterator(c *C) {
+	items1 := []*KV{
+		{[]byte("bar"), []byte("bar")},
+		{[]byte("foo"), []byte("foo")},
+	}
+
+	items2 := []*KV{
+		{[]byte("baz"), []byte("baz")},
+		{[]byte("quux"), []byte("quux")},
+	}
+
+	iter := Merge(2, func(n int) Iterator {
+		if n == 0 {
+			return NewSliceIterator(items1)
+		} else {
+			return NewSliceIterator(items2)
+		}
+	})
+
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(iter.Key(), DeepEquals, []byte("bar"))
+	c.Assert(iter.Value(), DeepEquals, []byte("bar"))
+
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(iter.Key(), DeepEquals, []byte("baz"))
+	c.Assert(iter.Value(), DeepEquals, []byte("baz"))
+
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(iter.Key(), DeepEquals, []byte("foo"))
+	c.Assert(iter.Value(), DeepEquals, []byte("foo"))
+
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(iter.Key(), DeepEquals, []byte("quux"))
+	c.Assert(iter.Value(), DeepEquals, []byte("quux"))
+
+	c.Assert(iter.Next(), Equals, false)
+	c.Assert(iter.Key(), IsNil)
+	c.Assert(iter.Value(), IsNil)
+}
