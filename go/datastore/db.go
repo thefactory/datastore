@@ -147,10 +147,9 @@ func Merge(n int, f func(int) Iterator) Iterator {
 	// fill the queue with the first item from each iterator
 	for i := 0; i < n; i++ {
 		iter := f(i)
-		iter.Next()
-
-		heap.Push(keyQueue, &priorityKey{-i, iter.Key()})
-
+		if iter.Next() {
+			heap.Push(keyQueue, &priorityKey{-i, iter.Key()})
+		}
 		iters = append(iters, iter)
 	}
 
@@ -214,8 +213,16 @@ func (q keyQueue) Len() int {
 }
 
 func (q keyQueue) Less(i, j int) bool {
-	return q[i].priority < q[j].priority &&
-		bytes.Compare(q[i].key, q[j].key) < 0
+	cmp := bytes.Compare(q[i].key, q[j].key)
+	if cmp < 0 {
+		return true
+	}
+
+	if cmp == 0 {
+		return q[i].priority < q[j].priority
+	}
+
+	return false
 }
 
 func (q keyQueue) Swap(i, j int) {

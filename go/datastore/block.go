@@ -99,13 +99,15 @@ func (iter *BlockIterator) Next() bool {
 	keySuffix := readRaw(iter.r)
 
 	if common > 0 {
-		iter.key = append(iter.prevKey[:common], keySuffix...)
+		iter.key = bytes.Join(
+			[][]byte{iter.prevKey[:common], keySuffix}, nil)
 	} else {
 		iter.key = keySuffix
 	}
 
 	iter.value = readRaw(iter.r)
 	iter.prevKey = iter.key
+
 	return true
 }
 

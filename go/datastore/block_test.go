@@ -93,6 +93,37 @@ func (s *BlockReaderSuite) TestTwoRestarts(c *C) {
 	c.Assert(r.Next(), Equals, false)
 }
 
+func (s *BlockReaderSuite) TestOldSlices(c *C) {
+	b := []byte{
+		// foo -> bar, food -> baz, two -> x
+		0x00, 0xa3, 'f', 'o', 'o', 0xa3, 'b', 'a', 'r',
+		0x03, 0xa1, 'd', 0xa3, 'b', 'a', 'z',
+		0x00, 0xa3, 't', 'w', 'o', 0xa1, 'x',
+		// restarts index (two restarts, block[0] and block[16])
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x10,
+		// two restarts
+		0x00, 0x00, 0x00, 0x02,
+	}
+
+	r := block(b).Find(nil)
+
+	c.Assert(r.Next(), Equals, true)
+	foo := r.Key()
+
+	c.Assert(r.Next(), Equals, true)
+	food := r.Key()
+
+	c.Assert(r.Next(), Equals, true)
+	two := r.Key()
+
+	c.Assert(r.Next(), Equals, false)
+
+	c.Assert(string(foo), Equals, "foo")
+	c.Assert(string(food), Equals, "food")
+	c.Assert(string(two), Equals, "two")
+}
+
 type BlockIteratorSuite struct{}
 
 var _ = Suite(&BlockIteratorSuite{})

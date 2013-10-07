@@ -91,6 +91,7 @@ var _ = Suite(&ParallelIteratorSuite{})
 func (s *ParallelIteratorSuite) TestParallelIterator(c *C) {
 	items1 := []*KV{
 		{[]byte("bar"), []byte("bar")},
+		{[]byte("baz"), []byte("junk")},
 		{[]byte("foo"), []byte("foo")},
 	}
 
@@ -108,20 +109,24 @@ func (s *ParallelIteratorSuite) TestParallelIterator(c *C) {
 	})
 
 	c.Assert(iter.Next(), Equals, true)
-	c.Assert(iter.Key(), DeepEquals, []byte("bar"))
-	c.Assert(iter.Value(), DeepEquals, []byte("bar"))
+	c.Assert(string(iter.Key()), Equals, "bar")
+	c.Assert(string(iter.Value()), Equals, "bar")
 
 	c.Assert(iter.Next(), Equals, true)
-	c.Assert(iter.Key(), DeepEquals, []byte("baz"))
-	c.Assert(iter.Value(), DeepEquals, []byte("baz"))
+	c.Assert(string(iter.Key()), Equals, "baz")
+	c.Assert(string(iter.Value()), Equals, "baz")
 
 	c.Assert(iter.Next(), Equals, true)
-	c.Assert(iter.Key(), DeepEquals, []byte("foo"))
-	c.Assert(iter.Value(), DeepEquals, []byte("foo"))
+	c.Assert(string(iter.Key()), Equals, "baz")
+	c.Assert(string(iter.Value()), Equals, "junk")
 
 	c.Assert(iter.Next(), Equals, true)
-	c.Assert(iter.Key(), DeepEquals, []byte("quux"))
-	c.Assert(iter.Value(), DeepEquals, []byte("quux"))
+	c.Assert(string(iter.Key()), Equals, "foo")
+	c.Assert(string(iter.Value()), Equals, "foo")
+
+	c.Assert(iter.Next(), Equals, true)
+	c.Assert(string(iter.Key()), Equals, "quux")
+	c.Assert(string(iter.Value()), Equals, "quux")
 
 	c.Assert(iter.Next(), Equals, false)
 	c.Assert(iter.Key(), IsNil)
