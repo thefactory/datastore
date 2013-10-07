@@ -91,9 +91,11 @@
   <ItemGroup>
     <Folder Include="Resources\" />
     <Folder Include="src\" />
+    <Folder Include="Resources\ngrams1\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Info.plist" />
+    <None Include="Resources\ngrams1\README" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\Main.cs" />
@@ -112,5 +114,11 @@
       <Project>{379A46BA-1EBB-4BD0-BEB5-B850F174E0D8}</Project>
       <Name>Snappy.Sharp.iOS</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <BundleResource Include="Resources\ngrams1\ngrams1-1block-compressed.tab" />
+    <BundleResource Include="Resources\ngrams1\ngrams1-1block-uncompressed.tab" />
+    <BundleResource Include="Resources\ngrams1\ngrams1-Nblock-compressed.tab" />
+    <BundleResource Include="Resources\ngrams1\ngrams1.txt" />
   </ItemGroup>
 </Project>

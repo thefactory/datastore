@@ -4,7 +4,7 @@ using System.IO;
 namespace TheFactory.Datastore.Helpers {
     public static class StreamExtensions {
         private static byte[] buf = new byte[4];
-        public static int ReadInt(this Stream stream) {
+        public static UInt32 ReadInt(this Stream stream) {
             var count = stream.Read(buf, 0, 4);
             if (count < 4) {
                 throw new InvalidOperationException();
@@ -12,7 +12,7 @@ namespace TheFactory.Datastore.Helpers {
             if (BitConverter.IsLittleEndian) {
                 Array.Reverse(buf);
             }
-            return BitConverter.ToInt32(buf, 0);
+            return BitConverter.ToUInt32(buf, 0);
         }
     }
 

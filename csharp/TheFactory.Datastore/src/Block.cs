@@ -27,7 +27,7 @@ namespace TheFactory.Datastore {
             }
             var end = start + length - 4;
             stream.Seek(end, SeekOrigin.Begin);
-            numRestarts = stream.ReadInt();
+            numRestarts = (int)stream.ReadInt();
             return (int)numRestarts;
         }
 
@@ -126,7 +126,7 @@ namespace TheFactory.Datastore {
 
             private long ReadRestartOffset(int index) {
                 stream.Seek(restarts + (index * 4), SeekOrigin.Begin);
-                return stream.ReadInt();
+                return (long)stream.ReadInt();
             }
 
             private byte[] ReadKey(long offset) {
