@@ -92,10 +92,12 @@
     <Folder Include="Resources\" />
     <Folder Include="src\" />
     <Folder Include="Resources\ngrams1\" />
+    <Folder Include="Resources\ngrams2\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Info.plist" />
     <None Include="Resources\ngrams1\README" />
+    <None Include="Resources\ngrams2\README" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\Main.cs" />
@@ -103,6 +105,7 @@
     <Compile Include="src\BlockTests.cs" />
     <Compile Include="src\Helpers.cs" />
     <Compile Include="src\TabletTests.cs" />
+    <Compile Include="src\DatabaseTests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -120,5 +123,8 @@
     <BundleResource Include="Resources\ngrams1\ngrams1-1block-uncompressed.tab" />
     <BundleResource Include="Resources\ngrams1\ngrams1-Nblock-compressed.tab" />
     <BundleResource Include="Resources\ngrams1\ngrams1.txt" />
+    <BundleResource Include="Resources\ngrams2\ngrams.tab.0" />
+    <BundleResource Include="Resources\ngrams2\ngrams.tab.1" />
+    <BundleResource Include="Resources\ngrams2\ngrams2.txt" />
   </ItemGroup>
 </Project>

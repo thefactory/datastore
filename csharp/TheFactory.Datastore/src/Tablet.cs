@@ -20,6 +20,10 @@ namespace TheFactory.Datastore {
             decompressor = new SnappyDecompressor();
         }
 
+        public void Close() {
+            stream.Close();
+        }
+
         public IEnumerable<Block.BlockPair> Find() {
             return Find(null);
         }

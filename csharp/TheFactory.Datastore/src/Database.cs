@@ -1,0 +1,115 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using TheFactory.Datastore.Helpers;
+
+namespace TheFactory.Datastore {
+    public class Database {
+        private List<Tablet> tablets;
+
+        public Database() {
+            tablets = new List<Tablet>();
+        }
+
+        public void Close() {
+            while (tablets.Count > 0) {
+                PopTablet();
+            }
+        }
+
+        public void PushTablet(string filename) {
+            var t = new Tablet(new FileStream(filename, FileMode.Open));
+            tablets.Add(t);
+        }
+
+        public void PopTablet() {
+            if (tablets.Count == 0) {
+                return;
+            }
+            var t = tablets[tablets.Count - 1];
+            tablets.RemoveAt(tablets.Count - 1);
+            t.Close();
+        }
+
+        public IEnumerable<Block.BlockPair> Find() {
+            return Find(null);
+        }
+
+        public IEnumerable<Block.BlockPair> Find(byte[] term) {
+            if (tablets.Count == 0) {
+                yield break;
+            }
+
+            if (tablets.Count == 1) {
+                foreach (var p in tablets[0].Find(term)) {
+                    yield return p;
+                }
+                yield break;
+            }
+
+            var cmp = new EnumeratorCurrentKeyComparer(tablets);
+            var set = new SortedSet<TabletEnumerator>(cmp);
+
+            var index = 0;
+            foreach (var t in tablets) {
+                var e = t.Find(term).GetEnumerator();
+                if (e.MoveNext()) {
+                    var te = new TabletEnumerator();
+                    te.TabletIndex = index;
+                    te.Enumerator = e;
+                    set.Add(te);
+                }
+                index += 1;
+            }
+
+            var prev = new byte[0];
+            while (set.Count > 0) {
+                // Remove the first enumerator.
+                var te = set.Min;
+                set.Remove(te);
+
+                var key = te.Enumerator.Current.Key;
+                if (prev.CompareKey(key) != 0) {
+                    // Only yield keys we haven't seen.
+                    yield return te.Enumerator.Current;
+                }
+                prev = key;
+
+                // Re-add to the SortedList if we have more.
+                if (te.Enumerator.MoveNext()) {
+                    set.Add(te);
+                }
+            }
+
+            yield break;
+        }
+
+        private class EnumeratorCurrentKeyComparer : IComparer<TabletEnumerator> {
+            private List<Tablet> tablets;
+
+            public EnumeratorCurrentKeyComparer(List<Tablet> tablets) {
+                this.tablets = tablets;
+            }
+
+            public int Compare(TabletEnumerator x, TabletEnumerator y) {
+                var cmp = x.Enumerator.Current.Key.CompareKey(y.Enumerator.Current.Key);
+                if (cmp == 0) {
+                    // Key is the same, the newer (lower index) tablet wins.
+                    if (x.TabletIndex < y.TabletIndex) {
+                        return 1;
+                    } else if (x.TabletIndex > y.TabletIndex) {
+                        return -1;
+                    } else {
+                        return 0;
+                    }
+                }
+                return cmp;
+            }
+        }
+
+        private struct TabletEnumerator {
+            public int TabletIndex;
+            public IEnumerator<Block.BlockPair> Enumerator;
+        }
+    }
+}

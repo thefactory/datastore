@@ -46,6 +46,7 @@
     <Compile Include="src\Helpers.cs" />
     <Compile Include="src\Tablet.cs" />
     <Compile Include="src\AssemblyInfo.cs" />
+    <Compile Include="src\Database.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\msgpack-cli\MsgPack.mono.iOS\MsgPack.mono.iOS.csproj">
