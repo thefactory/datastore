@@ -1,0 +1,28 @@
+This is a test set of ngram count data with a two tablet files.
+
+The data itself is ngrams2.txt, which is a sorted file of ngram
+counts. There is one ngram per line, and it's formatted like this:
+
+    ngram1 <space> count
+    ngram2 <space> count
+
+Note that the ngrams contain tab characters, so splitting on
+whitespace is not advised. The safest thing to do will be splitting on
+the last space character on the line.
+
+The other files in this set are a series of tablets, with the ngrams
+and counts as key-value data:
+
+    ngram1 -> count
+    ngram2 -> count
+
+The counts are stored as text, same as they are in the original file.
+
+The tablets are designed to be read in a stack, with values in tab0
+being overridden by tab1.
+
+i.e.:
+
+    ds := NewDatastore()
+    ds.PushTablet(tab0)
+    ds.PushTablet(tab1)
