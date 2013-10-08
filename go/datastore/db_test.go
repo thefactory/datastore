@@ -117,10 +117,6 @@ func (s *ParallelIteratorSuite) TestParallelIterator(c *C) {
 	c.Assert(string(iter.Value()), Equals, "baz")
 
 	c.Assert(iter.Next(), Equals, true)
-	c.Assert(string(iter.Key()), Equals, "baz")
-	c.Assert(string(iter.Value()), Equals, "junk")
-
-	c.Assert(iter.Next(), Equals, true)
 	c.Assert(string(iter.Key()), Equals, "foo")
 	c.Assert(string(iter.Value()), Equals, "foo")
 

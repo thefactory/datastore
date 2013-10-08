@@ -171,17 +171,48 @@ func (pi *ParallelIterator) Next() bool {
 		return false
 	}
 
+	key, value := pi.pop()
+
+	pi.key = key
+	pi.value = pi.reduce(nil, value)
+
+	// While the first key in the queue is the same as this one,
+	// reduce the other values into this value.
+	for len(*pi.keys) > 0 &&
+		bytes.Compare([]*priorityKey(*pi.keys)[0].key, pi.key) == 0 {
+		_, value := pi.pop()
+		pi.value = pi.reduce(pi.value, value)
+	}
+
+	return true
+}
+
+// pop a key and value from the iterator, adding the next item on that
+// iterator into the heap if one is available
+func (pi *ParallelIterator) pop() ([]byte, []byte) {
 	item := heap.Pop(pi.keys).(*priorityKey)
 	iter := pi.iters[-item.priority]
 
-	pi.key = iter.Key()
-	pi.value = iter.Value()
+	key := iter.Key()
+	value := iter.Value()
 
 	if iter.Next() {
 		heap.Push(pi.keys, &priorityKey{item.priority, iter.Key()})
 	}
 
-	return true
+	return key, value
+}
+
+func (pi *ParallelIterator) reduce(val1, val2 []byte) []byte {
+	// Initial, hardcoded reduce function always resolves
+	// conflicts by picking the value from the newest added
+	// tablet. The first time this is called is with val1==nil, so
+	// handle that case.
+	if val1 == nil {
+		return val2
+	}
+
+	return val1
 }
 
 func (pi *ParallelIterator) Key() []byte {
