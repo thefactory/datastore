@@ -82,7 +82,7 @@ namespace TheFactory.Datastore {
 
             byte[] data;
 
-            switch (type) {
+            switch (type & 1) {  // compression is lowest order bit.
                 case 0:  // uncompressed.
                     data = buf;
                     break;
