@@ -24,11 +24,11 @@ namespace TheFactory.Datastore {
             stream.Close();
         }
 
-        public IEnumerable<Block.BlockPair> Find() {
+        public IEnumerable<IKeyValuePair> Find() {
             return Find(null);
         }
 
-        public IEnumerable<Block.BlockPair> Find(byte[] term) {
+        public IEnumerable<IKeyValuePair> Find(byte[] term) {
             // Load indexes if we have no dataIndex.
             if (dataIndex == null) {
                 var footer = LoadFooter();

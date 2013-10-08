@@ -31,7 +31,7 @@ namespace TheFactory.Datastore {
             return (int)numRestarts;
         }
 
-        private BlockPair ReadNext() {
+        private IKeyValuePair ReadNext() {
             var prefix = Unpacking.UnpackObject(stream).AsInt32();
             var suffix = (int)Unpacking.UnpackByteStream(stream).Length;
             var key = new byte[prefix + suffix];
@@ -46,7 +46,7 @@ namespace TheFactory.Datastore {
             return pair;
         }
 
-        private IEnumerable<BlockPair> Pairs(long from) {
+        private IEnumerable<IKeyValuePair> Pairs(long from) {
             var end = start + length - 4 - (4 * NumRestarts());
             stream.Seek(from, SeekOrigin.Begin);  // rew.
 
@@ -57,11 +57,11 @@ namespace TheFactory.Datastore {
             yield break;
         }
 
-        public IEnumerable<BlockPair> Find() {
+        public IEnumerable<IKeyValuePair> Find() {
             return Find(null);
         }
 
-        public IEnumerable<BlockPair> Find(byte[] term) {
+        public IEnumerable<IKeyValuePair> Find(byte[] term) {
             if (term == null || term.Length == 0) {
                 return Pairs(start);
             }
@@ -155,7 +155,7 @@ namespace TheFactory.Datastore {
             }
         }
 
-        public class BlockPair {
+        private class BlockPair : IKeyValuePair {
             private Stream stream;
             public long ValueOffset;
             public int ValueLength;

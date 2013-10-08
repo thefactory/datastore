@@ -31,11 +31,11 @@ namespace TheFactory.Datastore {
             t.Close();
         }
 
-        public IEnumerable<Block.BlockPair> Find() {
+        public IEnumerable<IKeyValuePair> Find() {
             return Find(null);
         }
 
-        public IEnumerable<Block.BlockPair> Find(byte[] term) {
+        public IEnumerable<IKeyValuePair> Find(byte[] term) {
             if (tablets.Count == 0) {
                 yield break;
             }
@@ -47,7 +47,7 @@ namespace TheFactory.Datastore {
                 yield break;
             }
 
-            var cmp = new EnumeratorCurrentKeyComparer(tablets);
+            var cmp = new EnumeratorCurrentKeyComparer();
             var set = new SortedSet<TabletEnumerator>(cmp);
 
             var index = 0;
@@ -85,12 +85,6 @@ namespace TheFactory.Datastore {
         }
 
         private class EnumeratorCurrentKeyComparer : IComparer<TabletEnumerator> {
-            private List<Tablet> tablets;
-
-            public EnumeratorCurrentKeyComparer(List<Tablet> tablets) {
-                this.tablets = tablets;
-            }
-
             public int Compare(TabletEnumerator x, TabletEnumerator y) {
                 var cmp = x.Enumerator.Current.Key.CompareKey(y.Enumerator.Current.Key);
                 if (cmp == 0) {
@@ -109,7 +103,7 @@ namespace TheFactory.Datastore {
 
         private struct TabletEnumerator {
             public int TabletIndex;
-            public IEnumerator<Block.BlockPair> Enumerator;
+            public IEnumerator<IKeyValuePair> Enumerator;
         }
     }
 }
