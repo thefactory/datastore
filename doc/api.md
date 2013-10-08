@@ -38,7 +38,9 @@ For read-only support, the following components are necessary:
   tablet most recently added to the datastore.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// An Iterator for a series of key-value pairs.
+// An Iterator for a series of key-value pairs. It's acceptable to //
+// provide key/value data that is only valid until Next() is called
+// again.
 type Iterator interface {
      // Advances the iterator to the next value. This must be called
      // once before Key() and Value() will return valid results.
@@ -110,9 +112,37 @@ For read-write support, a few more components are required:
   This writes key-value pairs from the in-memory tablet into a new
   immutable tablet file.
 
+  The tablet writer can operate on an Iterator of key-value pairs,
+  building blocks and flushing them to its writer as they get larger
+  than opts.BlockSize.
+
+  See the Go implementation of WriteTablet() for program flow.
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 type WritableDatastore interface {
      Put(key []byte, value []byte)
      Delete(key []byte)
+}
+
+type BlockWriter interface {
+     Append(key []byte, value []byte)
+
+     // an estimate of the block size written so far
+     Size() uint32
+
+     Finish() (firstKey []byte, buf []byte)
+
+     // prepare this block writer for writing another block
+     Reset()
+}
+
+type TabletOptions struct {
+     BlockSize          uint32
+     BlockCompression   bool
+     KeyRestartInterval uint
+}
+
+type TabletWriter interface {
+     WriteTablet(writer io.Writer, kvs Iterator, opts TabletOptions)
 }
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
