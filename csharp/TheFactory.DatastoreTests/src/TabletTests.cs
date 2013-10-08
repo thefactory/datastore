@@ -87,6 +87,7 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
+        [ExpectedException(typeof(TabletValidationException))]
         public void TestTabletFooterLoadBadMagic() {
             var bytes = new byte[] {
                 0xcf, 0, 0, 0, 0, 0, 0, 0, 0,  // MetaIndexOffset msgpack uint64.
@@ -97,12 +98,8 @@ namespace TheFactory.DatastoreTests {
             };
             var stream = new MemoryStream(bytes);
             var tablet = new Tablet(stream);
-            try {
-                tablet.LoadFooter();
-                Assert.True(false);  // LoadFooter() should throw.
-            } catch (TabletValidationException e) {
-                Assert.True(true);  // Expecting this due to bad magic.
-            }
+            tablet.LoadFooter();
+            Assert.True(false);  // LoadFooter() should throw.
         }
 
         [Test]
@@ -125,6 +122,7 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
+        [ExpectedException(typeof(TabletValidationException))]
         public void TestTabletLoadIndexBadMagic() {
             var bytes = new byte[] {
                 0, 0, 0, 0,       // magic (0).
@@ -133,12 +131,8 @@ namespace TheFactory.DatastoreTests {
             };
             var stream = new MemoryStream(bytes);
             var tablet = new Tablet(stream);
-            try {
-                tablet.LoadIndex(0, 10, 1);  // send magic 1.
-                Assert.True(false);  // LoadIndex should throw.
-            } catch (TabletValidationException e) {
-                Assert.True(true);  // Expecting this due to bad magic.
-            }
+            tablet.LoadIndex(0, 10, 1);  // send magic 1.
+            Assert.True(false);  // LoadIndex should throw.
         }
 
         [Test]

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using TheFactory.Datastore.Helpers;
 
 namespace TheFactory.Datastore {
@@ -82,6 +83,21 @@ namespace TheFactory.Datastore {
             }
 
             yield break;
+        }
+
+        public byte[] Get(byte[] key) {
+            foreach (var p in Find(key)) {
+                if (p.Key.CompareKey(key) == 0) {
+                    return p.Value;
+                } else {
+                    break;
+                }
+            }
+
+            var keyStr = Encoding.UTF8.GetString(key);
+            var keyRaw = BitConverter.ToString(key);
+            var msg = String.Format("{0} ({1})", keyRaw, keyStr);
+            throw new KeyNotFoundException(msg);
         }
 
         private class EnumeratorCurrentKeyComparer : IComparer<TabletEnumerator> {

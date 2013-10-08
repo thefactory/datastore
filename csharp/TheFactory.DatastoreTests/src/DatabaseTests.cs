@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using NUnit.Framework;
@@ -78,6 +79,32 @@ namespace TheFactory.DatastoreTests {
                 }
                 Assert.True(data.ReadLine() == null);
             }
+        }
+
+        [Test]
+        public void TestMultiTabletGetHit() {
+            var enc = new UTF8Encoding();
+            db.PushTablet("ngrams2/ngrams.tab.0");
+            db.PushTablet("ngrams2/ngrams.tab.1");
+            using (var data = new StreamReader("ngrams2/ngrams2.txt")) {
+                // Just get the first key's value.
+                var kv = data.ReadLine().Split(new char[] {' '});
+                var k = enc.GetBytes(kv[0]);
+                var v = enc.GetBytes(kv[1]);
+                var result = db.Get(k);
+                Assert.True(result.CompareBytes(0, v, 0, v.Length));
+            }
+        }
+
+        [Test]
+        [ExpectedException(typeof(KeyNotFoundException))]
+        public void TestMultiTabletGetMiss() {
+            db.PushTablet("ngrams2/ngrams.tab.0");
+            db.PushTablet("ngrams2/ngrams.tab.1");
+            var keyString = "Key which does not exist";
+            var k = Encoding.UTF8.GetBytes(keyString);
+            db.Get(k);
+            Assert.True(false);
         }
     }
 }
