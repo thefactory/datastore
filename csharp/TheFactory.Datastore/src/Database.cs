@@ -102,6 +102,10 @@ namespace TheFactory.Datastore {
 
         private class EnumeratorCurrentKeyComparer : IComparer<TabletEnumerator> {
             public int Compare(TabletEnumerator x, TabletEnumerator y) {
+                if (ReferenceEquals(x, y)) {
+                    return 0;
+                }
+
                 var cmp = x.Enumerator.Current.Key.CompareKey(y.Enumerator.Current.Key);
                 if (cmp == 0) {
                     // Key is the same, the newer (lower index) tablet wins.
@@ -117,7 +121,7 @@ namespace TheFactory.Datastore {
             }
         }
 
-        private struct TabletEnumerator {
+        private class TabletEnumerator {
             public int TabletIndex;
             public IEnumerator<IKeyValuePair> Enumerator;
         }
