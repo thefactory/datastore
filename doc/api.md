@@ -97,9 +97,9 @@ For read-write support, a few more components are required:
 
   This gathers newly written items in memory before they're written to
   an immutable tablet. This must provide in-order iterative access as
-  well as key `Get()` and `Set()`, so the recommended implementation
-  includes a sorted data structure: consider a built-in sorted
-  dictionary, if one is available, or implement a skiplist.
+  well as key `Set()` and `Delete()`, so the recommended
+  implementation includes a sorted data structure: consider a built-in
+  sorted dictionary, if one is available, or implement a skiplist.
 
 * A transaction logger
 
