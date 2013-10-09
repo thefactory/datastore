@@ -77,10 +77,14 @@ Each block is packed into the tablet with a checksum, a type byte, and
 its length. These are all included in the offset and length pointed to
 by the data index below.
 
-These values are msgpacked. The type byte must be one of:
+These values are msgpacked. The type byte is a bitfield, with the
+lowest bit representing block compression and the next determining
+whether the block is a metadata or data block.
 
-    0x00: uncompressed block data
-    0x01: Snappy compressed block data
+    0b000000TC
+
+    C: block compression: 0 = None, 1 = Snappy
+    T: block type: 0 = Data block, 1 = Metadata block
 
 The key-value data (including restarts index described above) follows
 the packing information.
