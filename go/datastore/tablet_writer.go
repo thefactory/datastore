@@ -27,7 +27,6 @@ type IndexRecord struct {
 
 type TabletOptions struct {
 	BlockSize          uint32
-	BlockEncoding      BlockEncodingType
 	BlockCompression   BlockCompressionType
 	KeyRestartInterval uint
 }
@@ -155,7 +154,7 @@ func writeBinary(w io.Writer, data interface{}) (uint32, error) {
 }
 
 func writeHeader(w io.Writer, opts *TabletOptions) uint32 {
-	h := Header{tabletMagic, opts.BlockEncoding, opts.BlockCompression, 0, 0}
+	h := Header{tabletMagic, BlockEncodingType(PrefixCompressed), 0, 0, 0}
 	n, _ := writeBinary(w, &h)
 	return n
 }

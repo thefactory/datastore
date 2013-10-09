@@ -24,11 +24,11 @@ type Tablet struct {
 }
 
 type Header struct {
-	magic            uint32
-	blockEncoding    BlockEncodingType
-	blockCompression BlockCompressionType
-	future1          uint8
-	future2          uint8
+	magic         uint32
+	blockEncoding BlockEncodingType
+	future2       uint8
+	future3       uint8
+	future4       uint8
 }
 
 type Footer struct {
@@ -50,6 +50,7 @@ type BlockEncodingType uint8
 
 const (
 	Raw BlockEncodingType = iota
+	PrefixCompressed
 )
 
 func OpenTablet(r TabletFile) (*Tablet, error) {
@@ -58,7 +59,7 @@ func OpenTablet(r TabletFile) (*Tablet, error) {
 		return nil, err
 	}
 
-	if header.blockEncoding > Raw {
+	if header.blockEncoding > PrefixCompressed {
 		msg := fmt.Sprintf("unsupported block encoding: 0x%x",
 			header.blockEncoding)
 		return nil, errors.New(msg)
@@ -105,8 +106,8 @@ func readHeader(r io.Reader) (*Header, error) {
 		return nil, err
 	}
 
-	h := Header{magic, BlockEncodingType(flags[0]),
-		BlockCompressionType(flags[1]), flags[2], flags[3]}
+	h := Header{magic, BlockEncodingType(flags[0]), flags[1], flags[2],
+		flags[3]}
 
 	err = validateHeader(&h)
 	if err != nil {
@@ -119,18 +120,6 @@ func readHeader(r io.Reader) (*Header, error) {
 func validateHeader(h *Header) error {
 	if h.magic != tabletMagic {
 		return errors.New("bad magic number in header")
-	}
-
-	if h.blockEncoding > Raw {
-		msg := fmt.Sprintf("unknown block encoding: 0x%x",
-			h.blockEncoding)
-		return errors.New(msg)
-	}
-
-	if h.blockCompression > Snappy {
-		msg := fmt.Sprintf("unknown block compression: 0x%x",
-			h.blockCompression)
-		return errors.New(msg)
 	}
 
 	return nil
