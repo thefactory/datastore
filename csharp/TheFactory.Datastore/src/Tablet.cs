@@ -6,7 +6,15 @@ using Snappy.Sharp;
 using TheFactory.Datastore.Helpers;
 
 namespace TheFactory.Datastore {
-    public class Tablet {
+    public interface ITablet {
+        void Close();
+
+        IEnumerable<IKeyValuePair> Find();
+
+        IEnumerable<IKeyValuePair> Find(byte[] term);
+    }
+
+    public class FileTablet : ITablet {
         const UInt32 TabletMagic = 0x0b501e7e;
         const UInt32 MetaIndexMagic = 0x0ea7da7a;
         const UInt32 DataIndexMagic = 0xda7aba5e;
@@ -15,7 +23,7 @@ namespace TheFactory.Datastore {
         private SnappyDecompressor decompressor;
         private List<TabletIndexRecord> dataIndex, metaIndex;
 
-        public Tablet(Stream stream) {
+        public FileTablet(Stream stream) {
             this.stream = stream;
             decompressor = new SnappyDecompressor();
         }

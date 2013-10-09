@@ -6,10 +6,10 @@ using TheFactory.Datastore.Helpers;
 
 namespace TheFactory.Datastore {
     public class Database {
-        private List<Tablet> tablets;
+        private List<ITablet> tablets;
 
         public Database() {
-            tablets = new List<Tablet>();
+            tablets = new List<ITablet>();
         }
 
         public void Close() {
@@ -19,7 +19,7 @@ namespace TheFactory.Datastore {
         }
 
         public void PushTablet(string filename) {
-            var t = new Tablet(new FileStream(filename, FileMode.Open));
+            var t = new FileTablet(new FileStream(filename, FileMode.Open));
             tablets.Add(t);
         }
 
