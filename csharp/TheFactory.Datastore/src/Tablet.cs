@@ -84,6 +84,11 @@ namespace TheFactory.Datastore {
         private class MemoryKeyValuePair : IKeyValuePair {
             public byte[] Key { get; private set; }
             public byte[] Value { get; private set; }
+            public bool IsDeleted {
+                get {
+                    return ReferenceEquals(Value, Tombstone);
+                }
+            }
 
             public MemoryKeyValuePair(byte[] key, byte[] val) {
                 Key = key;

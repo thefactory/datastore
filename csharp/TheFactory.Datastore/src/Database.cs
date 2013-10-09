@@ -1,20 +1,27 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using TheFactory.Datastore.Helpers;
 
 namespace TheFactory.Datastore {
     public class Database {
         private List<ITablet> tablets;
+        private List<ITablet> mutableTablets;
 
         public Database() {
             tablets = new List<ITablet>();
+            mutableTablets = new List<ITablet>();
+            mutableTablets.Add(new MemoryTablet());
+            // There's probably something that happens elsewhere which involves
+            // replaying a durable log for an in-flight MemoryTablet.
         }
 
         public void Close() {
             while (tablets.Count > 0) {
                 PopTablet();
             }
+            // TODO: Not sure what to do with mutableTablets.
         }
 
         public void PushTablet(string filename) {
@@ -36,22 +43,11 @@ namespace TheFactory.Datastore {
         }
 
         public IEnumerable<IKeyValuePair> Find(byte[] term) {
-            if (tablets.Count == 0) {
-                yield break;
-            }
-
-            if (tablets.Count == 1) {
-                foreach (var p in tablets[0].Find(term)) {
-                    yield return p;
-                }
-                yield break;
-            }
-
             var cmp = new EnumeratorCurrentKeyComparer();
             var set = new SortedSet<TabletEnumerator>(cmp);
 
             var index = 0;
-            foreach (var t in tablets) {
+            foreach (var t in tablets.Concat(mutableTablets)) {
                 var e = t.Find(term).GetEnumerator();
                 if (e.MoveNext()) {
                     var te = new TabletEnumerator();
@@ -69,7 +65,7 @@ namespace TheFactory.Datastore {
                 set.Remove(te);
 
                 var key = te.Enumerator.Current.Key;
-                if (prev.CompareKey(key) != 0) {
+                if (prev.CompareKey(key) != 0 && !te.Enumerator.Current.IsDeleted) {
                     // Only yield keys we haven't seen.
                     yield return te.Enumerator.Current;
                 }
@@ -96,6 +92,18 @@ namespace TheFactory.Datastore {
             throw new KeyNotFoundException(key.StringifyKey());
         }
 
+        public void Put(byte[] key, byte[] val) {
+            // Last mutableTablet is the writing tablet.
+            var tablet = (MemoryTablet)mutableTablets[mutableTablets.Count - 1];
+            tablet.Set(key, val);
+        }
+
+        public void Delete(byte[] key) {
+            // Last mutableTablet is the writing tablet.
+            var tablet = (MemoryTablet)mutableTablets[mutableTablets.Count - 1];
+            tablet.Delete(key);
+        }
+
         private class EnumeratorCurrentKeyComparer : IComparer<TabletEnumerator> {
             public int Compare(TabletEnumerator x, TabletEnumerator y) {
                 if (ReferenceEquals(x, y)) {
@@ -104,7 +112,7 @@ namespace TheFactory.Datastore {
 
                 var cmp = x.Enumerator.Current.Key.CompareKey(y.Enumerator.Current.Key);
                 if (cmp == 0) {
-                    // Key is the same, the newer (lower index) tablet wins.
+                    // Key is the same, the newer (higher index) tablet wins.
                     if (x.TabletIndex < y.TabletIndex) {
                         return 1;
                     } else if (x.TabletIndex > y.TabletIndex) {

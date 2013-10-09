@@ -160,6 +160,7 @@ namespace TheFactory.Datastore {
             public long ValueOffset;
             public int ValueLength;
 
+            public bool IsDeleted { get; set; }
             public byte[] Key { get; set; }
 
             public byte[] Value {
