@@ -41,7 +41,12 @@ func commonPrefix(bin1 []byte, bin2 []byte) uint {
 
 func (b *BlockWriter) Append(key []byte, value []byte) {
 	if b.buf.Len() == 0 {
-		b.firstKey = key
+		// Make a copy of firstKey, since it may be coming
+		// from memory we don't own. We could also maintain a
+		// reference into our buf, but needs to be offset &
+		// length because buf is resized dynamically.
+		b.firstKey = make([]byte, len(key))
+		copy(b.firstKey, key)
 	}
 
 	var shared uint
