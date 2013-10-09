@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using NUnit.Framework;
@@ -7,7 +8,191 @@ using TheFactory.Datastore;
 
 namespace TheFactory.DatastoreTests {
     [TestFixture]
-    public class TabletTests {
+    public class MemoryTabletTests {
+        private MemoryTablet tablet;
+
+        [SetUp]
+        public void SetUp() {
+            tablet = new MemoryTablet();
+        }
+
+        [TearDown]
+        public void TearDown() {
+            tablet.Close();
+        }
+
+        [Test]
+        public void TestMemoryTabletSet() {
+            var k = Encoding.UTF8.GetBytes("key");
+            var v = Encoding.UTF8.GetBytes("value");
+            tablet.Set(k, v);
+            var count = 0;
+            foreach (var p in tablet.Find(k)) {
+                var val = p.Value;
+                Assert.True(val.CompareBytes(0, v, 0, v.Length));
+                count += 1;
+                break;
+            }
+            Assert.True(count == 1);
+        }
+
+        [Test]
+        public void TestMemoryTabletReSet() {
+            var k = Encoding.UTF8.GetBytes("key");
+            var v = Encoding.UTF8.GetBytes("value");
+            tablet.Set(k, Encoding.UTF8.GetBytes("initial value"));
+            tablet.Set(k, v);  // update value.
+            var count = 0;
+            foreach (var p in tablet.Find(k)) {
+                var val = p.Value;
+                Assert.True(val.CompareBytes(0, v, 0, v.Length));
+                count += 1;
+                break;
+            }
+            Assert.True(count == 1);
+        }
+
+        [Test]
+        public void TestMemoryTabletDelete() {
+            var k = Encoding.UTF8.GetBytes("key");
+            var v = Encoding.UTF8.GetBytes("value");
+            tablet.Set(k, v);
+            tablet.Delete(k);
+            var count = 0;
+            foreach (var p in tablet.Find(k)) {
+                var val = p.Value;
+                Assert.True(ReferenceEquals(val, MemoryTablet.Tombstone));
+                count += 1;
+                break;
+            }
+            Assert.True(count == 1);
+        }
+
+        [Test]
+        public void TestMemoryTabletEnumerateEmpty() {
+            var count = 0;
+            foreach (var p in tablet.Find()) {
+                count += 1;
+            }
+            Assert.True(count == 0);
+        }
+
+        [Test]
+        public void TestMemoryTabletEnumerateAll() {
+            var pairs = new byte[][] {
+                Encoding.UTF8.GetBytes("key0"),
+                Encoding.UTF8.GetBytes("value0"),
+                Encoding.UTF8.GetBytes("key1"),
+                Encoding.UTF8.GetBytes("value1"),
+                Encoding.UTF8.GetBytes("key2"),
+                Encoding.UTF8.GetBytes("value2"),
+                Encoding.UTF8.GetBytes("key3"),
+                Encoding.UTF8.GetBytes("value3"),
+                Encoding.UTF8.GetBytes("key4"),
+                Encoding.UTF8.GetBytes("value4")
+            };
+            Assert.True(pairs.Length % 2 == 0);
+            for (var i = 0; i < pairs.Length; i += 2) {
+                tablet.Set(pairs[i], pairs[i + 1]);
+            }
+
+            var j = 0;
+            foreach (var p in tablet.Find()) {
+                Assert.True(p.Key.CompareBytes(0, pairs[j], 0, p.Key.Length));
+                Assert.True(p.Value.CompareBytes(0, pairs[j + 1], 0, p.Value.Length));
+                j += 2;
+            }
+            Assert.True(j == pairs.Length);
+        }
+
+        [Test]
+        public void TestMemoryTabletEnumerateFromAfter() {
+            var pairs = new byte[][] {
+                Encoding.UTF8.GetBytes("key0"),
+                Encoding.UTF8.GetBytes("value0"),
+                Encoding.UTF8.GetBytes("key1"),
+                Encoding.UTF8.GetBytes("value1"),
+                Encoding.UTF8.GetBytes("key2"),
+                Encoding.UTF8.GetBytes("value2"),
+                Encoding.UTF8.GetBytes("key3"),
+                Encoding.UTF8.GetBytes("value3"),
+                Encoding.UTF8.GetBytes("key4"),
+                Encoding.UTF8.GetBytes("value4")
+            };
+            Assert.True(pairs.Length % 2 == 0);
+            for (var i = 0; i < pairs.Length; i += 2) {
+                tablet.Set(pairs[i], pairs[i + 1]);
+            }
+
+            var count = 0;
+            var term = Encoding.UTF8.GetBytes("key5");  // After end.
+            foreach (var p in tablet.Find(term)) {
+                count += 1;
+            }
+            Assert.True(count == 0);
+        }
+
+        [Test]
+        public void TestMemoryTabletEnumerateFromNFound() {
+            var pairs = new byte[][] {
+                Encoding.UTF8.GetBytes("key0"),
+                Encoding.UTF8.GetBytes("value0"),
+                Encoding.UTF8.GetBytes("key1"),
+                Encoding.UTF8.GetBytes("value1"),
+                Encoding.UTF8.GetBytes("key2"),
+                Encoding.UTF8.GetBytes("value2"),
+                Encoding.UTF8.GetBytes("key3"),
+                Encoding.UTF8.GetBytes("value3"),
+                Encoding.UTF8.GetBytes("key4"),
+                Encoding.UTF8.GetBytes("value4")
+            };
+            Assert.True(pairs.Length % 2 == 0);
+            for (var i = 0; i < pairs.Length; i += 2) {
+                tablet.Set(pairs[i], pairs[i + 1]);
+            }
+
+            var j = 4;
+            var term = pairs[j];
+            foreach (var p in tablet.Find(term)) {
+                Assert.True(p.Key.CompareBytes(0, pairs[j], 0, p.Key.Length));
+                Assert.True(p.Value.CompareBytes(0, pairs[j + 1], 0, p.Value.Length));
+                j += 2;
+            }
+            Assert.True(j == pairs.Length);
+        }
+
+        [Test]
+        public void TestMemoryTabletEnumerateFromNNotFound() {
+            var pairs = new byte[][] {
+                Encoding.UTF8.GetBytes("key0"),
+                Encoding.UTF8.GetBytes("value0"),
+                Encoding.UTF8.GetBytes("key1"),
+                Encoding.UTF8.GetBytes("value1"),
+                Encoding.UTF8.GetBytes("key2"),
+                Encoding.UTF8.GetBytes("value2"),
+                Encoding.UTF8.GetBytes("key3"),
+                Encoding.UTF8.GetBytes("value3"),
+                Encoding.UTF8.GetBytes("key4"),
+                Encoding.UTF8.GetBytes("value4")
+            };
+            Assert.True(pairs.Length % 2 == 0);
+            for (var i = 0; i < pairs.Length; i += 2) {
+                tablet.Set(pairs[i], pairs[i + 1]);
+            }
+
+            var j = 4;
+            var term = Encoding.UTF8.GetBytes("key11");  // After key1.
+            foreach (var p in tablet.Find(term)) {
+                Assert.True(p.Key.CompareBytes(0, pairs[j], 0, p.Key.Length));
+                Assert.True(p.Value.CompareBytes(0, pairs[j + 1], 0, p.Value.Length));
+                j += 2;
+            }
+            Assert.True(j == pairs.Length);
+        }
+    }
+
+    [TestFixture]
+    public class FileTabletTests {
         private byte[] SnappyCompressedBlock(byte[] data) {
             var c = new SnappyCompressor();
 

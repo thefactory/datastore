@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using TheFactory.Datastore.Helpers;
 
 namespace TheFactory.Datastore {
@@ -94,10 +93,7 @@ namespace TheFactory.Datastore {
                 }
             }
 
-            var keyStr = Encoding.UTF8.GetString(key);
-            var keyRaw = BitConverter.ToString(key);
-            var msg = String.Format("{0} ({1})", keyRaw, keyStr);
-            throw new KeyNotFoundException(msg);
+            throw new KeyNotFoundException(key.StringifyKey());
         }
 
         private class EnumeratorCurrentKeyComparer : IComparer<TabletEnumerator> {

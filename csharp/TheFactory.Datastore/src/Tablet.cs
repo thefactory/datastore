@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using MsgPack;
 using Snappy.Sharp;
 using TheFactory.Datastore.Helpers;
@@ -12,6 +13,92 @@ namespace TheFactory.Datastore {
         IEnumerable<IKeyValuePair> Find();
 
         IEnumerable<IKeyValuePair> Find(byte[] term);
+    }
+
+    public class MemoryTablet : ITablet {
+        private SortedSet<IKeyValuePair> backing;
+        private ReaderWriterLockSlim backingLock;
+
+        // Deleted key marker -- consumers of Get() and Find() enumerator
+        // should check against this value and take appropriate action.
+        public const byte[] Tombstone = null;
+
+        public MemoryTablet() {
+            var cmp = new MemoryTabletKeyComparer();
+            backing = new SortedSet<IKeyValuePair>(cmp);
+            backingLock = new ReaderWriterLockSlim();
+        }
+
+        public void Set(byte[] key, byte[] val) {
+            // Have to remove and re-add for SortedSet backing.
+            var pair = new MemoryKeyValuePair(key, val);
+            backingLock.EnterWriteLock();
+            try {
+                backing.Remove(pair);
+                backing.Add(pair);
+            } finally {
+                backingLock.ExitWriteLock();
+            }
+        }
+
+        public void Delete(byte[] key) {
+            Set(key, Tombstone);
+        }
+
+        public void Close() {
+            backing.Clear();
+        }
+
+        public IEnumerable<IKeyValuePair> Find() {
+            return Find(null);
+        }
+
+        public IEnumerable<IKeyValuePair> Find(byte[] term) {
+            if (backing.Count == 0) {
+                yield break;
+            }
+
+            backingLock.EnterReadLock();
+            try {
+                var set = backing;
+
+                if (term != null) {
+                    if (backing.Max.Key.CompareKey(term) < 0) {
+                        // Max key is less than the search term -- empty.
+                        yield break;
+                    }
+                    var searchTerm = new MemoryKeyValuePair(term, null);
+                    set = backing.GetViewBetween(searchTerm, backing.Max);
+                }
+
+                foreach (var p in set) {
+                    yield return p;
+                }
+
+                yield break;
+            } finally {
+                backingLock.ExitReadLock();
+            }
+        }
+
+        private class MemoryKeyValuePair : IKeyValuePair {
+            public byte[] Key { get; private set; }
+            public byte[] Value { get; private set; }
+
+            public MemoryKeyValuePair(byte[] key, byte[] val) {
+                Key = key;
+                Value = val;
+            }
+        }
+
+        private class MemoryTabletKeyComparer : IComparer<IKeyValuePair> {
+            public int Compare(IKeyValuePair x, IKeyValuePair y) {
+                if (ReferenceEquals(x, y)) {
+                    return 0;
+                }
+                return x.Key.CompareKey(y.Key);
+            }
+        }
     }
 
     public class FileTablet : ITablet {
