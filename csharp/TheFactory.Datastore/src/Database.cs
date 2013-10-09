@@ -25,7 +25,7 @@ namespace TheFactory.Datastore {
         }
 
         public void PushTablet(string filename) {
-            var t = new FileTablet(new FileStream(filename, FileMode.Open));
+            var t = new FileTablet(new FileStream(filename, FileMode.Open, FileAccess.Read));
             tablets.Add(t);
         }
 

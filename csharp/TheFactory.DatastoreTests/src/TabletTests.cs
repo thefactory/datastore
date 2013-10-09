@@ -355,7 +355,7 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTabletFileUncompressed1BlockAll() {
             var enc = new UTF8Encoding();
-            using (var stream = new FileStream("ngrams1/ngrams1-1block-uncompressed.tab", FileMode.Open)) {
+            using (var stream = new FileStream("test-data/ngrams1/ngrams1-1block-uncompressed.tab", FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream);
                 using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
                     foreach (var p in tablet.Find()) {
@@ -373,7 +373,7 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTabletFileUncompressed1BlockFrom1() {
             var enc = new UTF8Encoding();
-            using (var stream = new FileStream("ngrams1/ngrams1-1block-uncompressed.tab", FileMode.Open)) {
+            using (var stream = new FileStream("test-data/ngrams1/ngrams1-1block-uncompressed.tab", FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream);
                 using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
                     // Read the first line to find a term.
@@ -398,7 +398,7 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTabletFileUncompressed1BlockFromN() {
             var enc = new UTF8Encoding();
-            using (var stream = new FileStream("ngrams1/ngrams1-1block-uncompressed.tab", FileMode.Open)) {
+            using (var stream = new FileStream("test-data/ngrams1/ngrams1-1block-uncompressed.tab", FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream);
                 using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
                     var count = 0;
@@ -427,7 +427,7 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTabletFileCompressed1BlockAll() {
             var enc = new UTF8Encoding();
-            using (var stream = new FileStream("ngrams1/ngrams1-1block-compressed.tab", FileMode.Open)) {
+            using (var stream = new FileStream("test-data/ngrams1/ngrams1-1block-compressed.tab", FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream);
                 using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
                     foreach (var p in tablet.Find()) {
@@ -445,7 +445,7 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTabletFileCompressedNBlockAll() {
             var enc = new UTF8Encoding();
-            using (var stream = new FileStream("ngrams1/ngrams1-Nblock-compressed.tab", FileMode.Open)) {
+            using (var stream = new FileStream("test-data/ngrams1/ngrams1-Nblock-compressed.tab", FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream);
                 using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
                     foreach (var p in tablet.Find()) {
@@ -463,7 +463,7 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTabletFileCompressedNBlockFrom1() {
             var enc = new UTF8Encoding();
-            using (var stream = new FileStream("ngrams1/ngrams1-Nblock-compressed.tab", FileMode.Open)) {
+            using (var stream = new FileStream("test-data/ngrams1/ngrams1-Nblock-compressed.tab", FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream);
                 using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
                     // Read the first line to find a term.
@@ -488,7 +488,7 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTabletFileCompressedNBlockFromN() {
             var enc = new UTF8Encoding();
-            using (var stream = new FileStream("ngrams1/ngrams1-Nblock-compressed.tab", FileMode.Open)) {
+            using (var stream = new FileStream("test-data/ngrams1/ngrams1-Nblock-compressed.tab", FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream);
                 using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
                     var count = 0;

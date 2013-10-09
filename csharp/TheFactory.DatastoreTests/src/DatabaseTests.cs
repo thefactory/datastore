@@ -23,8 +23,8 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestDatabaseOneFileTabletFindAll() {
             var enc = new UTF8Encoding();
-            db.PushTablet("ngrams1/ngrams1-Nblock-compressed.tab");
-            using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
+            db.PushTablet("test-data/ngrams1/ngrams1-Nblock-compressed.tab");
+            using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                 foreach (var p in db.Find()) {
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
@@ -39,9 +39,9 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestDatabaseMultiFileTabletFindAll() {
             var enc = new UTF8Encoding();
-            db.PushTablet("ngrams2/ngrams.tab.0");
-            db.PushTablet("ngrams2/ngrams.tab.1");
-            using (var data = new StreamReader("ngrams2/ngrams2.txt")) {
+            db.PushTablet("test-data/ngrams2/ngrams.tab.0");
+            db.PushTablet("test-data/ngrams2/ngrams.tab.1");
+            using (var data = new StreamReader("test-data/ngrams2/ngrams2.txt")) {
                 foreach (var p in db.Find()) {
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
@@ -56,9 +56,9 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestDatabaseMultiFileTabletFindFromN() {
             var enc = new UTF8Encoding();
-            db.PushTablet("ngrams2/ngrams.tab.0");
-            db.PushTablet("ngrams2/ngrams.tab.1");
-            using (var data = new StreamReader("ngrams2/ngrams2.txt")) {
+            db.PushTablet("test-data/ngrams2/ngrams.tab.0");
+            db.PushTablet("test-data/ngrams2/ngrams.tab.1");
+            using (var data = new StreamReader("test-data/ngrams2/ngrams2.txt")) {
                 var count = 0;
                 string[] kv;
                 do {
@@ -84,9 +84,9 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestDatabaseMultiFileTabletGetHit() {
             var enc = new UTF8Encoding();
-            db.PushTablet("ngrams2/ngrams.tab.0");
-            db.PushTablet("ngrams2/ngrams.tab.1");
-            using (var data = new StreamReader("ngrams2/ngrams2.txt")) {
+            db.PushTablet("test-data/ngrams2/ngrams.tab.0");
+            db.PushTablet("test-data/ngrams2/ngrams.tab.1");
+            using (var data = new StreamReader("test-data/ngrams2/ngrams2.txt")) {
                 // Just get the first key's value.
                 var kv = data.ReadLine().Split(new char[] {' '});
                 var k = enc.GetBytes(kv[0]);
@@ -99,8 +99,8 @@ namespace TheFactory.DatastoreTests {
         [Test]
         [ExpectedException(typeof(KeyNotFoundException))]
         public void TestDatabaseMultiFileTabletGetMiss() {
-            db.PushTablet("ngrams2/ngrams.tab.0");
-            db.PushTablet("ngrams2/ngrams.tab.1");
+            db.PushTablet("test-data/ngrams2/ngrams.tab.0");
+            db.PushTablet("test-data/ngrams2/ngrams.tab.1");
             var keyString = "Key which does not exist";
             var k = Encoding.UTF8.GetBytes(keyString);
             db.Get(k);
@@ -138,8 +138,8 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestDatabaseOverwriteAll() {
             var enc = new UTF8Encoding();
-            db.PushTablet("ngrams1/ngrams1-Nblock-compressed.tab");
-            using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
+            db.PushTablet("test-data/ngrams1/ngrams1-Nblock-compressed.tab");
+            using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                 var v = Encoding.UTF8.GetBytes("overwritten value");
                 string line;
                 while ((line = data.ReadLine()) != null) {
@@ -157,8 +157,8 @@ namespace TheFactory.DatastoreTests {
         public void TestDatabaseOverwriteFromN() {
             var n = 10;
             var enc = new UTF8Encoding();
-            db.PushTablet("ngrams1/ngrams1-Nblock-compressed.tab");
-            using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
+            db.PushTablet("test-data/ngrams1/ngrams1-Nblock-compressed.tab");
+            using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                 var v = Encoding.UTF8.GetBytes("overwritten value");
                 string line;
                 var count = 0;
@@ -171,7 +171,7 @@ namespace TheFactory.DatastoreTests {
                     count += 1;
                 }
             }
-            using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
+            using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                 var ov = Encoding.UTF8.GetBytes("overwritten value");
                 var count = 0;
                 foreach (var p in db.Find()) {
@@ -193,8 +193,8 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestDatabaseDeleteAll() {
             var enc = new UTF8Encoding();
-            db.PushTablet("ngrams1/ngrams1-Nblock-compressed.tab");
-            using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
+            db.PushTablet("test-data/ngrams1/ngrams1-Nblock-compressed.tab");
+            using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                 string line;
                 while ((line = data.ReadLine()) != null) {
                     var kv = line.Split(new char[] {' '});
@@ -213,8 +213,8 @@ namespace TheFactory.DatastoreTests {
         public void TestDatabaseDeleteFromN() {
             var n = 10;
             var enc = new UTF8Encoding();
-            db.PushTablet("ngrams1/ngrams1-Nblock-compressed.tab");
-            using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
+            db.PushTablet("test-data/ngrams1/ngrams1-Nblock-compressed.tab");
+            using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                 string line;
                 var count = 0;
                 while ((line = data.ReadLine()) != null) {
@@ -226,7 +226,7 @@ namespace TheFactory.DatastoreTests {
                     count += 1;
                 }
             }
-            using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
+            using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                 var count = 0;
                 foreach (var p in db.Find()) {
                     var kv = data.ReadLine().Split(new char[] {' '});

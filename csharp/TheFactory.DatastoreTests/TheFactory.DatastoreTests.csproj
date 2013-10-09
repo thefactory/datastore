@@ -44,9 +44,11 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <ConsolePause>false</ConsolePause>
-    <CodesignEntitlements>Entitlements.plist</CodesignEntitlements>
     <MtouchDebug>true</MtouchDebug>
     <CodesignKey>iPhone Developer</CodesignKey>
+    <MtouchI18n>
+    </MtouchI18n>
+    <MtouchArch>ARMv7</MtouchArch>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|iPhone' ">
     <DebugType>full</DebugType>
@@ -91,13 +93,16 @@
   <ItemGroup>
     <Folder Include="Resources\" />
     <Folder Include="src\" />
-    <Folder Include="Resources\ngrams1\" />
-    <Folder Include="Resources\ngrams2\" />
+    <Folder Include="test-data\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Info.plist" />
-    <None Include="Resources\ngrams1\README" />
-    <None Include="Resources\ngrams2\README" />
+    <None Include="..\..\test-data\ngrams1\README">
+      <Link>test-data\ngrams1\README</Link>
+    </None>
+    <None Include="..\..\test-data\ngrams2\README">
+      <Link>test-data\ngrams2\README</Link>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\Main.cs" />
@@ -117,14 +122,32 @@
       <Project>{379A46BA-1EBB-4BD0-BEB5-B850F174E0D8}</Project>
       <Name>Snappy.Sharp.iOS</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\..\msgpack-cli\MsgPack.mono.iOS\MsgPack.mono.iOS.csproj">
+      <Project>{88644B60-C039-40EC-8D58-67AD2454ED57}</Project>
+      <Name>MsgPack.mono.iOS</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <BundleResource Include="Resources\ngrams1\ngrams1-1block-compressed.tab" />
-    <BundleResource Include="Resources\ngrams1\ngrams1-1block-uncompressed.tab" />
-    <BundleResource Include="Resources\ngrams1\ngrams1-Nblock-compressed.tab" />
-    <BundleResource Include="Resources\ngrams1\ngrams1.txt" />
-    <BundleResource Include="Resources\ngrams2\ngrams.tab.0" />
-    <BundleResource Include="Resources\ngrams2\ngrams.tab.1" />
-    <BundleResource Include="Resources\ngrams2\ngrams2.txt" />
+    <Content Include="..\..\test-data\ngrams1\ngrams1-1block-compressed.tab">
+      <Link>test-data\ngrams1\ngrams1-1block-compressed.tab</Link>
+    </Content>
+    <Content Include="..\..\test-data\ngrams1\ngrams1-1block-uncompressed.tab">
+      <Link>test-data\ngrams1\ngrams1-1block-uncompressed.tab</Link>
+    </Content>
+    <Content Include="..\..\test-data\ngrams1\ngrams1-Nblock-compressed.tab">
+      <Link>test-data\ngrams1\ngrams1-Nblock-compressed.tab</Link>
+    </Content>
+    <Content Include="..\..\test-data\ngrams1\ngrams1.txt">
+      <Link>test-data\ngrams1\ngrams1.txt</Link>
+    </Content>
+    <Content Include="..\..\test-data\ngrams2\ngrams.tab.0">
+      <Link>test-data\ngrams2\ngrams.tab.0</Link>
+    </Content>
+    <Content Include="..\..\test-data\ngrams2\ngrams.tab.1">
+      <Link>test-data\ngrams2\ngrams.tab.1</Link>
+    </Content>
+    <Content Include="..\..\test-data\ngrams2\ngrams2.txt">
+      <Link>test-data\ngrams2\ngrams2.txt</Link>
+    </Content>
   </ItemGroup>
 </Project>
