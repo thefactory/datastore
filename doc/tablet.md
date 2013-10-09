@@ -6,6 +6,7 @@ uncompressed and don't have leveldb's prefix compression or block indexes.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --beginning of file--
+[tablet header]
 [data block 1]
 [data block 2]
 ...
@@ -18,6 +19,12 @@ uncompressed and don't have leveldb's prefix compression or block indexes.
 [footer]
 --end of file--
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Tablet header
+=============
+
+[ 0x0b501e7e | 0x01 | 3 unused bytes ]
+
 
 Block formats
 =============
