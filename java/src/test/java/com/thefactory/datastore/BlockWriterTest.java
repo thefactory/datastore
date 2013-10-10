@@ -1,9 +1,6 @@
 package com.thefactory.datastore;
 
 import junit.framework.TestCase;
-import org.junit.Test;
-
-import java.io.ByteArrayOutputStream;
 
 import static org.junit.Assert.assertArrayEquals;
 
@@ -16,7 +13,6 @@ public class BlockWriterTest extends TestCase {
         return opts;
     }
 
-    @Test
     public void testWrite() throws Exception {
         BlockWriter tw = new BlockWriter(getTabletOptions());
         tw.append("foo".getBytes(), "bar".getBytes());

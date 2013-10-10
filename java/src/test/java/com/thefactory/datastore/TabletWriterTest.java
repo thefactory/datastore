@@ -3,16 +3,11 @@ package com.thefactory.datastore;
 import junit.framework.TestCase;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
-import org.junit.Test;
 
-import java.io.FileOutputStream;
-import java.text.Format;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
 public class TabletWriterTest extends TestCase {
-    @Test
     public void testWriteTablet() throws Exception {
         TabletOptions opts = new TabletOptions();
         opts.blockSize = 4096;
@@ -34,7 +29,6 @@ public class TabletWriterTest extends TestCase {
         assertEquals(108, buf.writerIndex());
     }
 
-    @Test
     public void testWriteCompressedTablet() throws Exception {
         TabletOptions opts = new TabletOptions();
         opts.blockSize = 4096;

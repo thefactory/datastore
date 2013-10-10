@@ -3,8 +3,9 @@ package com.thefactory.datastore;
 import org.msgpack.MessagePack;
 import org.msgpack.packer.Packer;
 
-import java.io.*;
-import java.nio.ByteBuffer;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Arrays;
 
 public class BlockWriter {

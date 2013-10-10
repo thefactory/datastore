@@ -1,12 +1,11 @@
 package com.thefactory.datastore;
 
 import org.jboss.netty.buffer.ChannelBuffer;
-import org.msgpack.packer.Packer;
 import org.xerial.snappy.Snappy;
 
 import java.io.IOException;
-import java.util.*;
-import java.util.zip.CRC32;
+import java.util.Deque;
+import java.util.LinkedList;
 
 public class TabletWriter {
     TabletOptions opts;
