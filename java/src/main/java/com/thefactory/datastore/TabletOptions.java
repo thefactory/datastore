@@ -1,7 +1,7 @@
 package com.thefactory.datastore;
 
 public class TabletOptions {
-    int blockSize;
-    boolean useCompression;
-    int keyRestartInterval;
+    public int blockSize;
+    public boolean useCompression;
+    public int keyRestartInterval;
 }

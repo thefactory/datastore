@@ -23,7 +23,7 @@ public class TabletWriterTest extends TestCase {
         kvs.add(new KV("foo", "bar"));
 
         ChannelBuffer buf = ChannelBuffers.buffer(4096);
-        tw.writeTablet(buf, kvs);
+        tw.writeTablet(buf, kvs.iterator());
 
         // not the best test of the written data
         assertEquals(108, buf.writerIndex());
@@ -44,7 +44,7 @@ public class TabletWriterTest extends TestCase {
         kvs.add(new KV("foo", "bar"));
 
         ChannelBuffer buf = ChannelBuffers.buffer(4096);
-        tw.writeTablet(buf, kvs);
+        tw.writeTablet(buf, kvs.iterator());
 
         // not the best test of the written data
         assertEquals(104, buf.writerIndex());

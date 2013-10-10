@@ -5,6 +5,7 @@ import org.xerial.snappy.Snappy;
 
 import java.io.IOException;
 import java.util.Deque;
+import java.util.Iterator;
 import java.util.LinkedList;
 
 public class TabletWriter {
@@ -14,7 +15,7 @@ public class TabletWriter {
         this.opts = opts;
     }
 
-    public void writeTablet(ChannelBuffer buf, Iterable<KV> kvs) throws IOException {
+    public void writeTablet(ChannelBuffer buf, Iterator<KV> kvs) throws IOException {
         int headLen = writeHeader(buf, opts);
 
         Deque<IndexRecord> dataBlocks = writeDataBlocks(buf, kvs, headLen, opts);
@@ -43,11 +44,12 @@ public class TabletWriter {
         return buf.writerIndex() - pos;
     }
 
-    private Deque<IndexRecord> writeDataBlocks(ChannelBuffer buf, Iterable<KV> kvs, int pos, TabletOptions opts) throws IOException {
+    private Deque<IndexRecord> writeDataBlocks(ChannelBuffer buf, Iterator<KV> kvs, int pos, TabletOptions opts) throws IOException {
         Deque<IndexRecord> index = new LinkedList<IndexRecord>();
         BlockWriter bw = new BlockWriter(opts);
 
-        for (KV kv: kvs) {
+        while (kvs.hasNext()) {
+            KV kv = kvs.next();
             bw.append(kv.getKey(), kv.getValue());
 
             if (bw.size() > opts.blockSize) {
