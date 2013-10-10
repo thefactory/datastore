@@ -1,6 +1,7 @@
 package com.thefactory.datastore;
 
-import org.jboss.netty.buffer.ChannelBuffer;
+import java.io.DataOutput;
+import java.io.IOException;
 
 public class Msgpack {
     public static int MSG_FIX_POS = 0x00;
@@ -14,48 +15,51 @@ public class Msgpack {
     public static int MSG_RAW_32 = 0xdb;
 
     /* lightweight msgpack routines */
-    public static int writeUint(ChannelBuffer buf, long n) {
-        int pos = buf.writerIndex();
-
+    public static int writeUint(DataOutput out, long n) throws IOException {
         if (n <= 0x7f) {
-            buf.writeByte((int)n);
+            out.write((int) n);
+            return 1;
         } else if (n <= 0xff) {
-            buf.writeByte(MSG_UINT_8);
-            buf.writeByte((int)n);
+            out.write(MSG_UINT_8);
+            out.write((int) n);
+            return 2;
         } else if (n <= 0xffff) {
-            buf.writeByte(MSG_UINT_16);
-            buf.writeShort((int)n);
+            out.write(MSG_UINT_16);
+            out.writeShort((int) n);
+            return 3;
         } else if (n <= 0xffffffff) {
-            buf.writeByte(MSG_UINT_32);
-            buf.writeInt((int)n);
+            out.writeByte(MSG_UINT_32);
+            out.writeInt((int) n);
+            return 5;
         } else {
-            buf.writeByte(MSG_UINT_64);
-            buf.writeLong(n);
+            out.writeByte(MSG_UINT_64);
+            out.writeLong(n);
+            return 9;
         }
-
-        return buf.writerIndex() - pos;
     }
 
-    public static int writeRaw(ChannelBuffer buf, byte[] data) {
-        int pos = buf.writerIndex();
-
+    public static int writeRaw(DataOutput out, byte[] data) throws IOException {
+        int n = 0;
         if (data.length < 32) {
-            buf.writeByte(MSG_FIX_RAW | (byte)data.length);
+            out.write(MSG_FIX_RAW | (byte)data.length);
+            n = 1;
         } else if (data.length < 65536) {
-            buf.writeByte(MSG_RAW_16);
-            buf.writeShort(data.length);
+            out.write(MSG_RAW_16);
+            out.writeShort(data.length);
+            n = 3;
         } else {
-            buf.writeByte(MSG_RAW_32);
-            buf.writeInt(data.length);
+            out.write(MSG_RAW_32);
+            out.writeShort(data.length);
+            n = 5;
         }
 
-        buf.writeBytes(data);
+        out.write(data);
 
-        return buf.writerIndex() - pos;
+        return n + data.length;
     }
 
-    public static void writeUint64(ChannelBuffer buf, long num) {
-        buf.writeByte(MSG_UINT_64);
-        buf.writeLong(num);
+    public static void writeUint64(DataOutput out, long num) throws IOException {
+        out.writeByte(MSG_UINT_64);
+        out.writeLong(num);
     }
 }

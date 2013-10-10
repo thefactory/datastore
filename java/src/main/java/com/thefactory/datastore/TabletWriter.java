@@ -1,9 +1,13 @@
 package com.thefactory.datastore;
 
-import org.jboss.netty.buffer.ChannelBuffer;
 import org.xerial.snappy.Snappy;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -15,13 +19,15 @@ public class TabletWriter {
         this.opts = opts;
     }
 
-    public void writeTablet(ChannelBuffer buf, Iterator<KV> kvs) throws IOException {
-        int headLen = writeHeader(buf, opts);
+    public void writeTablet(WritableByteChannel out, Iterator<KV> kvs) throws IOException {
+        ByteArrayOutputStream buf = new ByteArrayOutputStream();
 
-        Deque<IndexRecord> dataBlocks = writeDataBlocks(buf, kvs, headLen, opts);
+        int headLen = flush(out, writeHeader(buf, opts));
 
-        int metaIndexLen = writeIndex(buf, TabletConstants.META_INDEX_MAGIC, new LinkedList<IndexRecord>());
-        int dataIndexLen = writeIndex(buf, TabletConstants.DATA_INDEX_MAGIC, dataBlocks);
+        Deque<IndexRecord> dataBlocks = writeDataBlocks(out, kvs, headLen, opts);
+
+        int metaIndexLen = flush(out, writeIndex(buf, TabletConstants.META_INDEX_MAGIC, new LinkedList<IndexRecord>()));
+        int dataIndexLen = flush(out, writeIndex(buf, TabletConstants.DATA_INDEX_MAGIC, dataBlocks));
 
         IndexRecord lastBlock = dataBlocks.getLast();
         long metaPos = lastBlock.offset + lastBlock.length;
@@ -29,22 +35,31 @@ public class TabletWriter {
         BlockHandle metaIndexHandle = new BlockHandle(metaPos, metaIndexLen);
         BlockHandle dataIndexHandle = new BlockHandle(metaPos + metaIndexLen, dataIndexLen);
 
-        writeFooter(buf, metaIndexHandle, dataIndexHandle);
+        flush(out, writeFooter(buf, metaIndexHandle, dataIndexHandle));
     }
 
-    private int writeHeader(ChannelBuffer buf, TabletOptions opts) {
-        int pos = buf.writerIndex();
+    /* flush the data in buf to out, resetting buf and returning bytes written */
+    private int flush(WritableByteChannel out, ByteArrayOutputStream buf) throws IOException {
+        out.write(ByteBuffer.wrap(buf.toByteArray()));
 
-        buf.writeInt(TabletConstants.TABLET_MAGIC);
+        int count = buf.size();
+        buf.reset();
+        return count;
+    }
+
+    private ByteArrayOutputStream writeHeader(ByteArrayOutputStream out, TabletOptions opts) throws IOException {
+        DataOutputStream dos = new DataOutputStream(out);
+
+        dos.writeInt(TabletConstants.TABLET_MAGIC);
 
         // 0x01: prefix-compressed blocks
         // 0x000000: reserved for future use
-        buf.writeInt(0x01000000);
+        dos.writeInt(0x01000000);
 
-        return buf.writerIndex() - pos;
+        return out;
     }
 
-    private Deque<IndexRecord> writeDataBlocks(ChannelBuffer buf, Iterator<KV> kvs, int pos, TabletOptions opts) throws IOException {
+    private Deque<IndexRecord> writeDataBlocks(WritableByteChannel out, Iterator<KV> kvs, int pos, TabletOptions opts) throws IOException {
         Deque<IndexRecord> index = new LinkedList<IndexRecord>();
         BlockWriter bw = new BlockWriter(opts);
 
@@ -53,23 +68,23 @@ public class TabletWriter {
             bw.append(kv.getKey(), kv.getValue());
 
             if (bw.size() > opts.blockSize) {
-                index.add(flushBlock(buf, bw, opts));
+                index.add(flushBlock(out, pos, bw, opts));
+                pos += index.getLast().length;
             }
         }
 
         if (bw.getFirstKey() != null) {
-            index.add(flushBlock(buf, bw, opts));
+            index.add(flushBlock(out, pos, bw, opts));
+            pos += index.getLast().length;
         }
 
         return index;
     }
 
-    private IndexRecord flushBlock(ChannelBuffer buf, BlockWriter bw, TabletOptions opts) throws IOException {
+    private IndexRecord flushBlock(WritableByteChannel out, int pos, BlockWriter bw, TabletOptions opts) throws IOException {
         byte[] firstKey = bw.getFirstKey();
         byte[] data = bw.finish();
         byte blockFlags = 0x00; // uncompressed block
-
-        int pos = buf.writerIndex();
 
         if (opts.useCompression) {
             byte[] compressed = Snappy.compress(data);
@@ -79,41 +94,46 @@ public class TabletWriter {
             }
         }
 
-        // write checksum (not calculated for now)
-        Msgpack.writeUint(buf, 0x00000000);
-        Msgpack.writeUint(buf, blockFlags);
+        // write the block envelope: checksum, flags, and length
+        ByteArrayOutputStream env = new ByteArrayOutputStream(10 + firstKey.length);
+        DataOutput dos = new DataOutputStream(env);
 
-        Msgpack.writeUint(buf, data.length);
-        buf.writeBytes(data);
+        // write checksum (not calculated for now)
+        Msgpack.writeUint(dos, 0x00000000);
+        Msgpack.writeUint(dos, blockFlags);
+
+        Msgpack.writeUint(dos, data.length);
+
+        out.write(ByteBuffer.wrap(env.toByteArray()));
+        out.write(ByteBuffer.wrap(data));
+
         bw.reset();
 
-        return new IndexRecord(pos, buf.writerIndex() - pos, firstKey);
+        return new IndexRecord(pos, env.size() + data.length, firstKey);
     }
 
-    private int writeIndex(ChannelBuffer buf, int magic, Deque<IndexRecord> recs) {
-        int pos = buf.writerIndex();
-
-        buf.writeInt(magic);
+    private ByteArrayOutputStream writeIndex(ByteArrayOutputStream out, int magic, Deque<IndexRecord> recs) throws IOException {
+        DataOutput dos = new DataOutputStream(out);
+        dos.writeInt(magic);
 
         for (IndexRecord rec: recs) {
-            Msgpack.writeUint(buf, rec.offset);
-            Msgpack.writeUint(buf, rec.length);
-            Msgpack.writeRaw(buf, rec.name);
+            Msgpack.writeUint(dos, rec.offset);
+            Msgpack.writeUint(dos, rec.length);
+            Msgpack.writeRaw(dos, rec.name);
         }
 
-        return buf.writerIndex() - pos;
+        return out;
     }
 
-    private int writeFooter(ChannelBuffer buf, BlockHandle metaIndexHandle, BlockHandle dataIndexHandle) {
-        int pos = buf.writerIndex();
+    private ByteArrayOutputStream writeFooter(ByteArrayOutputStream out, BlockHandle metaIndexHandle, BlockHandle dataIndexHandle) throws IOException {
+        DataOutput dos = new DataOutputStream(out);
+        Msgpack.writeUint64(dos, metaIndexHandle.offset);
+        Msgpack.writeUint64(dos, metaIndexHandle.length);
+        Msgpack.writeUint64(dos, dataIndexHandle.offset);
+        Msgpack.writeUint64(dos, dataIndexHandle.length);
+        dos.writeInt(TabletConstants.TABLET_MAGIC);
 
-        Msgpack.writeUint64(buf, metaIndexHandle.offset);
-        Msgpack.writeUint64(buf, metaIndexHandle.length);
-        Msgpack.writeUint64(buf, dataIndexHandle.offset);
-        Msgpack.writeUint64(buf, dataIndexHandle.length);
-        buf.writeInt(TabletConstants.TABLET_MAGIC);
-
-        return buf.writerIndex() - pos;
+        return out;
     }
 
     public class BlockHandle {
