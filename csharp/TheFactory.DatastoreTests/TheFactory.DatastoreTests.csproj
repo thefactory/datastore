@@ -112,6 +112,7 @@
     <Compile Include="src\TabletTests.cs" />
     <Compile Include="src\DatabaseTests.cs" />
     <Compile Include="src\Crc32Tests.cs" />
+    <Compile Include="src\SnappyTests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
