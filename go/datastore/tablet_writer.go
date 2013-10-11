@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"code.google.com/p/snappy-go/snappy"
 	"encoding/binary"
+	"hash/crc32"
 	"io"
 	"log"
 )
@@ -93,7 +94,7 @@ func writeBlock(w io.Writer, pos uint64, bw *BlockWriter, opts *TabletOptions) *
 
 	comp, blockType, _ := compress(opts, block)
 
-	var checksum uint32 = 0
+	var checksum uint32 = crc32.ChecksumIEEE(comp)
 	var length uint32 = uint32(len(comp))
 
 	a := writeUint(w, uint(checksum))

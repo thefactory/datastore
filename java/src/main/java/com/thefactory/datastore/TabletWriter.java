@@ -11,6 +11,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.zip.CRC32;
 
 public class TabletWriter {
     TabletOptions opts;
@@ -98,8 +99,8 @@ public class TabletWriter {
         ByteArrayOutputStream env = new ByteArrayOutputStream(10 + firstKey.length);
         DataOutput dos = new DataOutputStream(env);
 
-        // write checksum (not calculated for now)
-        Msgpack.writeUint(dos, 0x00000000);
+        // envelope is: checksum, block flags, length
+        Msgpack.writeUint(dos, getChecksum(data));
         Msgpack.writeUint(dos, blockFlags);
 
         Msgpack.writeUint(dos, data.length);
@@ -110,6 +111,12 @@ public class TabletWriter {
         bw.reset();
 
         return new IndexRecord(pos, env.size() + data.length, firstKey);
+    }
+
+    private long getChecksum(byte[] data) {
+        CRC32 crc32 = new CRC32();
+        crc32.update(data);
+        return crc32.getValue();
     }
 
     private ByteArrayOutputStream writeIndex(ByteArrayOutputStream out, int magic, Deque<IndexRecord> recs) throws IOException {

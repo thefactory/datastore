@@ -6,7 +6,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
+	"log"
 	"os"
 	"sort"
 )
@@ -186,12 +188,17 @@ func loadBlock(tf TabletFile, rec *IndexRecord) (block, error) {
 
 	// grab the block checksum, compression type, and length
 	r := bytes.NewReader(buf)
-	readUint(r)
+	checksum := readUint(r)
 	blockType := BlockCompressionType(readUint(r))
 	length := readUint(r)
 
 	// grab the unread bytes in buf as the block data
 	data := buf[len(buf)-int(length):]
+
+	if checksum != 0 && crc32.ChecksumIEEE(data) != uint32(checksum) {
+		return nil, errors.New(fmt.Sprintf("bad checksum: 0x%x[%d]",
+			rec.offset, rec.length))
+	}
 
 	var b block
 	var err error
@@ -225,7 +232,10 @@ func (t *Tablet) Find(key []byte) Iterator {
 
 // A key-value iterator for a single block
 func (t *Tablet) blockIterator(rec *IndexRecord, key []byte) Iterator {
-	b, _ := loadBlock(t.r, rec)
+	b, err := loadBlock(t.r, rec)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	return b.Find(key)
 }

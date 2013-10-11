@@ -3,8 +3,8 @@ package com.thefactory.datastore;
 import java.nio.charset.Charset;
 
 public class KV {
-    private byte[] key;
-    private byte[] value;
+    public byte[] key;
+    public byte[] value;
 
     public KV(byte[] key, byte[] value) {
         this.key = key;
