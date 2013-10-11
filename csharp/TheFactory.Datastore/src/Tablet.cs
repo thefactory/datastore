@@ -320,14 +320,7 @@ namespace TheFactory.Datastore {
 
                 if (len < buf.Length) {
                     // Only compress if there's an advantage.
-                    if (compressed[len] != 0) {
-                        // XXX: Snappy.Sharp sometimes returns one byte fewer.
-                        //      But since it's always (?) a literal, it's easy
-                        //      to find.
-                        buf = compressed.Take(len + 1).ToArray();
-                    } else {
-                        buf = compressed.Take(len).ToArray();
-                    }
+                    buf = compressed.Take(len).ToArray();
                     type |= 1;  // Set compressed field.
                 }
             }
