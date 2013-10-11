@@ -111,6 +111,7 @@
     <Compile Include="src\Helpers.cs" />
     <Compile Include="src\TabletTests.cs" />
     <Compile Include="src\DatabaseTests.cs" />
+    <Compile Include="src\Crc32Tests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
