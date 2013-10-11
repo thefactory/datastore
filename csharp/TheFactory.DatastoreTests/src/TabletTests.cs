@@ -357,7 +357,7 @@ namespace TheFactory.DatastoreTests {
             var enc = new UTF8Encoding();
             using (var stream = new FileStream("test-data/ngrams1/ngrams1-1block-uncompressed.tab", FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream);
-                using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
+                using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                     foreach (var p in tablet.Find()) {
                         var kv = data.ReadLine().Split(new char[] {' '});
                         var k = enc.GetBytes(kv[0]);
@@ -375,7 +375,7 @@ namespace TheFactory.DatastoreTests {
             var enc = new UTF8Encoding();
             using (var stream = new FileStream("test-data/ngrams1/ngrams1-1block-uncompressed.tab", FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream);
-                using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
+                using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                     // Read the first line to find a term.
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var term = enc.GetBytes(kv[0]);
@@ -400,7 +400,7 @@ namespace TheFactory.DatastoreTests {
             var enc = new UTF8Encoding();
             using (var stream = new FileStream("test-data/ngrams1/ngrams1-1block-uncompressed.tab", FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream);
-                using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
+                using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                     var count = 0;
                     string[] kv;
                     do {
@@ -429,7 +429,7 @@ namespace TheFactory.DatastoreTests {
             var enc = new UTF8Encoding();
             using (var stream = new FileStream("test-data/ngrams1/ngrams1-1block-compressed.tab", FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream);
-                using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
+                using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                     foreach (var p in tablet.Find()) {
                         var kv = data.ReadLine().Split(new char[] {' '});
                         var k = enc.GetBytes(kv[0]);
@@ -447,7 +447,7 @@ namespace TheFactory.DatastoreTests {
             var enc = new UTF8Encoding();
             using (var stream = new FileStream("test-data/ngrams1/ngrams1-Nblock-compressed.tab", FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream);
-                using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
+                using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                     foreach (var p in tablet.Find()) {
                         var kv = data.ReadLine().Split(new char[] {' '});
                         var k = enc.GetBytes(kv[0]);
@@ -465,7 +465,7 @@ namespace TheFactory.DatastoreTests {
             var enc = new UTF8Encoding();
             using (var stream = new FileStream("test-data/ngrams1/ngrams1-Nblock-compressed.tab", FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream);
-                using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
+                using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                     // Read the first line to find a term.
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var term = enc.GetBytes(kv[0]);
@@ -490,7 +490,7 @@ namespace TheFactory.DatastoreTests {
             var enc = new UTF8Encoding();
             using (var stream = new FileStream("test-data/ngrams1/ngrams1-Nblock-compressed.tab", FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream);
-                using (var data = new StreamReader("ngrams1/ngrams1.txt")) {
+                using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                     var count = 0;
                     string[] kv;
                     do {
@@ -511,6 +511,71 @@ namespace TheFactory.DatastoreTests {
                     }
                     Assert.True(data.ReadLine() == null);
                 }
+            }
+        }
+    }
+
+    [TestFixture]
+    public class TabletWriterTests {
+        private TabletWriter writer;
+
+        [SetUp]
+        public void SetUp() {
+            writer = new TabletWriter();
+        }
+
+        [TearDown]
+        public void TearDown() {
+            writer = null;
+        }
+
+        [Test]
+        public void TestTabletWriterUncompressed() {
+            var writeStream = new MemoryStream();
+            var binaryWriter = new BinaryWriter(writeStream);
+            var filename = "test-data/ngrams1/ngrams1-1block-uncompressed.tab";
+            using (var stream = new FileStream(filename, FileMode.Open, FileAccess.Read)) {
+                var tablet = new FileTablet(stream);
+                var opts = new TabletWriterOptions() {
+                    BlockSize = 1024,
+                    BlockCompression = false,
+                    KeyRestartInterval = 10
+                };
+                writer.WriteTablet(binaryWriter, tablet.Find(), opts);
+                var tablet2 = new FileTablet(writeStream);
+                var it1 = tablet.Find().GetEnumerator();
+                var it2 = tablet2.Find().GetEnumerator();
+                while (it1.MoveNext() && it2.MoveNext()) {
+                    Assert.True(it1.Current.Key.CompareBytes(0, it2.Current.Key, 0, it2.Current.Key.Length));
+                    Assert.True(it1.Current.Value.CompareBytes(0, it2.Current.Value, 0, it2.Current.Value.Length));
+                }
+                Assert.True(it1.MoveNext() == false);
+                Assert.True(it2.MoveNext() == false);
+            }
+        }
+
+        [Test]
+        public void TestTabletWriterCompressed() {
+            var writeStream = new MemoryStream();
+            var binaryWriter = new BinaryWriter(writeStream);
+            var filename = "test-data/ngrams1/ngrams1-1block-uncompressed.tab";
+            using (var stream = new FileStream(filename, FileMode.Open, FileAccess.Read)) {
+                var tablet = new FileTablet(stream);
+                var opts = new TabletWriterOptions() {
+                    BlockSize = 1024,
+                    BlockCompression = true,
+                    KeyRestartInterval = 10
+                };
+                writer.WriteTablet(binaryWriter, tablet.Find(), opts);
+                var tablet2 = new FileTablet(writeStream);
+                var it1 = tablet.Find().GetEnumerator();
+                var it2 = tablet2.Find().GetEnumerator();
+                while (it1.MoveNext() && it2.MoveNext()) {
+                    Assert.True(it1.Current.Key.CompareBytes(0, it2.Current.Key, 0, it2.Current.Key.Length));
+                    Assert.True(it1.Current.Value.CompareBytes(0, it2.Current.Value, 0, it2.Current.Value.Length));
+                }
+                Assert.True(it1.MoveNext() == false);
+                Assert.True(it2.MoveNext() == false);
             }
         }
     }

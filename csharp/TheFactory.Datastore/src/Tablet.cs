@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using MsgPack;
 using Snappy.Sharp;
@@ -106,11 +107,13 @@ namespace TheFactory.Datastore {
         }
     }
 
-    internal class FileTablet : ITablet {
-        const UInt32 TabletMagic = 0x0b501e7e;
-        const UInt32 MetaIndexMagic = 0x0ea7da7a;
-        const UInt32 DataIndexMagic = 0xda7aba5e;
+    internal class Constants {
+        public const UInt32 TabletMagic = 0x0b501e7e;
+        public const UInt32 MetaIndexMagic = 0x0ea7da7a;
+        public const UInt32 DataIndexMagic = 0xda7aba5e;
+    }
 
+    internal class FileTablet : ITablet {
         private Stream stream;
         private SnappyDecompressor decompressor;
         private List<TabletIndexRecord> dataIndex, metaIndex;
@@ -132,8 +135,8 @@ namespace TheFactory.Datastore {
             // Load indexes if we have no dataIndex.
             if (dataIndex == null) {
                 var footer = LoadFooter();
-                metaIndex = LoadIndex(footer.MetaIndexOffset, footer.MetaIndexLength, MetaIndexMagic);
-                dataIndex = LoadIndex(footer.DataIndexOffset, footer.DataIndexLength, DataIndexMagic);
+                metaIndex = LoadIndex(footer.MetaIndexOffset, footer.MetaIndexLength, Constants.MetaIndexMagic);
+                dataIndex = LoadIndex(footer.DataIndexOffset, footer.DataIndexLength, Constants.DataIndexMagic);
             }
 
             int blockIndex = 0;
@@ -189,7 +192,7 @@ namespace TheFactory.Datastore {
                 case 1:  // snappy.
                     // XXX: SnappyDecompressor doesn't operate on a stream,
                     // so we're possibly doubling up on memory here.
-                    data = decompressor.Decompress(buf, 0, buf.Length);
+                    data = decompressor.Decompress(buf, 0, length);
                     break;
                 default:
                     var msg = String.Format("Unknown block type {0}", type);
@@ -239,12 +242,6 @@ namespace TheFactory.Datastore {
             return i;
         }
 
-        internal struct TabletIndexRecord {
-            public long Offset;
-            public int Length;
-            public byte[] Data;
-        }
-
         internal TabletFooter LoadFooter() {
             //
             // Tablet footer (40 bytes):
@@ -261,7 +258,7 @@ namespace TheFactory.Datastore {
             footer.DataIndexOffset = Unpacking.UnpackObject(stream).AsInt64();
             footer.DataIndexLength = Unpacking.UnpackObject(stream).AsInt64();
             var magic = stream.ReadInt();
-            if (magic != TabletMagic) {
+            if (magic != Constants.TabletMagic) {
                 var msg = String.Format("Bad tablet magic {0:X}", magic);
                 throw new TabletValidationException(msg);
             }
@@ -275,6 +272,12 @@ namespace TheFactory.Datastore {
             public long DataIndexLength;
         }
 
+        internal struct TabletIndexRecord {
+            public long Offset;
+            public int Length;
+            public byte[] Data;
+        }
+
         internal class TabletIndexRecordDataComparer : IComparer<TabletIndexRecord> {
             public int Compare(TabletIndexRecord x, TabletIndexRecord y) {
                 return x.Data.CompareKey(y.Data);
@@ -284,5 +287,124 @@ namespace TheFactory.Datastore {
 
     public class TabletValidationException : Exception {
         public TabletValidationException(String msg) : base(msg) {}
+    }
+
+    internal class TabletWriter {
+        private SnappyCompressor compressor;
+
+        public TabletWriter() {
+            compressor = new SnappyCompressor();
+        }
+
+        internal void WriteTabletHeader(BinaryWriter writer) {
+            //
+            // Tablet header:
+            // [ magic (4-bytes) ] [ 0x01 ] [ 3 unused bytes ]
+            //
+            var buf = new byte[8];
+            var magicBuf = Constants.TabletMagic.ToNetworkBytes();
+            Buffer.BlockCopy(magicBuf, 0, buf, 0, magicBuf.Length);
+            buf[4] = 0x01;
+            writer.Write(buf);
+        }
+
+        private void FlushBlock(BinaryWriter writer, BlockWriter blockWriter, Packer indexPacker, byte type, bool compression) {
+            var offset = writer.BaseStream.Position;
+            var output = blockWriter.Finish();
+            var buf = output.Buffer;
+
+            if (compression) {
+                int maxLen = compressor.MaxCompressedLength(buf.Length);
+                var compressed = new byte[maxLen];
+                var len = compressor.Compress(buf, 0, buf.Length, compressed);
+
+                if (len < buf.Length) {
+                    // Only compress if there's an advantage.
+                    if (compressed[len] != 0) {
+                        // XXX: Snappy.Sharp sometimes returns one byte fewer.
+                        //      But since it's always (?) a literal, it's easy
+                        //      to find.
+                        buf = compressed.Take(len + 1).ToArray();
+                    } else {
+                        buf = compressed.Take(len).ToArray();
+                    }
+                    type |= 1;  // Set compressed field.
+                }
+            }
+
+            // Write block packing info.
+            var checksum = 0x00000000;  // unused.
+            var packer = Packer.Create(writer.BaseStream, false);
+            packer.Pack((uint)checksum);
+            packer.Pack((uint)type);
+            packer.Pack((uint)buf.Length);
+
+            // Write block.
+            writer.Write(buf);
+
+            var length = writer.BaseStream.Position - offset;
+            indexPacker.Pack((UInt64)offset);
+            indexPacker.Pack((UInt32)length);
+            indexPacker.PackRaw(output.FirstKey);
+
+            blockWriter.Reset();
+        }
+
+        private byte[] WriteBlocks(BinaryWriter writer, IEnumerable<IKeyValuePair> kvs, byte type, TabletWriterOptions opts) {
+            var indexStream = new MemoryStream();
+            var indexPacker = Packer.Create(indexStream);
+
+            var blockWriter = new BlockWriter(opts.KeyRestartInterval);
+
+            var offset = 0;
+
+            foreach (var p in kvs) {
+                blockWriter.Append(p.Key, p.Value);
+                if (blockWriter.Size >= opts.BlockSize) {
+                    FlushBlock(writer, blockWriter, indexPacker, type, opts.BlockCompression);
+                }
+            }
+
+            // Flush the rest.
+            FlushBlock(writer, blockWriter, indexPacker, type, opts.BlockCompression);
+
+            return indexStream.GetBuffer().Take((int)indexStream.Length).ToArray();
+        }
+
+        public void WriteTablet(BinaryWriter writer, IEnumerable<IKeyValuePair> kvs, TabletWriterOptions opts) {
+            WriteTabletHeader(writer);
+
+            // Write data blocks.
+            var dataIndex = WriteBlocks(writer, kvs, (byte)0x00, opts);
+
+            // Write meta blocks (not implemented).
+            //var metaIndex = WriteBlocks(writer, metaKvs, (byte)0x02, opts);
+            var metaIndex = new byte[0];
+
+            // Pack meta index block.
+            UInt64 metaIndexOffset = (UInt64)writer.BaseStream.Position;
+            UInt64 metaIndexLength = (UInt64)(metaIndex.Length + 4);  // + 4 for magic number.
+            writer.Write(Constants.MetaIndexMagic.ToNetworkBytes());
+            writer.Write(metaIndex);
+
+            // Pack data index block.
+            UInt64 dataIndexOffset = (UInt64)writer.BaseStream.Position;
+            UInt64 dataIndexLength = (UInt64)(dataIndex.Length + 4);  // + 4 for magic number.
+            writer.Write(Constants.DataIndexMagic.ToNetworkBytes());
+            writer.Write(dataIndex);
+
+            // Tablet footer.
+            writer.Write(metaIndexOffset.ToMsgPackUInt64());
+            writer.Write(metaIndexLength.ToMsgPackUInt64());
+            writer.Write(dataIndexOffset.ToMsgPackUInt64());
+            writer.Write(dataIndexLength.ToMsgPackUInt64());
+            writer.Write(Constants.TabletMagic.ToNetworkBytes());
+        }
+    }
+
+    internal struct TabletWriterOptions {
+        public UInt32 BlockSize { get; set; }
+        public bool BlockCompression { get; set; }
+        public int KeyRestartInterval { get; set; }
     }
 }

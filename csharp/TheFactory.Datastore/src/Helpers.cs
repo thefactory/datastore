@@ -71,4 +71,29 @@ namespace TheFactory.Datastore.Helpers {
             }
         }
     }
+
+    public static class ULongExtensions {
+        public static byte[] ToMsgPackUInt64(this ulong val) {
+            // Need to be able to pack any int to msgpack uint64 for footer.
+            var buf = BitConverter.GetBytes((UInt64)val);
+            if (BitConverter.IsLittleEndian) {
+                Array.Reverse(buf);
+            }
+            var ret = new byte[9];
+            ret[0] = 0xcf;  // msgpack uint64 type.
+            Buffer.BlockCopy(buf, 0, ret, 1, buf.Length);
+            return ret;
+        }
+    }
+
+    public static class UIntExtensions {
+        public static byte[] ToNetworkBytes(this uint val) {
+            // BinaryWriter's Write(UInt32) writes little-endian.
+            var buf = BitConverter.GetBytes((UInt32)val);
+            if (BitConverter.IsLittleEndian) {
+                Array.Reverse(buf);
+            }
+            return buf;
+        }
+    }
 }
