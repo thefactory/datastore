@@ -122,10 +122,6 @@
       <Project>{379A46BA-1EBB-4BD0-BEB5-B850F174E0D8}</Project>
       <Name>Snappy.Sharp.iOS</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\msgpack-cli\MsgPack.mono.iOS\MsgPack.mono.iOS.csproj">
-      <Project>{88644B60-C039-40EC-8D58-67AD2454ED57}</Project>
-      <Name>MsgPack.mono.iOS</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\..\test-data\ngrams1\ngrams1-1block-compressed.tab">

@@ -2,12 +2,84 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using MsgPack;
 using TheFactory.Datastore.Helpers;
 
 namespace TheFactory.Datastore {
-    public class Block {
+    internal class BlockWriter {
+        private MemoryStream body, footer;
+        private Packer packer;
+        private byte[] previousKey, firstKey;
+        private int keyRestartInterval, keyRestartCount;
+
+        public BlockWriter(int keyRestartInterval) {
+            body = new MemoryStream();
+            packer = Packer.Create(body);
+            footer = new MemoryStream();
+            this.keyRestartInterval = keyRestartInterval;
+            keyRestartCount = 0;
+        }
+
+        public UInt32 Size {
+            get {
+                return (UInt32)(body.Length + footer.Length + 4);
+            }
+        }
+
+        public void Append(byte[] key, byte[] val) {
+            if (firstKey == null) {
+                firstKey = new byte[key.Length];
+                Buffer.BlockCopy(key, 0, firstKey, 0, key.Length);
+            }
+
+            var prefix = 0;
+            if (keyRestartCount % keyRestartInterval != 0) {
+                prefix = key.CommonBytes(previousKey);
+            } else {
+                footer.WriteInt((UInt32)body.Position);
+            }
+
+            //
+            // [ key prefix length (msgpack uint) ]
+            // [ rest of the key (msgpack raw)    ]
+            // [ value (msgpack raw)              ]
+            //
+            packer.Pack(prefix);
+            packer.PackRaw(key.Skip(prefix).ToArray());
+            packer.PackRaw(val);
+
+            previousKey = new byte[key.Length];
+            Buffer.BlockCopy(key, 0, previousKey, 0, key.Length);
+            keyRestartCount = (keyRestartCount + 1) % keyRestartInterval;
+        }
+
+        public BlockWriterOutput Finish() {
+            var numRestarts = footer.Length / 4;
+            footer.WriteTo(body);
+            body.WriteInt((UInt32)numRestarts);
+            return new BlockWriterOutput(firstKey, body.GetBuffer().Take((int)body.Length).ToArray());
+        }
+
+        public void Reset() {
+            body.SetLength(0);
+            footer.SetLength(0);
+            keyRestartCount = 0;
+            firstKey = null;
+            previousKey = null;
+        }
+
+        internal class BlockWriterOutput {
+            public byte[] FirstKey { get; private set; }
+            public byte[] Buffer { get; private set; }
+
+            public BlockWriterOutput(byte[] firstKey, byte[] buf) {
+                FirstKey = firstKey;
+                Buffer = buf;
+            }
+        }
+    }
+
+    internal class Block {
         private Stream stream;
         private long start, length;
         private BlockPair pair;

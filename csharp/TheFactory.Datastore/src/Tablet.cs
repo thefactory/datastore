@@ -7,7 +7,7 @@ using Snappy.Sharp;
 using TheFactory.Datastore.Helpers;
 
 namespace TheFactory.Datastore {
-    public interface ITablet {
+    internal interface ITablet {
         void Close();
 
         IEnumerable<IKeyValuePair> Find();
@@ -15,7 +15,7 @@ namespace TheFactory.Datastore {
         IEnumerable<IKeyValuePair> Find(byte[] term);
     }
 
-    public class MemoryTablet : ITablet {
+    internal class MemoryTablet : ITablet {
         private SortedSet<IKeyValuePair> backing;
         private ReaderWriterLockSlim backingLock;
 
@@ -106,7 +106,7 @@ namespace TheFactory.Datastore {
         }
     }
 
-    public class FileTablet : ITablet {
+    internal class FileTablet : ITablet {
         const UInt32 TabletMagic = 0x0b501e7e;
         const UInt32 MetaIndexMagic = 0x0ea7da7a;
         const UInt32 DataIndexMagic = 0xda7aba5e;

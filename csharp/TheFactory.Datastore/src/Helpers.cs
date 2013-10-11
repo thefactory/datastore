@@ -15,6 +15,15 @@ namespace TheFactory.Datastore.Helpers {
             }
             return BitConverter.ToUInt32(buf, 0);
         }
+
+        public static void WriteInt(this Stream stream, UInt32 val) {
+            // Always write in network byte order.
+            var bytes = BitConverter.GetBytes(val);
+            if (BitConverter.IsLittleEndian) {
+                Array.Reverse(bytes);
+            }
+            stream.Write(bytes, 0, 4);
+        }
     }
 
     public static class ByteArrayExtensions {
@@ -34,6 +43,22 @@ namespace TheFactory.Datastore.Helpers {
             }
 
             return 0;
+        }
+
+        public static int CommonBytes(this byte[] x, byte[] y) {
+            if (y == null) {
+                return 0;
+            }
+
+            var length = x.Length < y.Length ? x.Length : y.Length;
+
+            int count;
+            for (count = 0; count < length; count++) {
+                if (x[count] != y[count]) {
+                    break;
+                }
+            }
+            return count;
         }
 
         public static string StringifyKey(this byte[] key) {

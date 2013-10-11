@@ -1,8 +1,172 @@
 using System;
+using System.IO;
 using NUnit.Framework;
 using TheFactory.Datastore;
 
 namespace TheFactory.DatastoreTests {
+    [TestFixture]
+    public class BlockWriterTests {
+        [Test]
+        public void TestBlockWriterOnePairUncompressed() {
+            var bytes = new byte[] {0,              // 0-byte key prefix.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    0, 0, 0, 0,     // restart index at 0.
+                                    0, 0, 0, 1};    // 1 restart index.
+            var writer = new BlockWriter(10);
+            var firstKey = new byte[] {1, 2, 3};
+            writer.Append(firstKey, new byte[] {4, 5, 6});
+            var output = writer.Finish();
+            Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
+            Assert.True(output.Buffer.CompareBytes(0, bytes, 0, bytes.Length));
+        }
+
+        [Test]
+        public void TestBlockWriterOnePairUncompressedReset() {
+            var bytes = new byte[] {0,              // 0-byte key prefix.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    0, 0, 0, 0,     // restart index at 0.
+                                    0, 0, 0, 1};    // 1 restart index.
+            var writer = new BlockWriter(10);
+            var firstKey = new byte[] {1, 2, 3};
+            writer.Append(firstKey, new byte[] {4, 5, 6});
+            var output = writer.Finish();
+            Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
+            Assert.True(output.Buffer.CompareBytes(0, bytes, 0, bytes.Length));
+            writer.Reset();
+            writer.Append(firstKey, new byte[] {4, 5, 6});
+            output = writer.Finish();
+            Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
+            Assert.True(output.Buffer.CompareBytes(0, bytes, 0, bytes.Length));
+        }
+
+        [Test]
+        public void TestBlockWriterManyPairsUncompressedWithSize() {
+            var pairs = new byte[][] {
+                new byte[] {1, 2, 3}, new byte[] {4, 5, 6},
+                new byte[] {2, 3, 4}, new byte[] {4, 5, 6},
+                new byte[] {3, 4, 5}, new byte[] {4, 5, 6},
+                new byte[] {4, 5, 6}, new byte[] {4, 5, 6}
+            };
+            var bytes = new byte[] {0,              // 0-byte key prefix.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    0,              // 0-byte key prefix.
+                                    0xa3, 2, 3, 4,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    0,              // 0-byte key prefix.
+                                    0xa3, 3, 4, 5,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    0,              // 0-byte key prefix.
+                                    0xa3, 4, 5, 6,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    0, 0, 0, 0,     // restart index at 0.
+                                    0, 0, 0, 1};    // 1 restart index.
+            var writer = new BlockWriter(10);
+            var firstKey = pairs[0];
+            var sizeCount = 1;
+            for (var i = 0; i < pairs.Length; i += 2) {
+                writer.Append(pairs[i], pairs[i + 1]);
+                Assert.True(writer.Size == sizeCount * 9 + 4 + 4);
+                sizeCount += 1;
+            }
+            var output = writer.Finish();
+            Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
+            Assert.True(output.Buffer.CompareBytes(0, bytes, 0, bytes.Length));
+        }
+
+        [Test]
+        public void TestBlockWriterManyPairsUncompressedWithPrefixes() {
+            var pairs = new byte[][] {
+                new byte[] {1, 1, 1}, new byte[] {4, 5, 6},
+                new byte[] {1, 1, 2}, new byte[] {4, 5, 6},
+                new byte[] {1, 1, 3}, new byte[] {4, 5, 6},
+                new byte[] {1, 1, 4}, new byte[] {4, 5, 6}
+            };
+            var bytes = new byte[] {0,              // 0-byte key prefix.
+                                    0xa3, 1, 1, 1,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    2,              // 0-byte key prefix.
+                                    0xa1, 2,        // 1-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    2,              // 2-byte key prefix.
+                                    0xa1, 3,        // 1-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    2,              // 2-byte key prefix.
+                                    0xa1, 4,        // 1-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    0, 0, 0, 0,     // restart index at 0.
+                                    0, 0, 0, 1};    // 1 restart index.
+            var writer = new BlockWriter(10);
+            var firstKey = pairs[0];
+            for (var i = 0; i < pairs.Length; i += 2) {
+                writer.Append(pairs[i], pairs[i + 1]);
+            }
+            var output = writer.Finish();
+            Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
+            Assert.True(output.Buffer.CompareBytes(0, bytes, 0, bytes.Length));
+        }
+
+        [Test]
+        public void TestBlockWriterManyPairsUncompressedWithRestarts() {
+            var pairs = new byte[][] {
+                new byte[] {1, 2, 3}, new byte[] {4, 5, 6},
+                new byte[] {2, 3, 4}, new byte[] {4, 5, 6}
+            };
+            var bytes = new byte[] {0,              // 0-byte key prefix.
+                                    0xa3, 1, 2, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    0,              // 0-byte key prefix.
+                                    0xa3, 2, 3, 4,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    0, 0, 0, 0,     // restart index at 0.
+                                    0, 0, 0, 9,     // restart index at 0.
+                                    0, 0, 0, 2};    // 2 restart indexes.
+            var writer = new BlockWriter(1);
+            var firstKey = pairs[0];
+            for (var i = 0; i < pairs.Length; i += 2) {
+                writer.Append(pairs[i], pairs[i + 1]);
+            }
+            var output = writer.Finish();
+            Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
+            Assert.True(output.Buffer.CompareBytes(0, bytes, 0, bytes.Length));
+        }
+
+        [Test]
+        public void TestBlockWriterManyPairsUncompressedWithPrefixesAndRestarts() {
+            var pairs = new byte[][] {
+                new byte[] {1, 1, 1}, new byte[] {4, 5, 6},
+                new byte[] {1, 1, 2}, new byte[] {4, 5, 6},
+                new byte[] {1, 1, 3}, new byte[] {4, 5, 6},
+                new byte[] {1, 1, 4}, new byte[] {4, 5, 6}
+            };
+            var bytes = new byte[] {0,              // 0-byte key prefix.
+                                    0xa3, 1, 1, 1,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    2,              // 0-byte key prefix.
+                                    0xa1, 2,        // 1-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    0,              // 0-byte key prefix.
+                                    0xa3, 1, 1, 3,  // 3-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    2,              // 2-byte key prefix.
+                                    0xa1, 4,        // 1-byte key suffix.
+                                    0xa3, 4, 5, 6,  // 3-byte value.
+                                    0, 0, 0, 0,     // restart index at 0.
+                                    0, 0, 0, 16,    // restart index at 16.
+                                    0, 0, 0, 2};    // 2 restart indexes.
+            var writer = new BlockWriter(2);
+            var firstKey = pairs[0];
+            for (var i = 0; i < pairs.Length; i += 2) {
+                writer.Append(pairs[i], pairs[i + 1]);
+            }
+            var output = writer.Finish();
+            Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
+            Assert.True(output.Buffer.CompareBytes(0, bytes, 0, bytes.Length));
+        }
+    }
+
     [TestFixture]
     public class BlockTests {
         [Test]
