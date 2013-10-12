@@ -175,13 +175,19 @@ namespace TheFactory.Datastore {
             //   [ length (msgpack uint32)            ]
             //
             stream.Seek(offset, SeekOrigin.Begin);
-            var checksum = Unpacking.UnpackObject(stream).AsInt32();
+            var checksum = Unpacking.UnpackObject(stream).AsUInt32();
             var type = Unpacking.UnpackObject(stream).AsInt32();
             var length = Unpacking.UnpackObject(stream).AsInt32();
 
             // Read (maybe compressed) block-data into memory.
             var buf = new byte[length];
             stream.Read(buf, 0, length);
+
+            if (checksum != 0 && checksum != Crc32.ChecksumIeee (buf)) {
+                var msg = String.Format("Bad checksum for block at {0}", offset);
+                throw new TabletValidationException(msg);
+            }
+
 
             byte[] data;
 
@@ -326,7 +332,7 @@ namespace TheFactory.Datastore {
             }
 
             // Write block packing info.
-            var checksum = 0x00000000;  // unused.
+            var checksum = Crc32.ChecksumIeee(buf);
             var packer = Packer.Create(writer.BaseStream, false);
             packer.Pack((uint)checksum);
             packer.Pack((uint)type);
