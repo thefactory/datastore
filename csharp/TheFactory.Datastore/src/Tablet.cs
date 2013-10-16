@@ -355,8 +355,6 @@ namespace TheFactory.Datastore {
 
             var blockWriter = new BlockWriter(opts.KeyRestartInterval);
 
-            var offset = 0;
-
             foreach (var p in kvs) {
                 blockWriter.Append(p.Key, p.Value);
                 if (blockWriter.Size >= opts.BlockSize) {

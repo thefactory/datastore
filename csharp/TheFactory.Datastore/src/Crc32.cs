@@ -18,18 +18,28 @@ namespace TheFactory.Datastore
 			this.table = table;
 		}
 
-		public UInt32 Update(UInt32 crc, byte[] data)
+		public UInt32 Update(UInt32 crc, byte[] data, int offset, int length)
 		{
 			crc = ~crc;
-			for (int i=0; i<data.Length; i++) {
+			for (int i = offset; i < offset + length; i++) {
 				crc = table[((byte)crc)^data[i]] ^ (crc >> 8);
 			}
 			return ~crc;
 		}
 
+		public UInt32 Update(UInt32 crc, byte[] data)
+		{
+			return Update(crc, data, 0, data.Length);
+		}
+
+		public static UInt32 ChecksumIeee(byte[] data, int offset, int length)
+		{
+			return new Crc32(IeeeTable).Update(0, data, offset, length);
+		}
+
 		public static UInt32 ChecksumIeee(byte[] data)
 		{
-			return new Crc32(IeeeTable).Update(0, data);
+			return ChecksumIeee(data, 0, data.Length);
 		}
 
 		static UInt32[] makeTable(UInt32 poly) {
