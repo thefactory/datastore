@@ -5,7 +5,7 @@ using TheFactory.Datastore;
 
 namespace TheFactory.DatastoreTests {
     [TestFixture]
-    public class TransactionLogTests {
+    public class TransactionLogWriterTests {
         private Random random;
 
         [SetUp]
@@ -14,12 +14,12 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
-        public void TestTransactionLogEmitTransactionFull() {
+        public void TestTransactionLogWriterEmitTransactionFull() {
             var data = new byte[10];
             random.NextBytes(data);
 
             var stream = new MemoryStream();
-            var log = new TransactionLog(stream);
+            var log = new TransactionLogWriter(stream);
 
             log.EmitTransaction(data);
 
@@ -33,14 +33,14 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
-        public void TestTransactionLogEmitTransactionBoundaryFirst() {
+        public void TestTransactionLogWriterEmitTransactionBoundaryFirst() {
             var data = new byte[100];
             random.NextBytes(data);
             var first = data.Length / 2;
             var lastOffset = TransactionLog.HeaderSize + first;
 
             var stream = new MemoryStream();
-            var log = new TransactionLog(stream);
+            var log = new TransactionLogWriter(stream);
             // Pretend we're near the end of the block by moving the Head pointer.
             log.Head = TransactionLog.MaxBlockSize - TransactionLog.HeaderSize - first;
 
@@ -60,14 +60,14 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
-        public void TestTransactionLogEmitTransactionBoundaryFirstNoData() {
+        public void TestTransactionLogWriterEmitTransactionBoundaryFirstNoData() {
             var data = new byte[10];
             random.NextBytes(data);
             var first = 0;
             var lastOffset = TransactionLog.HeaderSize + first;
 
             var stream = new MemoryStream();
-            var log = new TransactionLog(stream);
+            var log = new TransactionLogWriter(stream);
             // Pretend we're near the end of the block by moving the Head pointer.
             log.Head = TransactionLog.MaxBlockSize - TransactionLog.HeaderSize;
 
@@ -87,14 +87,14 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
-        public void TestTransactionLogEmitTransactionBoundaryPadZeroes() {
+        public void TestTransactionLogWriterEmitTransactionBoundaryPadZeroes() {
             var data = new byte[10];
             random.NextBytes(data);
             var tooSmallBy = 1;
             var recordOffset = TransactionLog.HeaderSize - tooSmallBy;
 
             var stream = new MemoryStream();
-            var log = new TransactionLog(stream);
+            var log = new TransactionLogWriter(stream);
             // Pretend we're near the end of the block by moving the Head pointer.
             log.Head = TransactionLog.MaxBlockSize - recordOffset;
 
@@ -113,13 +113,13 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
-        public void TestTransactionLogEmitTransactionBoundaryManyComplete() {
+        public void TestTransactionLogWriterEmitTransactionBoundaryManyComplete() {
             var len = TransactionLog.MaxBlockSize * 3;
             var data = new byte[len];
             random.NextBytes(data);
 
             var stream = new MemoryStream();
-            var log = new TransactionLog(stream);
+            var log = new TransactionLogWriter(stream);
 
             log.EmitTransaction(data);
 
@@ -132,7 +132,7 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
-        public void TestTransactionLogEmitTransactionBoundaryMany() {
+        public void TestTransactionLogWriterEmitTransactionBoundaryMany() {
             var len = TransactionLog.MaxBlockSize * 3;
             var data = new byte[len];
             random.NextBytes(data);
@@ -140,7 +140,7 @@ namespace TheFactory.DatastoreTests {
             var offset = TransactionLog.HeaderSize + first;
 
             var stream = new MemoryStream();
-            var log = new TransactionLog(stream);
+            var log = new TransactionLogWriter(stream);
             // Pretend we're near the end of the block by moving the Head pointer.
             log.Head = TransactionLog.MaxBlockSize - TransactionLog.HeaderSize - first;
 

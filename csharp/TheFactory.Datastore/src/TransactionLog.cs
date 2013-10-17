@@ -12,26 +12,28 @@ namespace TheFactory.Datastore {
 
         internal const int MaxBlockSize = 32768;  // Max block size is 32KiB.
         internal const int HeaderSize = 7;  // 4 (checksum) + 1 (type) + 2 (length).
+    }
 
+    internal class TransactionLogWriter {
         internal int Head;
         private byte[] buf;
         private BinaryWriter writer;
 
-        private TransactionLog() {
+        private TransactionLogWriter() {
             Head = 0;
-            buf = new byte[MaxBlockSize];
+            buf = new byte[TransactionLog.MaxBlockSize];
         }
 
-        internal TransactionLog(Stream stream) : this() {
+        internal TransactionLogWriter(Stream stream) : this() {
             writer = new BinaryWriter(stream);
         }
 
-        public TransactionLog(string path) : this() {
+        public TransactionLogWriter(string path) : this() {
             var fs = new FileStream(path, FileMode.Append, FileAccess.Write);
             writer = new BinaryWriter(fs);
         }
 
-        private void EmitRecord(byte[] data, RecordType type, int offset, UInt16 length) {
+        private void EmitRecord(byte[] data, TransactionLog.RecordType type, int offset, UInt16 length) {
             // Records take the form of:
             //  checksum: uint32    // crc32c of data[] ; big-endian
             //  type: uint8         // One of FULL, FIRST, MIDDLE, LAST
@@ -40,7 +42,7 @@ namespace TheFactory.Datastore {
 
             var start = Head;
 
-            var checksum = Crc32.ChecksumIeee(data);
+            var checksum = Crc32.ChecksumIeee(data, offset, length);
             var checksumBytes = BitConverter.GetBytes(checksum);
             if (BitConverter.IsLittleEndian) {
                 Array.Reverse(checksumBytes);
@@ -64,15 +66,15 @@ namespace TheFactory.Datastore {
         }
 
         public void EmitTransaction(byte[] data) {
-            var type = RecordType.Full;
+            var type = TransactionLog.RecordType.Full;
 
             var remaining = data.Length;
 
-            if (Head > MaxBlockSize - HeaderSize) {
+            if (Head > TransactionLog.MaxBlockSize - TransactionLog.HeaderSize) {
                 // Pad with zeroes and reset.
                 var start = Head;
 
-                while (Head < MaxBlockSize) {
+                while (Head < TransactionLog.MaxBlockSize) {
                     buf[Head++] = 0;
                 }
 
@@ -81,16 +83,16 @@ namespace TheFactory.Datastore {
                 Head = 0;
             }
 
-            while (remaining + HeaderSize > MaxBlockSize - Head) {
-                type = type == RecordType.Full ? RecordType.First : RecordType.Middle;
+            while (remaining + TransactionLog.HeaderSize > TransactionLog.MaxBlockSize - Head) {
+                type = type == TransactionLog.RecordType.Full ? TransactionLog.RecordType.First : TransactionLog.RecordType.Middle;
                 var offset = data.Length - remaining;
-                var length = (UInt16)(MaxBlockSize - Head - HeaderSize);
+                var length = (UInt16)(TransactionLog.MaxBlockSize - Head - TransactionLog.HeaderSize);
                 EmitRecord(data, type, offset, length);
                 remaining -= length;
                 Head = 0;
             }
 
-            type = type == RecordType.Full ? RecordType.Full : RecordType.Last;
+            type = type == TransactionLog.RecordType.Full ? TransactionLog.RecordType.Full : TransactionLog.RecordType.Last;
 
             EmitRecord(data, type, data.Length - remaining, (UInt16)remaining);
 
