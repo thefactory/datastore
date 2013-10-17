@@ -16,18 +16,18 @@ public class Msgpack {
 
     /* lightweight msgpack routines */
     public static int writeUint(DataOutput out, long n) throws IOException {
-        if (n <= 0x7f) {
+        if (n <= 0x7fL) {
             out.write((int) n);
             return 1;
-        } else if (n <= 0xff) {
+        } else if (n <= 0xffL) {
             out.write(MSG_UINT_8);
             out.write((int) n);
             return 2;
-        } else if (n <= 0xffff) {
+        } else if (n <= 0xffffL) {
             out.write(MSG_UINT_16);
             out.writeShort((int) n);
             return 3;
-        } else if (n <= 0xffffffff) {
+        } else if (n <= 0xffffffffL) {
             out.writeByte(MSG_UINT_32);
             out.writeInt((int) n);
             return 5;

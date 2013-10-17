@@ -2,10 +2,13 @@ package com.thefactory.datastore;
 
 import junit.framework.TestCase;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.channels.Channels;
 import java.util.LinkedList;
 import java.util.List;
+
+import static org.junit.Assert.assertArrayEquals;
 
 public class TabletWriterTest extends TestCase {
     public void testWriteTablet() throws Exception {
@@ -25,8 +28,24 @@ public class TabletWriterTest extends TestCase {
         ByteArrayOutputStream buf = new ByteArrayOutputStream();
         tw.writeTablet(Channels.newChannel(buf), kvs.iterator());
 
-        // not the best test of the written data
-        assertEquals(108, buf.size());
+        ByteArrayInputStream is = new ByteArrayInputStream(buf.toByteArray());
+
+        byte[] tabletHeader = new byte[8];
+        is.read(tabletHeader);
+
+        assertArrayEquals(tabletHeader, new byte[]{
+                0x0b, 0x50, 0x1e, 0x7e, 0x01, 0x00, 0x00, 0x00,
+        });
+
+        // precalculated block envelope for the above key-value pairs
+        byte[] envelope = new byte[7];
+        is.read(envelope);
+
+        assertArrayEquals(envelope, new byte[] {
+                -50, -93, -51, -51, -81, // checksum
+                0, // type (uncompressed)
+                43 // length
+        });
     }
 
     public void testWriteCompressedTablet() throws Exception {
@@ -46,7 +65,23 @@ public class TabletWriterTest extends TestCase {
         ByteArrayOutputStream buf = new ByteArrayOutputStream();
         tw.writeTablet(Channels.newChannel(buf), kvs.iterator());
 
-        // not the best test of the written data
-        assertEquals(104, buf.size());
+        ByteArrayInputStream is = new ByteArrayInputStream(buf.toByteArray());
+
+        byte[] tabletHeader = new byte[8];
+        is.read(tabletHeader);
+
+        assertArrayEquals(tabletHeader, new byte[]{
+                0x0b, 0x50, 0x1e, 0x7e, 0x01, 0x00, 0x00, 0x00,
+        });
+
+        // precalculated block envelope for the above key-value pairs
+        byte[] envelope = new byte[7];
+        is.read(envelope);
+
+        assertArrayEquals(envelope, new byte[] {
+                -50, 82, 30, -3, -40, // checksum
+                1, // type (compressed)
+                39 // length
+        });
     }
 }
