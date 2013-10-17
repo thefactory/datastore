@@ -135,6 +135,7 @@ namespace TheFactory.Datastore {
 
         public TransactionLogWriter(string path) : this() {
             var fs = new FileStream(path, FileMode.Append, FileAccess.Write);
+            Head = (int)(fs.Length % TransactionLog.MaxBlockSize);
             writer = new BinaryWriter(fs);
         }
 
