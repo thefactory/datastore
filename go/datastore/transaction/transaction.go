@@ -43,6 +43,11 @@ func min(a, b int) int {
 	return b
 }
 
+func (w *Writer) Close() error {
+	w.buf = nil
+	return w.f.Close()
+}
+
 func (w *Writer) Write(data []byte) error {
 	var isFirst bool = true
 

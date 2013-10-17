@@ -202,3 +202,42 @@ func (s *WriterSuite) TestZeroLengthFullRecord(c *C) {
 		0x0, 0x0, // length
 	})
 }
+
+type ReaderSuite struct{}
+
+var _ = Suite(&ReaderSuite{})
+
+func (s *ReaderSuite) TestRoundTrip(c *C) {
+	file, _ := ioutil.TempFile("", "unittest")
+	defer cleanup(file)
+
+	// these will be written in order, forcing a variety of record types
+	transactions := [][]byte{
+		[]byte("foo"),
+		[]byte("bar"),
+		[]byte("baz"),
+		bytes.Repeat([]byte{0xee}, blockSize),
+		bytes.Repeat([]byte{0xee}, 2*blockSize),
+		bytes.Repeat([]byte{0xee}, 4*blockSize),
+	}
+
+	w, err := NewFileWriter(file.Name())
+	c.Assert(err, IsNil)
+
+	for _, t := range transactions {
+		err := w.Write(t)
+		c.Assert(err, IsNil)
+	}
+
+	w.Close()
+
+	r, err := NewFileReader(file.Name())
+	c.Assert(err, IsNil)
+
+	for _, t := range transactions {
+		c.Assert(r.Next(), Equals, true)
+		c.Assert(r.Transaction(), DeepEquals, t)
+	}
+
+	c.Assert(r.Next(), Equals, false)
+}
