@@ -51,6 +51,24 @@ func (s *WriterSuite) TestSmallWrites(c *C) {
 	})
 }
 
+func (s *WriterSuite) TestReopen(c *C) {
+	file, _ := ioutil.TempFile("", "unittest")
+	defer cleanup(file)
+
+	w, err := NewFileWriter(file.Name())
+	c.Assert(err, IsNil)
+
+	w.Write([]byte("foo"))
+
+	left := w.left
+
+	w.Close()
+	w, err = NewFileWriter(file.Name())
+	c.Assert(err, IsNil)
+
+	c.Assert(left, Equals, w.left)
+}
+
 func (s *WriterSuite) TestTwoRecordWrite(c *C) {
 	file, _ := ioutil.TempFile("", "unittest")
 	defer cleanup(file)

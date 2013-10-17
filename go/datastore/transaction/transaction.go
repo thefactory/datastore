@@ -33,7 +33,14 @@ func NewFileWriter(file string) (*Writer, error) {
 
 	buf := bytes.NewBuffer(make([]byte, 0, blockSize))
 
-	return &Writer{f, blockSize, buf}, nil
+	info, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	left := blockSize - int(info.Size()%blockSize)
+
+	return &Writer{f, left, buf}, nil
 }
 
 func min(a, b int) int {
