@@ -4,16 +4,26 @@ using System.Text;
 
 namespace TheFactory.Datastore.Helpers {
     public static class StreamExtensions {
-        private static byte[] buf = new byte[4];
-        public static UInt32 ReadInt(this Stream stream) {
-            var count = stream.Read(buf, 0, 4);
-            if (count < 4) {
+        private static byte[] ReadNumber(this Stream stream, int width) {
+            var buf = new byte[width];
+            var count = stream.Read(buf, 0, width);
+            if (count < width) {
                 throw new InvalidOperationException();
             }
             if (BitConverter.IsLittleEndian) {
                 Array.Reverse(buf);
             }
-            return BitConverter.ToUInt32(buf, 0);
+            return buf;
+        }
+
+        public static UInt32 ReadInt(this Stream stream) {
+            var bytes = ReadNumber(stream, 4);
+            return BitConverter.ToUInt32(bytes, 0);
+        }
+
+        public static UInt16 ReadShort(this Stream stream) {
+            var bytes = ReadNumber(stream, 2);
+            return BitConverter.ToUInt16(bytes, 0);
         }
 
         public static void WriteInt(this Stream stream, UInt32 val) {
