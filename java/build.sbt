@@ -6,6 +6,10 @@ version := "1.0.0-SNAPSHOT"
 
 scalaVersion := "2.10.2"
 
+autoScalaLibrary := false
+
+crossPaths := false
+
 libraryDependencies ++= Seq(
   "com.novocode" % "junit-interface" % "0.9" % "test",
   "io.netty" % "netty" % "3.6.6.Final",
