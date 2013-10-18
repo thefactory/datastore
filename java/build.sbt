@@ -13,3 +13,15 @@ libraryDependencies ++= Seq(
   "org.msgpack" % "msgpack" % "0.6.8",
   "org.xerial.snappy" % "snappy-java" % "1.0.4.1"
 )
+
+publishMavenStyle := true
+
+credentials += Credentials(Path.userHome / ".thefactory" / "credentials")
+
+publishTo <<= version { (v: String) =>
+  val nexus = "http://maven.thefactory.com/nexus/content/repositories/"
+  if (v.trim.endsWith("SNAPSHOT"))
+    Some("snapshots" at nexus + "snapshots")
+  else
+    Some("releases" at nexus + "releases")
+}
