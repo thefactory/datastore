@@ -8,8 +8,9 @@ namespace TheFactory.Datastore {
     public class Database {
         private List<ITablet> tablets;
         private List<ITablet> mutableTablets;
+        public string Dir { get; private set; }
 
-        public Database() {
+        internal Database() {
             tablets = new List<ITablet>();
             mutableTablets = new List<ITablet>();
             mutableTablets.Add(new MemoryTablet());
@@ -17,11 +18,82 @@ namespace TheFactory.Datastore {
             // replaying a durable log for an in-flight MemoryTablet.
         }
 
+        public Database(string path) : this() {
+            Dir = path;
+            // Set up directory path.
+        }
+
         public void Close() {
             while (tablets.Count > 0) {
                 PopTablet();
             }
             // TODO: Not sure what to do with mutableTablets.
+        }
+
+        private bool EndOfBlocks(Stream stream) {
+            var peek = stream.ReadInt();
+            stream.Seek(-4, SeekOrigin.Current);
+            // The meta index block signals the end of blocks.
+            return peek == Constants.MetaIndexMagic;
+        }
+
+        public void PushTabletStream(Stream stream, Action<IEnumerable<IKeyValuePair>> callback) {
+            PushTabletStream(stream, System.Guid.NewGuid().ToString(), callback);
+        }
+
+        internal void PushTabletStream(Stream stream, string filename, Action<IEnumerable<IKeyValuePair>> callback) {
+            var reader = new TabletReader();
+
+            var header = reader.ReadHeader(stream);
+            if (header.Magic != Constants.TabletMagic) {
+                // Not a tablet.
+                throw new TabletValidationException("bad magic");
+            }
+
+            if (header.Version < 1) {
+                throw new TabletValidationException("bad version: " + header.Version);
+            }
+
+            var filepath = Path.Combine(Dir, filename);
+            var fs = new FileStream(filepath, FileMode.Create, FileAccess.Write);
+
+            using (var writer = new BinaryWriter(fs)) {
+                // Write the header.
+                writer.Write(header.Raw, 0, header.Raw.Length);
+
+                while (!EndOfBlocks(stream) && stream.Position < stream.Length) {
+                    var blockData = reader.ReadBlock(stream);
+
+                    // Write the block as-is.
+                    writer.Write(blockData.Info.Raw, 0, blockData.Info.Raw.Length);
+                    writer.Write(blockData.Raw, 0, blockData.Raw.Length);
+
+                    if (blockData.Info.Checksum != 0 && blockData.Info.Checksum != blockData.Checksum) {
+                        // Bad block checksum.
+                        continue;
+                    }
+
+                    if (blockData.Info.Type != BlockType.Data) {
+                        // Skip non-Data blocks.
+                        continue;
+                    }
+
+                    var block = new Block(blockData.Data, 0, blockData.Data.Length);
+                    if (callback != null) {
+                        callback(block.Find());
+                    }
+                }
+
+                // Read/write the remainder in 4KiB chunks.
+                var size = 4096;
+                var buf = new byte[size];
+                int read = 0;
+                while ((read = stream.Read(buf, 0, size)) != 0) {
+                    writer.Write(buf, 0, read);
+                }
+            }
+
+            PushTablet(filepath);
         }
 
         public void PushTablet(string filename) {

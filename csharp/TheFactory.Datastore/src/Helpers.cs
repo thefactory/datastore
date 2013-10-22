@@ -4,12 +4,21 @@ using System.Text;
 
 namespace TheFactory.Datastore.Helpers {
     public static class StreamExtensions {
-        private static byte[] ReadNumber(this Stream stream, int width) {
-            var buf = new byte[width];
-            var count = stream.Read(buf, 0, width);
-            if (count < width) {
-                throw new InvalidOperationException();
+        public static byte[] ReadBytes(this Stream stream, int count) {
+            var buf = new byte[count];
+            var read = stream.Read(buf, 0, count);
+            while (read < count) {
+                var r = stream.Read(buf, read, count - read);
+                if (r == 0) {
+                    throw new InvalidOperationException();
+                }
+                read += r;
             }
+            return buf;
+        }
+
+        private static byte[] ReadNumber(this Stream stream, int width) {
+            var buf = ReadBytes(stream, width);
             if (BitConverter.IsLittleEndian) {
                 Array.Reverse(buf);
             }

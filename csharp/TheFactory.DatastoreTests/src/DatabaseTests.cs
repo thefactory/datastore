@@ -241,4 +241,53 @@ namespace TheFactory.DatastoreTests {
             }
         }
     }
+
+    [TestFixture]
+    public class DatabaseFileTests {
+        private Database db;
+
+        [SetUp]
+        public void SetUp() {
+            db = new Database(Path.GetTempPath());
+        }
+
+        [TearDown]
+        public void TearDown() {
+            db.Close();
+        }
+
+        [Test]
+        public void TestDatabasePushTabletStream() {
+            var filename = "test-data/ngrams1/ngrams1-Nblock-compressed.tab";
+            using (var fs = new FileStream(filename, FileMode.Open, FileAccess.Read)) {
+                db.PushTabletStream(fs, "test", null);
+            }
+
+            // Check that db contains all keys from the streamed tablet.
+            var enc = new UTF8Encoding();
+            using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
+                foreach (var p in db.Find()) {
+                    var kv = data.ReadLine().Split(new char[] {' '});
+                    var k = enc.GetBytes(kv[0]);
+                    var v = enc.GetBytes(kv[1]);
+                    Assert.True(p.Key.CompareBytes(0, k, 0, p.Key.Length));
+                    Assert.True(p.Value.CompareBytes(0, v, 0, p.Value.Length));
+                }
+                Assert.True(data.ReadLine() == null);
+            }
+
+            // Check that the emitted file matches the original.
+            using (var fs1 = new FileStream(filename, FileMode.Open, FileAccess.Read))
+            using (var fs2 = new FileStream(Path.Combine(Path.GetTempPath(), "test"), FileMode.Open, FileAccess.Read)) {
+                Assert.True(fs1.Length == fs2.Length);
+                var count = 0;
+                for (count = 0; count < fs1.Length; count++) {
+                    if (fs1.ReadByte() != fs2.ReadByte()) {
+                        break;
+                    }
+                }
+                Assert.True(count == fs1.Length);
+            }
+        }
+    }
 }

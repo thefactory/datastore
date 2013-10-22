@@ -115,12 +115,12 @@ namespace TheFactory.Datastore {
 
     internal class FileTablet : ITablet {
         private Stream stream;
-        private SnappyDecompressor decompressor;
+        private TabletReader reader;
         private List<TabletIndexRecord> dataIndex, metaIndex;
 
         public FileTablet(Stream stream) {
             this.stream = stream;
-            decompressor = new SnappyDecompressor();
+            reader = new TabletReader();
         }
 
         public void Close() {
@@ -158,7 +158,14 @@ namespace TheFactory.Datastore {
 
             // Iterator of everything left in the tablet.
             for (var i = blockIndex; i < dataIndex.Count ; i++) {
-                var block = LoadBlock(dataIndex[i].Offset);
+                Block block;
+                try {
+                    block = LoadBlock(dataIndex[i].Offset);
+                } catch(TabletValidationException) {
+                    // Bad block checksum.
+                    continue;
+                }
+
                 foreach (var p in block.Find(term)) {
                     yield return p;
                 }
@@ -168,71 +175,201 @@ namespace TheFactory.Datastore {
         }
 
         internal Block LoadBlock(long offset) {
+            stream.Seek(offset, SeekOrigin.Begin);
+            var blockData = reader.ReadBlock(stream);
+
+            if (blockData.Info.Checksum != 0 && blockData.Info.Checksum != blockData.Checksum) {
+                throw new TabletValidationException("bad block checksum");
+            }
+
+            return new Block(blockData.Data, 0, blockData.Data.Length);
+        }
+
+        internal List<TabletIndexRecord> LoadIndex(long offset, long length, UInt32 magic) {
+            stream.Seek(offset, SeekOrigin.Begin);
+            return reader.ReadIndex(stream, length, magic);
+        }
+
+        internal TabletFooter LoadFooter() {
+            stream.Seek(-40, SeekOrigin.End);
+            return reader.ReadFooter(stream);
+        }
+
+        internal class TabletIndexRecordDataComparer : IComparer<TabletIndexRecord> {
+            public int Compare(TabletIndexRecord x, TabletIndexRecord y) {
+                return x.Data.CompareKey(y.Data);
+            }
+        }
+    }
+
+    public class TabletValidationException : Exception {
+        public TabletValidationException(String msg) : base(msg) {}
+    }
+
+    internal enum BlockType {
+        Data,
+        Meta
+    }
+
+    internal struct TabletHeader {
+        public byte[] Raw { get; private set; }
+        private MemoryStream s;
+
+        private Stream RawStream {
+            get {
+                if (s == null) {
+                    s = new MemoryStream(Raw);
+                }
+                return s;
+            }
+        }
+
+        public UInt32 Magic {
+            get {
+                RawStream.Seek(0, SeekOrigin.Begin);
+                return RawStream.ReadInt();
+            }
+        }
+
+        public UInt32 Version {
+            get {
+                RawStream.Seek(4, SeekOrigin.Begin);
+                var bytes = RawStream.ReadBytes(1);
+                return bytes[0];
+            }
+        }
+
+        public TabletHeader(byte[] raw) : this() {
+            Raw = raw;
+        }
+    }
+
+    internal struct TabletBlockInfo {
+        private byte type;
+
+        public UInt32 Checksum { get; private set; }
+        public int Length { get; private set; }
+        public byte[] Raw { get; private set; }
+
+        //
+        // Hide the bitfield representing type.
+        // 0b000000TC
+        // C: block compression: 0 = None, 1 = Snappy
+        // T: block type: 0 = Data block, 1 = Metadata block
+        //
+
+        public BlockType Type {
+            get {
+                return ((int)type & (1 << 1)) == 0 ? BlockType.Data : BlockType.Meta;
+            }
+        }
+
+        public bool IsCompressed {
+            get {
+                return ((int)type & 1) == 1;
+            }
+        }
+
+        public TabletBlockInfo(UInt32 checksum, byte type, int length, byte[] raw) : this() {
+            Checksum = checksum;
+            this.type = type;
+            Length = length;
+            Raw = raw;
+        }
+    }
+
+    internal struct TabletBlockData {
+        public TabletBlockInfo Info { get; private set; }
+        public byte[] Raw { get; private set; }
+        public byte[] Data {
+            get {
+                if (Info.IsCompressed) {
+                    var decompressor = new SnappyDecompressor();
+                    return decompressor.Decompress(Raw, 0, Raw.Length);
+                }
+                return Raw;
+            }
+        }
+
+        // Computed checksum (not necessarily the same as Info.Checksum).
+        private UInt32 checksum;
+        public UInt32 Checksum {
+            get {
+                return Crc32.ChecksumIeee(Raw);
+            }
+        }
+
+        public TabletBlockData(TabletBlockInfo info, byte[] raw) : this() {
+            Info = info;
+            Raw = raw;
+        }
+    }
+
+    internal struct TabletIndexRecord {
+        public long Offset;
+        public int Length;
+        public byte[] Data;
+    }
+
+    internal struct TabletFooter {
+        public long MetaIndexOffset;
+        public long MetaIndexLength;
+        public long DataIndexOffset;
+        public long DataIndexLength;
+    }
+
+    internal class TabletReader {
+        public TabletReader() {
+        }
+
+        internal TabletHeader ReadHeader(Stream stream) {
+            //
+            // [ tablet magic ] - 4 bytes.
+            // [ version      ] - 1 byte.
+            // [ unused       ] - 3 bytes.
+            //
+            var buf = stream.ReadBytes(8);
+
+            var header = new TabletHeader(buf);
+            if (header.Magic != Constants.TabletMagic) {
+                throw new TabletValidationException("bad magic");
+            }
+
+            if (header.Version < 1) {
+                throw new TabletValidationException("bad version");
+            }
+
+            return header;
+        }
+
+        internal TabletBlockInfo ReadBlockInfo(Stream stream) {
             //
             // In a tablet, a block is preceeded by:
             //   [ checksum (msgpack uint32)          ]
             //   [ type/compression (msgpack fixpos)  ]
             //   [ length (msgpack uint32)            ]
             //
-            stream.Seek(offset, SeekOrigin.Begin);
+            var pos = stream.Position;
+
             var checksum = Unpacking.UnpackObject(stream).AsUInt32();
             var type = Unpacking.UnpackObject(stream).AsInt32();
             var length = Unpacking.UnpackObject(stream).AsInt32();
 
-            // Read (maybe compressed) block-data into memory.
-            var buf = new byte[length];
-            stream.Read(buf, 0, length);
+            // This is probably awful. Read it again to get raw.
+            var infoLen = stream.Position - pos;
+            stream.Seek(-infoLen, SeekOrigin.Current);
+            var raw = stream.ReadBytes((int)infoLen);
 
-            if (checksum != 0 && checksum != Crc32.ChecksumIeee (buf)) {
-                var msg = String.Format("Bad checksum for block at {0}", offset);
-                throw new TabletValidationException(msg);
-            }
-
-
-            byte[] data;
-
-            switch (type & 1) {  // compression is lowest order bit.
-                case 0:  // uncompressed.
-                    data = buf;
-                    break;
-                case 1:  // snappy.
-                    // XXX: SnappyDecompressor doesn't operate on a stream,
-                    // so we're possibly doubling up on memory here.
-                    data = decompressor.Decompress(buf, 0, length);
-                    break;
-                default:
-                    var msg = String.Format("Unknown block type {0}", type);
-                    throw new TabletValidationException(msg);
-            }
-
-            return new Block(data, 0, data.Length);
+            return new TabletBlockInfo(checksum, (byte)type, length, raw);
         }
 
-        internal List<TabletIndexRecord> LoadIndex(long offset, long length, UInt32 magic) {
-            //
-            // Tablet index:
-            //   [ magic (4 bytes) ]
-            //   [ index record 1  ]
-            //   ...
-            //   [ index record N  ]
-            //
-            stream.Seek(offset, SeekOrigin.Begin);
-            var m = stream.ReadInt();
-            if (m != magic) {
-                var msg = String.Format("Bad index magic {0:X}, expected {1:X}", m, magic);
-                throw new TabletValidationException(msg);
-            }
-
-            var ret = new List<TabletIndexRecord>();
-
-            while (stream.Position < offset + length) {
-                ret.Add(ReadIndexRecord());
-            }
-
-            return ret;
+        internal TabletBlockData ReadBlock(Stream stream) {
+            var info = ReadBlockInfo(stream);
+            var raw = stream.ReadBytes(info.Length);
+            return new TabletBlockData(info, raw);
         }
 
-        private TabletIndexRecord ReadIndexRecord() {
+        private TabletIndexRecord ReadIndexRecord(Stream stream) {
             //
             // Tablet index record:
             //   [ file offset (msgpack uint, uint64 max)  ]
@@ -243,12 +380,35 @@ namespace TheFactory.Datastore {
             i.Offset = Unpacking.UnpackObject(stream).AsInt64();
             i.Length = Unpacking.UnpackObject(stream).AsInt32();
             var dataLen = (int)Unpacking.UnpackByteStream(stream).Length;
-            i.Data = new byte[dataLen];
-            stream.Read(i.Data, 0, dataLen);
+            i.Data = stream.ReadBytes(dataLen);
             return i;
         }
 
-        internal TabletFooter LoadFooter() {
+        internal List<TabletIndexRecord> ReadIndex(Stream stream, long length, UInt32 magic) {
+            //
+            // Tablet index:
+            //   [ magic (4 bytes) ]
+            //   [ index record 1  ]
+            //   ...
+            //   [ index record N  ]
+            //
+            long offset = stream.Position;
+            var m = stream.ReadInt();
+            if (m != magic) {
+                var msg = String.Format("Bad index magic {0:X}, expected {1:X}", m, magic);
+                throw new TabletValidationException(msg);
+            }
+
+            var ret = new List<TabletIndexRecord>();
+
+            while (stream.Position < offset + length) {
+                ret.Add(ReadIndexRecord(stream));
+            }
+
+            return ret;
+        }
+
+        internal TabletFooter ReadFooter(Stream stream) {
             //
             // Tablet footer (40 bytes):
             //   [ meta index offset (msgpack uint64) ] - 9 bytes
@@ -257,7 +417,6 @@ namespace TheFactory.Datastore {
             //   [ data index length (msgpack uint64) ] - 9 bytes
             //   [ magic ] - 4 bytes
             //
-            stream.Seek(-40, SeekOrigin.End);
             var footer = new TabletFooter();
             footer.MetaIndexOffset = Unpacking.UnpackObject(stream).AsInt64();
             footer.MetaIndexLength = Unpacking.UnpackObject(stream).AsInt64();
@@ -270,29 +429,6 @@ namespace TheFactory.Datastore {
             }
             return footer;
         }
-
-        internal struct TabletFooter {
-            public long MetaIndexOffset;
-            public long MetaIndexLength;
-            public long DataIndexOffset;
-            public long DataIndexLength;
-        }
-
-        internal struct TabletIndexRecord {
-            public long Offset;
-            public int Length;
-            public byte[] Data;
-        }
-
-        internal class TabletIndexRecordDataComparer : IComparer<TabletIndexRecord> {
-            public int Compare(TabletIndexRecord x, TabletIndexRecord y) {
-                return x.Data.CompareKey(y.Data);
-            }
-        }
-    }
-
-    public class TabletValidationException : Exception {
-        public TabletValidationException(String msg) : base(msg) {}
     }
 
     internal class TabletWriter {
