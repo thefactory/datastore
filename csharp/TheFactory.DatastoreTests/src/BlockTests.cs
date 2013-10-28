@@ -15,7 +15,7 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 1};    // 1 restart index.
             var writer = new BlockWriter(10);
             var firstKey = new byte[] {1, 2, 3};
-            writer.Append(firstKey, new byte[] {4, 5, 6});
+            writer.Append(firstKey, (Slice)(new byte[] {4, 5, 6}));
             var output = writer.Finish();
             Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
             Assert.True(output.Buffer.CompareBytes(0, bytes, 0, bytes.Length));
@@ -30,12 +30,12 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 1};    // 1 restart index.
             var writer = new BlockWriter(10);
             var firstKey = new byte[] {1, 2, 3};
-            writer.Append(firstKey, new byte[] {4, 5, 6});
+            writer.Append(firstKey, (Slice)(new byte[] {4, 5, 6}));
             var output = writer.Finish();
             Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
             Assert.True(output.Buffer.CompareBytes(0, bytes, 0, bytes.Length));
             writer.Reset();
-            writer.Append(firstKey, new byte[] {4, 5, 6});
+            writer.Append(firstKey, (Slice)(new byte[] {4, 5, 6}));
             output = writer.Finish();
             Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
             Assert.True(output.Buffer.CompareBytes(0, bytes, 0, bytes.Length));
@@ -62,12 +62,12 @@ namespace TheFactory.DatastoreTests {
                                     0xa3, 4, 5, 6,  // 3-byte key suffix.
                                     0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0,     // restart index at 0.
-                                    0, 0, 0, 1};    // 1 restart index.
+                0, 0, 0, 1};    // 1 restart index.
             var writer = new BlockWriter(10);
             var firstKey = pairs[0];
             var sizeCount = 1;
             for (var i = 0; i < pairs.Length; i += 2) {
-                writer.Append(pairs[i], pairs[i + 1]);
+                writer.Append(pairs[i], (Slice)(pairs[i + 1]));
                 Assert.True(writer.Size == sizeCount * 9 + 4 + 4);
                 sizeCount += 1;
             }
@@ -101,7 +101,7 @@ namespace TheFactory.DatastoreTests {
             var writer = new BlockWriter(10);
             var firstKey = pairs[0];
             for (var i = 0; i < pairs.Length; i += 2) {
-                writer.Append(pairs[i], pairs[i + 1]);
+                writer.Append(pairs[i], (Slice)(pairs[i + 1]));
             }
             var output = writer.Finish();
             Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
@@ -126,7 +126,7 @@ namespace TheFactory.DatastoreTests {
             var writer = new BlockWriter(1);
             var firstKey = pairs[0];
             for (var i = 0; i < pairs.Length; i += 2) {
-                writer.Append(pairs[i], pairs[i + 1]);
+                writer.Append(pairs[i], (Slice)(pairs[i + 1]));
             }
             var output = writer.Finish();
             Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
@@ -159,7 +159,7 @@ namespace TheFactory.DatastoreTests {
             var writer = new BlockWriter(2);
             var firstKey = pairs[0];
             for (var i = 0; i < pairs.Length; i += 2) {
-                writer.Append(pairs[i], pairs[i + 1]);
+                writer.Append(pairs[i], (Slice)(pairs[i + 1]));
             }
             var output = writer.Finish();
             Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
@@ -179,8 +179,8 @@ namespace TheFactory.DatastoreTests {
             var block = new Block(bytes, 0, bytes.Length);
             var count = 0;
             foreach (var p in block.Find()) {
-                Assert.True(p.Key.CompareBytes(0, new byte[] {1, 2, 3}, 0, p.Key.Length));
-                Assert.True(p.Value.CompareBytes(0, new byte[] {4, 5, 6}, 0, p.Value.Length));
+                Assert.True(p.Key.Equals((Slice)new byte[] { 1, 2, 3 }));
+                Assert.True(p.Value.Equals((Slice)new byte[] { 4, 5, 6 }));
                 count += 1;
             }
             Assert.True(count == 1);
@@ -200,8 +200,8 @@ namespace TheFactory.DatastoreTests {
             var block = new Block(bytes, 0, bytes.Length);
             var count = 0;
             foreach (var p in block.Find()) {
-                Assert.True(p.Key.CompareBytes(0, new byte[] {1, 2, 3}, 0, p.Key.Length));
-                Assert.True(p.Value.CompareBytes(0, new byte[] {4, 5, 6}, 0, p.Value.Length));
+                Assert.True(p.Key.Equals((Slice)(new byte[] { 1, 2, 3 })));
+                Assert.True(p.Value.Equals((Slice)(new byte[] { 4, 5, 6 })));
                 count += 1;
             }
             Assert.True(count == 2);
@@ -227,8 +227,8 @@ namespace TheFactory.DatastoreTests {
             var block = new Block(bytes, 0, bytes.Length);
             var count = 0;
             foreach (var p in block.Find()) {
-                Assert.True(p.Key.CompareBytes(0, new byte[] {1, 2, 3}, 0, p.Key.Length));
-                Assert.True(p.Value.CompareBytes(0, new byte[] {4, 5, 6}, 0, p.Value.Length));
+                Assert.True(p.Key.Equals((Slice)new byte[] { 1, 2, 3 }));
+                Assert.True(p.Value.Equals((Slice)new byte[] { 4, 5, 6 }));
                 count += 1;
             }
             Assert.True(count == 4);
@@ -250,8 +250,8 @@ namespace TheFactory.DatastoreTests {
             var block = new Block(bytes, 0, bytes.Length);
             var count = 0;
             foreach (var p in block.Find()) {
-                Assert.True(p.Key.CompareBytes(0, new byte[] {1, 2, 3}, 0, p.Key.Length));
-                Assert.True(p.Value.CompareBytes(0, new byte[] {4, 5, 6}, 0, p.Value.Length));
+                Assert.True(p.Key.Equals((Slice)new byte[] { 1, 2, 3 }));
+                Assert.True(p.Value.Equals((Slice)new byte[] { 4, 5, 6 }));
                 count += 1;
             }
             Assert.True(count == 2);
@@ -276,8 +276,8 @@ namespace TheFactory.DatastoreTests {
             var block = new Block(bytes, 13, 13);  // read the middle block.
             var count = 0;
             foreach (var p in block.Find()) {
-                Assert.True(p.Key.CompareBytes(0, new byte[] {1, 2, 3}, 0, p.Key.Length));
-                Assert.True(p.Value.CompareBytes(0, new byte[] {4, 5, 6}, 0, p.Value.Length));
+                Assert.True(p.Key.Equals((Slice)new byte[] { 1, 2, 3 }));
+                Assert.True(p.Value.Equals((Slice)new byte[] { 4, 5, 6 }));
                 count += 1;
             }
             Assert.True(count == 1);
@@ -301,9 +301,9 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 18,    // third restart.
                                     0, 0, 0, 3};    // 3 restart indexes.
             var block = new Block(bytes, 0, bytes.Length);
-            var term = new byte[] {2, 3, 4};
+            var term = (Slice)(new byte[] {2, 3, 4});
             foreach (var p in block.Find(term)) {
-                Assert.True(p.Key.CompareBytes(0, term, 0, p.Key.Length));
+                Assert.True(p.Key.Equals(term));
                 break;
             }
         }
@@ -326,11 +326,11 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 18,    // second restart.
                                     0, 0, 0, 2};    // 2 restart indexes.
             var block = new Block(bytes, 0, bytes.Length);
-            var term = new byte[] {1, 2, 4};
+            var term = (Slice)(new byte[] {1, 2, 4});
             var count = 0;
             foreach (var p in block.Find(term)) {
                 count += 1;
-                Assert.True(p.Key.CompareBytes(0, term, 0, p.Key.Length));
+                Assert.True(p.Key.Equals(term));
                 break;
             }
             Assert.True(count == 1);
@@ -352,10 +352,9 @@ namespace TheFactory.DatastoreTests {
                                     0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0};    // no restart indexes.
             var block = new Block(bytes, 0, bytes.Length);
-            var term = new byte[] {1, 2, 5};
+            var term = (Slice)(new byte[] {1, 2, 5});
             foreach (var p in block.Find(term)) {
-                Assert.True(p.Key.CompareBytes(0, term, 0, p.Key.Length));
-                break;
+                Assert.True(Slice.Compare(p.Key, term) >= 0);
             }
         }
 
@@ -377,10 +376,9 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 18,    // second restart.
                                     0, 0, 0, 2};    // 2 restart indexes.
             var block = new Block(bytes, 0, bytes.Length);
-            var expected = new byte[] {1, 2, 3};
-            foreach (var p in block.Find(new byte[] {0, 1, 2})) {
-                Assert.True(p.Key.CompareBytes(0, expected, 0, p.Key.Length));
-                break;
+            var term = (Slice)(new byte[] {0, 1, 2});
+            foreach (var p in block.Find(term)) {
+                Assert.True(Slice.Compare(p.Key, term) > 0);
             }
         }
 
@@ -403,7 +401,7 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 2};    // 2 restart indexes.
             var block = new Block(bytes, 0, bytes.Length);
             var count = 0;
-            foreach (var p in block.Find(new byte[] {2, 3, 4})) {
+            foreach (var p in block.Find((Slice)(new byte[] {2, 3, 4}))) {
                 count += 1;
                 break;
             }
@@ -429,9 +427,9 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 18,    // second restart.
                                     0, 0, 0, 2};    // 2 restart indexes.
             var block = new Block(bytes, 0, bytes.Length);
-            var expected = new byte[] {1, 2, 4};
-            foreach (var p in block.Find(new byte[] {1, 2, 3, 4})) {
-                Assert.True(p.Key.CompareBytes(0, expected, 0, p.Key.Length));
+            var term = (Slice)(new byte[] {1, 2, 4});
+            foreach (var p in block.Find((Slice)(new byte[] {1, 2, 3, 4}))) {
+                Assert.True(p.Key.Equals(term));
                 break;
             }
         }

@@ -64,7 +64,7 @@ namespace TheFactory.DatastoreTests
 			for (int i = 0; i < data.Length; i++) {
 				var key = System.Text.Encoding.ASCII.GetBytes (data [i] [0]);
 				var value = System.Text.Encoding.ASCII.GetBytes (data [i] [1]);
-				b.Append (key, value);
+                b.Append (key, (Slice)value);
 			}
 
 			var block = b.Finish();

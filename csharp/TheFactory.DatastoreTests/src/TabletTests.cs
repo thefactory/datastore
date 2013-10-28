@@ -23,13 +23,12 @@ namespace TheFactory.DatastoreTests {
 
         [Test]
         public void TestMemoryTabletSet() {
-            var k = Encoding.UTF8.GetBytes("key");
-            var v = Encoding.UTF8.GetBytes("value");
+            var k = (Slice)Encoding.UTF8.GetBytes("key");
+            var v = (Slice)Encoding.UTF8.GetBytes("value");
             tablet.Set(k, v);
             var count = 0;
             foreach (var p in tablet.Find(k)) {
-                var val = p.Value;
-                Assert.True(val.CompareBytes(0, v, 0, v.Length));
+                Assert.True(p.Value.Equals(v));
                 count += 1;
                 break;
             }
@@ -38,14 +37,13 @@ namespace TheFactory.DatastoreTests {
 
         [Test]
         public void TestMemoryTabletReSet() {
-            var k = Encoding.UTF8.GetBytes("key");
-            var v = Encoding.UTF8.GetBytes("value");
-            tablet.Set(k, Encoding.UTF8.GetBytes("initial value"));
+            var k = (Slice)Encoding.UTF8.GetBytes("key");
+            var v = (Slice)Encoding.UTF8.GetBytes("value");
+            tablet.Set(k, (Slice)Encoding.UTF8.GetBytes("initial value"));
             tablet.Set(k, v);  // update value.
             var count = 0;
             foreach (var p in tablet.Find(k)) {
-                var val = p.Value;
-                Assert.True(val.CompareBytes(0, v, 0, v.Length));
+                Assert.True(p.Value.Equals(v));
                 count += 1;
                 break;
             }
@@ -54,14 +52,14 @@ namespace TheFactory.DatastoreTests {
 
         [Test]
         public void TestMemoryTabletDelete() {
-            var k = Encoding.UTF8.GetBytes("key");
-            var v = Encoding.UTF8.GetBytes("value");
+            var k = (Slice)Encoding.UTF8.GetBytes("key");
+            var v = (Slice)Encoding.UTF8.GetBytes("value");
             tablet.Set(k, v);
             tablet.Delete(k);
             var count = 0;
             foreach (var p in tablet.Find(k)) {
-                var val = p.Value;
-                Assert.True(ReferenceEquals(val, MemoryTablet.Tombstone));
+                Assert.True(ReferenceEquals(p.Value, MemoryTablet.Tombstone));
+                Assert.True(p.IsDeleted);
                 count += 1;
                 break;
             }
@@ -79,17 +77,17 @@ namespace TheFactory.DatastoreTests {
 
         [Test]
         public void TestMemoryTabletEnumerateAll() {
-            var pairs = new byte[][] {
-                Encoding.UTF8.GetBytes("key0"),
-                Encoding.UTF8.GetBytes("value0"),
-                Encoding.UTF8.GetBytes("key1"),
-                Encoding.UTF8.GetBytes("value1"),
-                Encoding.UTF8.GetBytes("key2"),
-                Encoding.UTF8.GetBytes("value2"),
-                Encoding.UTF8.GetBytes("key3"),
-                Encoding.UTF8.GetBytes("value3"),
-                Encoding.UTF8.GetBytes("key4"),
-                Encoding.UTF8.GetBytes("value4")
+            var pairs = new Slice[] {
+                (Slice)Encoding.UTF8.GetBytes("key0"),
+                (Slice)Encoding.UTF8.GetBytes("value0"),
+                (Slice)Encoding.UTF8.GetBytes("key1"),
+                (Slice)Encoding.UTF8.GetBytes("value1"),
+                (Slice)Encoding.UTF8.GetBytes("key2"),
+                (Slice)Encoding.UTF8.GetBytes("value2"),
+                (Slice)Encoding.UTF8.GetBytes("key3"),
+                (Slice)Encoding.UTF8.GetBytes("value3"),
+                (Slice)Encoding.UTF8.GetBytes("key4"),
+                (Slice)Encoding.UTF8.GetBytes("value4")
             };
             Assert.True(pairs.Length % 2 == 0);
             for (var i = 0; i < pairs.Length; i += 2) {
@@ -98,8 +96,8 @@ namespace TheFactory.DatastoreTests {
 
             var j = 0;
             foreach (var p in tablet.Find()) {
-                Assert.True(p.Key.CompareBytes(0, pairs[j], 0, p.Key.Length));
-                Assert.True(p.Value.CompareBytes(0, pairs[j + 1], 0, p.Value.Length));
+                Assert.True(p.Key.Equals(pairs[j]));
+                Assert.True(p.Value.Equals(pairs[j + 1]));
                 j += 2;
             }
             Assert.True(j == pairs.Length);
@@ -107,17 +105,17 @@ namespace TheFactory.DatastoreTests {
 
         [Test]
         public void TestMemoryTabletEnumerateFromAfter() {
-            var pairs = new byte[][] {
-                Encoding.UTF8.GetBytes("key0"),
-                Encoding.UTF8.GetBytes("value0"),
-                Encoding.UTF8.GetBytes("key1"),
-                Encoding.UTF8.GetBytes("value1"),
-                Encoding.UTF8.GetBytes("key2"),
-                Encoding.UTF8.GetBytes("value2"),
-                Encoding.UTF8.GetBytes("key3"),
-                Encoding.UTF8.GetBytes("value3"),
-                Encoding.UTF8.GetBytes("key4"),
-                Encoding.UTF8.GetBytes("value4")
+            var pairs = new Slice[] {
+                (Slice)Encoding.UTF8.GetBytes("key0"),
+                (Slice)Encoding.UTF8.GetBytes("value0"),
+                (Slice)Encoding.UTF8.GetBytes("key1"),
+                (Slice)Encoding.UTF8.GetBytes("value1"),
+                (Slice)Encoding.UTF8.GetBytes("key2"),
+                (Slice)Encoding.UTF8.GetBytes("value2"),
+                (Slice)Encoding.UTF8.GetBytes("key3"),
+                (Slice)Encoding.UTF8.GetBytes("value3"),
+                (Slice)Encoding.UTF8.GetBytes("key4"),
+                (Slice)Encoding.UTF8.GetBytes("value4")
             };
             Assert.True(pairs.Length % 2 == 0);
             for (var i = 0; i < pairs.Length; i += 2) {
@@ -125,7 +123,7 @@ namespace TheFactory.DatastoreTests {
             }
 
             var count = 0;
-            var term = Encoding.UTF8.GetBytes("key5");  // After end.
+            var term = (Slice)Encoding.UTF8.GetBytes("key5");  // After end.
             foreach (var p in tablet.Find(term)) {
                 count += 1;
             }
@@ -134,17 +132,17 @@ namespace TheFactory.DatastoreTests {
 
         [Test]
         public void TestMemoryTabletEnumerateFromNFound() {
-            var pairs = new byte[][] {
-                Encoding.UTF8.GetBytes("key0"),
-                Encoding.UTF8.GetBytes("value0"),
-                Encoding.UTF8.GetBytes("key1"),
-                Encoding.UTF8.GetBytes("value1"),
-                Encoding.UTF8.GetBytes("key2"),
-                Encoding.UTF8.GetBytes("value2"),
-                Encoding.UTF8.GetBytes("key3"),
-                Encoding.UTF8.GetBytes("value3"),
-                Encoding.UTF8.GetBytes("key4"),
-                Encoding.UTF8.GetBytes("value4")
+            var pairs = new Slice[] {
+                (Slice)Encoding.UTF8.GetBytes("key0"),
+                (Slice)Encoding.UTF8.GetBytes("value0"),
+                (Slice)Encoding.UTF8.GetBytes("key1"),
+                (Slice)Encoding.UTF8.GetBytes("value1"),
+                (Slice)Encoding.UTF8.GetBytes("key2"),
+                (Slice)Encoding.UTF8.GetBytes("value2"),
+                (Slice)Encoding.UTF8.GetBytes("key3"),
+                (Slice)Encoding.UTF8.GetBytes("value3"),
+                (Slice)Encoding.UTF8.GetBytes("key4"),
+                (Slice)Encoding.UTF8.GetBytes("value4")
             };
             Assert.True(pairs.Length % 2 == 0);
             for (var i = 0; i < pairs.Length; i += 2) {
@@ -154,8 +152,8 @@ namespace TheFactory.DatastoreTests {
             var j = 4;
             var term = pairs[j];
             foreach (var p in tablet.Find(term)) {
-                Assert.True(p.Key.CompareBytes(0, pairs[j], 0, p.Key.Length));
-                Assert.True(p.Value.CompareBytes(0, pairs[j + 1], 0, p.Value.Length));
+                Assert.True(p.Key.Equals(pairs[j]));
+                Assert.True(p.Value.Equals(pairs[j + 1]));
                 j += 2;
             }
             Assert.True(j == pairs.Length);
@@ -163,17 +161,17 @@ namespace TheFactory.DatastoreTests {
 
         [Test]
         public void TestMemoryTabletEnumerateFromNNotFound() {
-            var pairs = new byte[][] {
-                Encoding.UTF8.GetBytes("key0"),
-                Encoding.UTF8.GetBytes("value0"),
-                Encoding.UTF8.GetBytes("key1"),
-                Encoding.UTF8.GetBytes("value1"),
-                Encoding.UTF8.GetBytes("key2"),
-                Encoding.UTF8.GetBytes("value2"),
-                Encoding.UTF8.GetBytes("key3"),
-                Encoding.UTF8.GetBytes("value3"),
-                Encoding.UTF8.GetBytes("key4"),
-                Encoding.UTF8.GetBytes("value4")
+            var pairs = new Slice[] {
+                (Slice)Encoding.UTF8.GetBytes("key0"),
+                (Slice)Encoding.UTF8.GetBytes("value0"),
+                (Slice)Encoding.UTF8.GetBytes("key1"),
+                (Slice)Encoding.UTF8.GetBytes("value1"),
+                (Slice)Encoding.UTF8.GetBytes("key2"),
+                (Slice)Encoding.UTF8.GetBytes("value2"),
+                (Slice)Encoding.UTF8.GetBytes("key3"),
+                (Slice)Encoding.UTF8.GetBytes("value3"),
+                (Slice)Encoding.UTF8.GetBytes("key4"),
+                (Slice)Encoding.UTF8.GetBytes("value4")
             };
             Assert.True(pairs.Length % 2 == 0);
             for (var i = 0; i < pairs.Length; i += 2) {
@@ -181,10 +179,10 @@ namespace TheFactory.DatastoreTests {
             }
 
             var j = 4;
-            var term = Encoding.UTF8.GetBytes("key11");  // After key1.
+            var term = (Slice)Encoding.UTF8.GetBytes("key11");  // After key1.
             foreach (var p in tablet.Find(term)) {
-                Assert.True(p.Key.CompareBytes(0, pairs[j], 0, p.Key.Length));
-                Assert.True(p.Value.CompareBytes(0, pairs[j + 1], 0, p.Value.Length));
+                Assert.True(p.Key.Equals(pairs[j]));
+                Assert.True(p.Value.Equals(pairs[j + 1]));
                 j += 2;
             }
             Assert.True(j == pairs.Length);
@@ -225,8 +223,8 @@ namespace TheFactory.DatastoreTests {
             var block = tablet.LoadBlock(0);
             var count = 0;
             foreach (var p in block.Find()) {
-                Assert.True(p.Key.CompareBytes(0, new byte[] {1, 2, 3}, 0, p.Key.Length));
-                Assert.True(p.Value.CompareBytes(0, new byte[] {4, 5, 6}, 0, p.Value.Length));
+                Assert.True(p.Key.Equals((Slice)(new byte[] {1, 2, 3})));
+                Assert.True(p.Value.Equals((Slice)(new byte[] {4, 5, 6})));
                 count += 1;
             }
             Assert.True(count == 1);
@@ -246,8 +244,8 @@ namespace TheFactory.DatastoreTests {
             var block = tablet.LoadBlock(0);
             var count = 0;
             foreach (var p in block.Find()) {
-                Assert.True(p.Key.CompareBytes(0, new byte[] {1, 2, 3}, 0, p.Key.Length));
-                Assert.True(p.Value.CompareBytes(0, new byte[] {4, 5, 6}, 0, p.Value.Length));
+                Assert.True(p.Key.Equals((Slice)(new byte[] {1, 2, 3})));
+                Assert.True(p.Value.Equals((Slice)(new byte[] {4, 5, 6})));
                 count += 1;
             }
             Assert.True(count == 1);
@@ -344,10 +342,10 @@ namespace TheFactory.DatastoreTests {
             var stream = new MemoryStream(bytes);
             var tablet = new FileTablet(stream);
             // Exactly match the only key in the tablet.
-            var term = new byte[] {1, 2, 3};
+            var term = (Slice)(new byte[] {1, 2, 3});
             foreach (var p in tablet.Find(term)) {
-                Assert.True(p.Key.CompareBytes(0, term, 0, p.Key.Length));
-                Assert.True(p.Value.CompareBytes(0, new byte[] {4, 5, 6}, 0, p.Value.Length));
+                Assert.True(p.Key.Equals(term));
+                Assert.True(p.Value.Equals((Slice)(new byte[] {4, 5, 6})));
                 break;
             }
         }
@@ -362,8 +360,8 @@ namespace TheFactory.DatastoreTests {
                         var kv = data.ReadLine().Split(new char[] {' '});
                         var k = enc.GetBytes(kv[0]);
                         var v = enc.GetBytes(kv[1]);
-                        Assert.True(p.Key.CompareBytes(0, k, 0, p.Key.Length));
-                        Assert.True(p.Value.CompareBytes(0, v, 0, p.Value.Length));
+                        Assert.True(p.Key.Equals((Slice)k));
+                        Assert.True(p.Value.Equals((Slice)v));
                     }
                     Assert.True(data.ReadLine() == null);
                 }
@@ -378,12 +376,12 @@ namespace TheFactory.DatastoreTests {
                 using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                     // Read the first line to find a term.
                     var kv = data.ReadLine().Split(new char[] {' '});
-                    var term = enc.GetBytes(kv[0]);
+                    var term = (Slice)enc.GetBytes(kv[0]);
                     foreach (var p in tablet.Find(term)) {
                         var k = enc.GetBytes(kv[0]);
                         var v = enc.GetBytes(kv[1]);
-                        Assert.True(p.Key.CompareBytes(0, k, 0, p.Key.Length));
-                        Assert.True(p.Value.CompareBytes(0, v, 0, p.Value.Length));
+                        Assert.True(p.Key.Equals((Slice)k));
+                        Assert.True(p.Value.Equals((Slice)v));
                         var line = data.ReadLine();
                         if (line == null) {
                             break;
@@ -407,12 +405,12 @@ namespace TheFactory.DatastoreTests {
                         count += 1;
                         kv = data.ReadLine().Split(new char[] {' '});
                     } while (count < 10);  // Skip some lines to find a term.
-                    var term = enc.GetBytes(kv[0]);
+                    var term = (Slice)enc.GetBytes(kv[0]);
                     foreach (var p in tablet.Find(term)) {
                         var k = enc.GetBytes(kv[0]);
                         var v = enc.GetBytes(kv[1]);
-                        Assert.True(p.Key.CompareBytes(0, k, 0, p.Key.Length));
-                        Assert.True(p.Value.CompareBytes(0, v, 0, p.Value.Length));
+                        Assert.True(p.Key.Equals((Slice)k));
+                        Assert.True(p.Value.Equals((Slice)v));
                         var line = data.ReadLine();
                         if (line == null) {
                             break;
@@ -434,8 +432,8 @@ namespace TheFactory.DatastoreTests {
                         var kv = data.ReadLine().Split(new char[] {' '});
                         var k = enc.GetBytes(kv[0]);
                         var v = enc.GetBytes(kv[1]);
-                        Assert.True(p.Key.CompareBytes(0, k, 0, p.Key.Length));
-                        Assert.True(p.Value.CompareBytes(0, v, 0, p.Value.Length));
+                        Assert.True(p.Key.Equals((Slice)k));
+                        Assert.True(p.Value.Equals((Slice)v));
                     }
                     Assert.True(data.ReadLine() == null);
                 }
@@ -452,8 +450,8 @@ namespace TheFactory.DatastoreTests {
                         var kv = data.ReadLine().Split(new char[] {' '});
                         var k = enc.GetBytes(kv[0]);
                         var v = enc.GetBytes(kv[1]);
-                        Assert.True(p.Key.CompareBytes(0, k, 0, p.Key.Length));
-                        Assert.True(p.Value.CompareBytes(0, v, 0, p.Value.Length));
+                        Assert.True(p.Key.Equals((Slice)k));
+                        Assert.True(p.Value.Equals((Slice)v));
                     }
                     Assert.True(data.ReadLine() == null);
                 }
@@ -468,12 +466,12 @@ namespace TheFactory.DatastoreTests {
                 using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                     // Read the first line to find a term.
                     var kv = data.ReadLine().Split(new char[] {' '});
-                    var term = enc.GetBytes(kv[0]);
+                    var term = (Slice)enc.GetBytes(kv[0]);
                     foreach (var p in tablet.Find(term)) {
                         var k = enc.GetBytes(kv[0]);
                         var v = enc.GetBytes(kv[1]);
-                        Assert.True(p.Key.CompareBytes(0, k, 0, p.Key.Length));
-                        Assert.True(p.Value.CompareBytes(0, v, 0, p.Value.Length));
+                        Assert.True(p.Key.Equals((Slice)k));
+                        Assert.True(p.Value.Equals((Slice)v));
                         var line = data.ReadLine();
                         if (line == null) {
                             break;
@@ -497,12 +495,12 @@ namespace TheFactory.DatastoreTests {
                         count += 1;
                         kv = data.ReadLine().Split(new char[] {' '});
                     } while (count < 10);  // Skip some lines to find a term.
-                    var term = enc.GetBytes(kv[0]);
+                    var term = (Slice)enc.GetBytes(kv[0]);
                     foreach (var p in tablet.Find(term)) {
                         var k = enc.GetBytes(kv[0]);
                         var v = enc.GetBytes(kv[1]);
-                        Assert.True(p.Key.CompareBytes(0, k, 0, p.Key.Length));
-                        Assert.True(p.Value.CompareBytes(0, v, 0, p.Value.Length));
+                        Assert.True(p.Key.Equals((Slice)k));
+                        Assert.True(p.Value.Equals((Slice)v));
                         var line = data.ReadLine();
                         if (line == null) {
                             break;
@@ -546,8 +544,8 @@ namespace TheFactory.DatastoreTests {
                 var it1 = tablet.Find().GetEnumerator();
                 var it2 = tablet2.Find().GetEnumerator();
                 while (it1.MoveNext() && it2.MoveNext()) {
-                    Assert.True(it1.Current.Key.CompareBytes(0, it2.Current.Key, 0, it2.Current.Key.Length));
-                    Assert.True(it1.Current.Value.CompareBytes(0, it2.Current.Value, 0, it2.Current.Value.Length));
+                    Assert.True(it1.Current.Key.Equals(it2.Current.Key));
+                    Assert.True(it1.Current.Value.Equals(it2.Current.Value));
                 }
                 Assert.True(it1.MoveNext() == false);
                 Assert.True(it2.MoveNext() == false);
@@ -571,8 +569,8 @@ namespace TheFactory.DatastoreTests {
                 var it1 = tablet.Find().GetEnumerator();
                 var it2 = tablet2.Find().GetEnumerator();
                 while (it1.MoveNext() && it2.MoveNext()) {
-                    Assert.True(it1.Current.Key.CompareBytes(0, it2.Current.Key, 0, it2.Current.Key.Length));
-                    Assert.True(it1.Current.Value.CompareBytes(0, it2.Current.Value, 0, it2.Current.Value.Length));
+                    Assert.True(it1.Current.Key.Equals(it2.Current.Key));
+                    Assert.True(it1.Current.Value.Equals(it2.Current.Value));
                 }
                 Assert.True(it1.MoveNext() == false);
                 Assert.True(it2.MoveNext() == false);

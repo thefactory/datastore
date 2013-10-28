@@ -114,7 +114,7 @@ namespace TheFactory.Datastore {
             return Find(null);
         }
 
-        public IEnumerable<IKeyValuePair> Find(byte[] term) {
+        public IEnumerable<IKeyValuePair> Find(Slice term) {
             var cmp = new EnumeratorCurrentKeyComparer();
             var set = new SortedSet<TabletEnumerator>(cmp);
 
@@ -152,25 +152,25 @@ namespace TheFactory.Datastore {
             yield break;
         }
 
-        public byte[] Get(byte[] key) {
+        public Slice Get(Slice key) {
             foreach (var p in Find(key)) {
-                if (p.Key.CompareKey(key) == 0) {
+                if (Slice.Compare(p.Key, key) == 0) {
                     return p.Value;
                 } else {
                     break;
                 }
             }
 
-            throw new KeyNotFoundException(key.StringifyKey());
+            throw new KeyNotFoundException(key.ToUTF8String());
         }
 
-        public void Put(byte[] key, byte[] val) {
+        public void Put(Slice key, Slice val) {
             // Last mutableTablet is the writing tablet.
             var tablet = (MemoryTablet)mutableTablets[mutableTablets.Count - 1];
             tablet.Set(key, val);
         }
 
-        public void Delete(byte[] key) {
+        public void Delete(Slice key) {
             // Last mutableTablet is the writing tablet.
             var tablet = (MemoryTablet)mutableTablets[mutableTablets.Count - 1];
             tablet.Delete(key);
@@ -182,16 +182,10 @@ namespace TheFactory.Datastore {
                     return 0;
                 }
 
-                var cmp = x.Enumerator.Current.Key.CompareKey(y.Enumerator.Current.Key);
+                var cmp = Slice.Compare(x.Enumerator.Current.Key, y.Enumerator.Current.Key);
                 if (cmp == 0) {
                     // Key is the same, the newer (higher index) tablet wins.
-                    if (x.TabletIndex < y.TabletIndex) {
-                        return 1;
-                    } else if (x.TabletIndex > y.TabletIndex) {
-                        return -1;
-                    } else {
-                        return 0;
-                    }
+                    return y.TabletIndex - x.TabletIndex;
                 }
                 return cmp;
             }

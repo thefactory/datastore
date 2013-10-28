@@ -29,8 +29,8 @@ namespace TheFactory.DatastoreTests {
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
                     var v = enc.GetBytes(kv[1]);
-                    Assert.True(p.Key.CompareBytes(0, k, 0, p.Key.Length));
-                    Assert.True(p.Value.CompareBytes(0, v, 0, p.Value.Length));
+                    Assert.True(p.Key.Equals((Slice)k));
+                    Assert.True(p.Value.Equals((Slice)v));
                 }
                 Assert.True(data.ReadLine() == null);
             }
@@ -46,8 +46,8 @@ namespace TheFactory.DatastoreTests {
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
                     var v = enc.GetBytes(kv[1]);
-                    Assert.True(p.Key.CompareBytes(0, k, 0, p.Key.Length));
-                    Assert.True(p.Value.CompareBytes(0, v, 0, p.Value.Length));
+                    Assert.True(p.Key.Equals((Slice)k));
+                    Assert.True(p.Value.Equals((Slice)v));
                 }
                 Assert.True(data.ReadLine() == null);
             }
@@ -65,12 +65,12 @@ namespace TheFactory.DatastoreTests {
                     count += 1;
                     kv = data.ReadLine().Split(new char[] {' '});
                 } while (count < 10);  // Skip some lines to find a term.
-                var term = enc.GetBytes(kv[0]);
+                var term = (Slice)enc.GetBytes(kv[0]);
                 foreach (var p in db.Find(term)) {
                     var k = enc.GetBytes(kv[0]);
                     var v = enc.GetBytes(kv[1]);
-                    Assert.True(p.Key.CompareBytes(0, k, 0, p.Key.Length));
-                    Assert.True(p.Value.CompareBytes(0, v, 0, p.Value.Length));
+                    Assert.True(p.Key.Equals((Slice)k));
+                    Assert.True(p.Value.Equals((Slice)v));
                     var line = data.ReadLine();
                     if (line == null) {
                         break;
@@ -91,8 +91,8 @@ namespace TheFactory.DatastoreTests {
                 var kv = data.ReadLine().Split(new char[] {' '});
                 var k = enc.GetBytes(kv[0]);
                 var v = enc.GetBytes(kv[1]);
-                var result = db.Get(k);
-                Assert.True(result.CompareBytes(0, v, 0, v.Length));
+                var result = db.Get((Slice)k);
+                Assert.True(((Slice)result).Equals((Slice)v));
             }
         }
 
@@ -103,7 +103,7 @@ namespace TheFactory.DatastoreTests {
             db.PushTablet("test-data/ngrams2/ngrams.tab.1");
             var keyString = "Key which does not exist";
             var k = Encoding.UTF8.GetBytes(keyString);
-            db.Get(k);
+            db.Get((Slice)k);
             Assert.True(false);
         }
 
@@ -111,27 +111,27 @@ namespace TheFactory.DatastoreTests {
         public void TestDatabaseMemoryOnlyWrite() {
             var k = Encoding.UTF8.GetBytes("key");
             var v = Encoding.UTF8.GetBytes("value");
-            db.Put(k, v);
-            var val = db.Get(k);
-            Assert.True(val.CompareBytes(0, v, 0, v.Length));
+            db.Put((Slice)k, (Slice)v);
+            var val = db.Get((Slice)k);
+            Assert.True(((Slice)val).Equals((Slice)v));
         }
 
         [Test]
         public void TestDatabaseMemoryOnlyReWrite() {
             var k = Encoding.UTF8.GetBytes("key");
             var v = Encoding.UTF8.GetBytes("value");
-            db.Put(k, Encoding.UTF8.GetBytes("initial value"));
-            db.Put(k, v);
-            var val = db.Get(k);
-            Assert.True(val.CompareBytes(0, v, 0, v.Length));
+            db.Put((Slice)k, (Slice)Encoding.UTF8.GetBytes("initial value"));
+            db.Put((Slice)k, (Slice)v);
+            var val = db.Get((Slice)k);
+            Assert.True(((Slice)val).Equals((Slice)v));
         }
 
         [Test]
         [ExpectedException(typeof(KeyNotFoundException))]
         public void TestDatabaseMemoryOnlyDelete() {
             var k = Encoding.UTF8.GetBytes("key");
-            db.Delete(k);
-            db.Get(k);
+            db.Delete((Slice)k);
+            db.Get((Slice)k);
             Assert.True(false);
         }
 
@@ -145,10 +145,10 @@ namespace TheFactory.DatastoreTests {
                 while ((line = data.ReadLine()) != null) {
                     var kv = line.Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
-                    db.Put(k, v);
+                    db.Put((Slice)k, (Slice)v);
                 }
                 foreach (var p in db.Find()) {
-                    Assert.True(p.Value.CompareBytes(0, v, 0, v.Length));
+                    Assert.True(p.Value.Equals((Slice)v));
                 }
             }
         }
@@ -166,7 +166,7 @@ namespace TheFactory.DatastoreTests {
                     var kv = line.Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
                     if (count > n) {
-                        db.Put(k, v);
+                        db.Put((Slice)k, (Slice)v);
                     }
                     count += 1;
                 }
@@ -178,11 +178,11 @@ namespace TheFactory.DatastoreTests {
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
                     var v = enc.GetBytes(kv[1]);
-                    Assert.True(p.Key.CompareBytes(0, k, 0, p.Key.Length));
+                    Assert.True(p.Key.Equals((Slice)k));
                     if (count > n) {
-                        Assert.True(p.Value.CompareBytes(0, ov, 0, ov.Length));
+                        Assert.True(p.Value.Equals((Slice)ov));
                     } else {
-                        Assert.True(p.Value.CompareBytes(0, v, 0, v.Length));
+                        Assert.True(p.Value.Equals((Slice)v));
                     }
                     count += 1;
                 }
@@ -199,7 +199,7 @@ namespace TheFactory.DatastoreTests {
                 while ((line = data.ReadLine()) != null) {
                     var kv = line.Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
-                    db.Delete(k);
+                    db.Delete((Slice)k);
                 }
                 var count = 0;
                 foreach (var p in db.Find()) {
@@ -221,7 +221,7 @@ namespace TheFactory.DatastoreTests {
                     var kv = line.Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
                     if (count > n) {
-                        db.Delete(k);
+                        db.Delete((Slice)k);
                     }
                     count += 1;
                 }
@@ -232,8 +232,8 @@ namespace TheFactory.DatastoreTests {
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
                     var v = enc.GetBytes(kv[1]);
-                    Assert.True(p.Key.CompareBytes(0, k, 0, p.Key.Length));
-                    Assert.True(p.Value.CompareBytes(0, v, 0, v.Length));
+                    Assert.True(p.Key.Equals((Slice)k));
+                    Assert.True(p.Value.Equals((Slice)v));
                     count += 1;
                 }
                 Assert.True(count == n + 1);
@@ -270,8 +270,8 @@ namespace TheFactory.DatastoreTests {
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
                     var v = enc.GetBytes(kv[1]);
-                    Assert.True(p.Key.CompareBytes(0, k, 0, p.Key.Length));
-                    Assert.True(p.Value.CompareBytes(0, v, 0, p.Value.Length));
+                    Assert.True(p.Key.Equals((Slice)k));
+                    Assert.True(p.Value.Equals((Slice)v));
                 }
                 Assert.True(data.ReadLine() == null);
             }

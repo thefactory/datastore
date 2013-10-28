@@ -13,7 +13,7 @@ namespace TheFactory.Datastore {
 
         IEnumerable<IKeyValuePair> Find();
 
-        IEnumerable<IKeyValuePair> Find(byte[] term);
+        IEnumerable<IKeyValuePair> Find(Slice term);
     }
 
     internal class MemoryTablet : ITablet {
@@ -21,8 +21,8 @@ namespace TheFactory.Datastore {
         private ReaderWriterLockSlim backingLock;
 
         // Deleted key marker -- consumers of Get() and Find() enumerator
-        // should check against this value and take appropriate action.
-        public const byte[] Tombstone = null;
+        // should check against this reference and take appropriate action.
+        public static Slice Tombstone = (Slice)(new byte[] {0x74, 0x6f, 0x6d, 0x62});
 
         public MemoryTablet() {
             var cmp = new MemoryTabletKeyComparer();
@@ -30,7 +30,7 @@ namespace TheFactory.Datastore {
             backingLock = new ReaderWriterLockSlim();
         }
 
-        public void Set(byte[] key, byte[] val) {
+        public void Set(Slice key, Slice val) {
             // Have to remove and re-add for SortedSet backing.
             var pair = new MemoryKeyValuePair(key, val);
             backingLock.EnterWriteLock();
@@ -42,7 +42,7 @@ namespace TheFactory.Datastore {
             }
         }
 
-        public void Delete(byte[] key) {
+        public void Delete(Slice key) {
             Set(key, Tombstone);
         }
 
@@ -51,10 +51,10 @@ namespace TheFactory.Datastore {
         }
 
         public IEnumerable<IKeyValuePair> Find() {
-            return Find(null);
+            return Find((Slice)null);
         }
 
-        public IEnumerable<IKeyValuePair> Find(byte[] term) {
+        public IEnumerable<IKeyValuePair> Find(Slice term) {
             if (backing.Count == 0) {
                 yield break;
             }
@@ -64,11 +64,12 @@ namespace TheFactory.Datastore {
                 var set = backing;
 
                 if (term != null) {
-                    if (backing.Max.Key.CompareKey(term) < 0) {
+                    var termSlice = (Slice)term;
+                    if (Slice.Compare(backing.Max.Key, termSlice) < 0) {
                         // Max key is less than the search term -- empty.
                         yield break;
                     }
-                    var searchTerm = new MemoryKeyValuePair(term, null);
+                    var searchTerm = new MemoryKeyValuePair(termSlice, null);
                     set = backing.GetViewBetween(searchTerm, backing.Max);
                 }
 
@@ -83,15 +84,15 @@ namespace TheFactory.Datastore {
         }
 
         private class MemoryKeyValuePair : IKeyValuePair {
-            public byte[] Key { get; private set; }
-            public byte[] Value { get; private set; }
+            public Slice Key { get; private set; }
+            public Slice Value { get; private set; }
             public bool IsDeleted {
                 get {
                     return ReferenceEquals(Value, Tombstone);
                 }
             }
 
-            public MemoryKeyValuePair(byte[] key, byte[] val) {
+            public MemoryKeyValuePair(Slice key, Slice val) {
                 Key = key;
                 Value = val;
             }
@@ -99,10 +100,7 @@ namespace TheFactory.Datastore {
 
         private class MemoryTabletKeyComparer : IComparer<IKeyValuePair> {
             public int Compare(IKeyValuePair x, IKeyValuePair y) {
-                if (ReferenceEquals(x, y)) {
-                    return 0;
-                }
-                return x.Key.CompareKey(y.Key);
+                return Slice.Compare(x.Key, y.Key);
             }
         }
     }
@@ -131,7 +129,7 @@ namespace TheFactory.Datastore {
             return Find(null);
         }
 
-        public IEnumerable<IKeyValuePair> Find(byte[] term) {
+        public IEnumerable<IKeyValuePair> Find(Slice term) {
             // Load indexes if we have no dataIndex.
             if (dataIndex == null) {
                 var footer = LoadFooter();

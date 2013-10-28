@@ -26,7 +26,7 @@ namespace TheFactory.Datastore {
             }
         }
 
-        public void Append(byte[] key, byte[] val) {
+        public void Append(byte[] key, Slice val) {
             if (firstKey == null) {
                 firstKey = new byte[key.Length];
                 Buffer.BlockCopy(key, 0, firstKey, 0, key.Length);
@@ -111,7 +111,7 @@ namespace TheFactory.Datastore {
                 Buffer.BlockCopy(pair.Key, 0, key, 0, prefix);
             }
             stream.Read(key, prefix, suffix);
-            pair.Key = key;
+            pair.Key = (Slice)key;
             pair.ValueLength = (int)Unpacking.UnpackByteStream(stream).Length;
             pair.ValueOffset = stream.Position;
             stream.Seek(pair.ValueLength, SeekOrigin.Current);  // cue.
@@ -133,7 +133,7 @@ namespace TheFactory.Datastore {
             return Find(null);
         }
 
-        public IEnumerable<IKeyValuePair> Find(byte[] term) {
+        public IEnumerable<IKeyValuePair> Find(Slice term) {
             if (term == null || term.Length == 0) {
                 return Pairs(start);
             }
@@ -162,8 +162,8 @@ namespace TheFactory.Datastore {
             }
 
             foreach (var p in Pairs(candidate)) {
-                if (term.CompareKey(p.Key) <= 0) {
-                    // At or after.
+                if (Slice.Compare(p.Key, term) >= 0) {
+                    // once p >= term, break
                     break;
                 }
                 candidate = stream.Position;
@@ -233,9 +233,9 @@ namespace TheFactory.Datastore {
             public int ValueLength;
 
             public bool IsDeleted { get; set; }
-            public byte[] Key { get; set; }
+            public Slice Key { get; set; }
 
-            public byte[] Value {
+            public Slice Value {
                 get {
                     var pos = stream.Position;  // stash position.
                     var val = new byte[ValueLength];
@@ -248,7 +248,7 @@ namespace TheFactory.Datastore {
                         throw new InvalidOperationException("Not enough bytes");
                     }
 
-                    return val;
+                    return (Slice)val;
                 }
             }
 
