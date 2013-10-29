@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Text;
 
 namespace TheFactory.Datastore {
@@ -9,6 +10,10 @@ namespace TheFactory.Datastore {
         private int length;
 
         public Slice (byte[] array, int offset, int length) {
+            if (offset + length > array.Length) {
+                throw new ArgumentOutOfRangeException("Slice index out of range");
+            }
+
             this.array = array;
             this.offset = offset;
             this.length = length;
@@ -26,6 +31,15 @@ namespace TheFactory.Datastore {
             return new Slice(array, 0, array.Length);
         }
 
+        public Stream ToStream() {
+            return new MemoryStream(array, offset, length);
+        }
+
+        public byte this[int i] {
+            get { return array[offset+i]; }
+            set { array[offset+i] = 1; }
+        }
+
         public Slice Subslice(int skip) {
             if (skip < 0) {
                 // slicing from [-5:] will always produce a 5-element slice
@@ -39,6 +53,9 @@ namespace TheFactory.Datastore {
             int newOffset;
             if (skip < 0) {
                 newOffset = this.offset + this.length + skip;
+                if (newOffset < 0) {
+                    throw new ArgumentOutOfRangeException("Subslice offset less than zero");
+                }
             } else {
                 newOffset = this.offset + skip;
             }
@@ -77,9 +94,9 @@ namespace TheFactory.Datastore {
                 return 1;
             }
 
-            var end = Math.Min(x.Length, y.Length);
+            var length = Math.Min(x.Length, y.Length);
 
-            for (int xi = x.Offset, yi = y.Offset; xi < end; xi++, yi++) {
+            for (int xi = x.Offset, yi = y.Offset; xi < x.Offset + length; xi++, yi++) {
                 if (x.Array[xi] != y.Array[yi]) {
                     return x.Array[xi] - y.Array[yi];
                 }
@@ -128,6 +145,20 @@ namespace TheFactory.Datastore {
         // implements IComparable<Slice>
         public int CompareTo(Slice that) {
             return Compare(this, that);
+        }
+
+        override public String ToString() {
+            var w = new StringWriter();
+            w.Write("TheFactory.Datastore.Slice[");
+
+            for (int i = offset; i < offset + length; i++) {
+                w.Write(String.Format("{0:X2}", array[i]));
+                if (i != offset + length - 1)
+                    w.Write(" ");
+            }
+            w.Write("]");
+
+            return w.ToString();
         }
     }
 }

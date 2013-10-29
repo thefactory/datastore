@@ -429,7 +429,7 @@ namespace TheFactory.DatastoreTests {
             var block = new Block((Slice)bytes);
             var term = (Slice)(new byte[] {1, 2, 4});
             foreach (var p in block.Find((Slice)(new byte[] {1, 2, 3, 4}))) {
-                Assert.True(p.Key.Equals(term));
+                Assert.True(Slice.Compare(p.Key, term) == 0);
                 break;
             }
         }

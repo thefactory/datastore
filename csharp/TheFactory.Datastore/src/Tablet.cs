@@ -164,7 +164,10 @@ namespace TheFactory.Datastore {
                     continue;
                 }
 
-                foreach (var p in block.Find(term)) {
+                // search for term in the first block, but yield all kv pairs from the rest
+                Slice blockTerm = (i == blockIndex) ? term : null;
+
+                foreach (var p in block.Find(blockTerm)) {
                     yield return p;
                 }
             }
@@ -195,7 +198,7 @@ namespace TheFactory.Datastore {
 
         internal class TabletIndexRecordDataComparer : IComparer<TabletIndexRecord> {
             public int Compare(TabletIndexRecord x, TabletIndexRecord y) {
-                return x.Data.CompareKey(y.Data);
+                return Slice.Compare(x.Data, y.Data);
             }
         }
     }
@@ -306,7 +309,7 @@ namespace TheFactory.Datastore {
     internal struct TabletIndexRecord {
         public long Offset;
         public int Length;
-        public byte[] Data;
+        public Slice Data;
     }
 
     internal struct TabletFooter {
@@ -378,7 +381,7 @@ namespace TheFactory.Datastore {
             i.Offset = Unpacking.UnpackObject(stream).AsInt64();
             i.Length = Unpacking.UnpackObject(stream).AsInt32();
             var dataLen = (int)Unpacking.UnpackByteStream(stream).Length;
-            i.Data = stream.ReadBytes(dataLen);
+            i.Data = (Slice)stream.ReadBytes(dataLen);
             return i;
         }
 

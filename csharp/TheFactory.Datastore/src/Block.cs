@@ -44,7 +44,7 @@ namespace TheFactory.Datastore {
             // [ value (msgpack raw)              ]
             //
             packer.Pack(prefix);
-			packer.PackRaw(((byte[])key).Skip(prefix).ToArray());
+            packer.PackRaw(key.Subslice(prefix).ToArray());
             packer.PackRaw(val);
 
             previousKey = key.Detach();
@@ -78,50 +78,62 @@ namespace TheFactory.Datastore {
     }
 
     internal class Block {
-        private Stream stream;
-        private long start, length;
-        private BlockPair pair;
+        private Slice block;
+        private Slice kvs;
+        private int numRestarts;
 
         public Block(Slice block) {
-            this.stream = new MemoryStream(block.Array, block.Offset, block.Length);
-            this.start = 0;
-            this.length = block.Length;
-            this.pair = new BlockPair(stream);
+            this.block = block;
+            this.numRestarts = Utils.ToUInt32(block.Subslice(-4));
+
+            // create a subslice that contains only the data in the block
+            int end = block.Length - 4 * this.numRestarts - 4;
+            this.kvs = block.Subslice(0, end);
         }
 
-        // We end up using this quite a lot.
-        private int? numRestarts;
-        private int NumRestarts() {
-            if (numRestarts != null) {
-                return (int)numRestarts;
-            }
-            var end = start + length - 4;
-            stream.Seek(end, SeekOrigin.Begin);
-            numRestarts = (int)stream.ReadInt();
-            return (int)numRestarts;
-        }
+        private IEnumerable<BlockPair> Pairs(Slice slice, Slice skipTo) {
+            // enumerate the key-value pairs in slice, optionally skipping to the key skipTo
+            Stream stream = slice.ToStream();
+            BlockPair pair = new BlockPair();
 
-        private IKeyValuePair ReadNext() {
-            var prefix = Unpacking.UnpackObject(stream).AsInt32();
-            var suffix = (int)Unpacking.UnpackByteStream(stream).Length;
-            var key = new byte[prefix + suffix];
-            if (prefix > 0) {
-                Buffer.BlockCopy(pair.Key, 0, key, 0, prefix);
-            }
-            stream.Read(key, prefix, suffix);
-            pair.Key = (Slice)key;
-            pair.ValueLength = (int)Unpacking.UnpackByteStream(stream).Length;
-            pair.ValueOffset = stream.Position;
-            stream.Seek(pair.ValueLength, SeekOrigin.Current);  // cue.
-            return pair;
-        }
+            Slice prevKey = null;
+            while (stream.Position < stream.Length) {
+                pair.Reset();
 
-        private IEnumerable<IKeyValuePair> Pairs(long from) {
-            var end = start + length - 4 - (4 * NumRestarts());
-            stream.Seek(from, SeekOrigin.Begin);  // rew.
+                int common = (int)MiniMsgpack.UnpackUInt32(stream);
 
-            while (stream.Position < end) {
-                yield return ReadNext();
+                int suffixLength = MiniMsgpack.UnpackRawLength(stream.ReadByte(), stream);
+                Slice suffix = slice.Subslice((int)stream.Position, suffixLength);
+                stream.Position += suffixLength;
+
+                /* combine the previous key and the new suffix to make the current key */
+                if (common == 0) {
+                    pair.Key = suffix;
+                } else {
+                    byte[] tmp = new byte[common + suffix.Length];
+                    Buffer.BlockCopy(prevKey.Array, prevKey.Offset, tmp, 0, common);
+                    Buffer.BlockCopy(suffix.Array, suffix.Offset, tmp, common, suffix.Length);
+                    pair.Key = (Slice)tmp;
+                }
+                prevKey = pair.Key;
+
+                var flag = stream.ReadByte();
+                if (flag == MiniMsgpackCode.NilValue) {
+                    pair.IsDeleted = true;
+                } else {
+                    int valueLength = MiniMsgpack.UnpackRawLength(flag, stream);
+                    pair.Value = slice.Subslice((int)stream.Position, valueLength);
+                    stream.Position += valueLength;
+                }
+
+                if (skipTo != null && (Slice.Compare(pair.Key, skipTo) < 0)) {
+                    continue;
+                } else {
+                    // set skipTo == null once it's found so we don't check anymore
+                    skipTo = null;
+                }
+
+                yield return pair;
             }
 
             yield break;
@@ -132,126 +144,59 @@ namespace TheFactory.Datastore {
         }
 
         public IEnumerable<IKeyValuePair> Find(Slice term) {
-            if (term == null || term.Length == 0) {
-                return Pairs(start);
+            if (term == null || term.Length == 0 || numRestarts == 0) {
+                return Pairs(kvs, term);
             }
 
-            long candidate = start;
+            // binary search the restarts to find the first one greater than term
+            int restart = Utils.Search(numRestarts, (i) => {
+                return Slice.Compare(RestartKey(i), term) > 0;
+            });
 
-            var restarts = start + length - 4 - (4 * NumRestarts());
-            var comparer = new KeyComparer(term, stream, start, restarts);
-
-            if (NumRestarts() > 0) {
-                // We really just care about how many restarts we have as
-                // array values. Generate an artificial array of indexes.
-                var a = Enumerable.Range(0, NumRestarts()).ToArray();
-
-                // -1 represents the search term passed into the KeyComparer.
-                var index = Array.BinarySearch(a, -1, comparer);
-                if (index < 0) {
-                    // If we're less than all values, we'll get ~0, so index
-                    // should be 0. All other cases should result in ~index - 1.
-                    var i = ~index;
-                    index = i == 0 ? 0 : i - 1;
-                }
-
-                stream.Seek(restarts + (index * 4), SeekOrigin.Begin);
-                candidate = (int)stream.ReadInt();
+            if (restart == 0) {
+                // even the first restart key was greater than our term; return an empty iterator
+                return Pairs(kvs.Subslice(kvs.Length), term);
             }
 
-            foreach (var p in Pairs(candidate)) {
-                if (Slice.Compare(p.Key, term) >= 0) {
-                    // once p >= term, break
-                    break;
-                }
-                candidate = stream.Position;
-            }
-
-            // return pairs from here until the end.
-            return Pairs(candidate);
+            // start from the previous restart and advance to term
+            return Pairs(kvs.Subslice(RestartValue(restart - 1)), term);
         }
 
-        //
-        // KeyComparer's Compare method actually deals with the translation
-        // from a restart index's offset (in known block of bytes in a stream)
-        // to a byte-array representing a key which is compared against a
-        // search term passed into its constructor.
-        //
-        // It tends to look like we're comparing a list of ints from 0 to the
-        // number of restart indexes when we're actually comparing byte-arrays
-        // representing keys.
-        //
+        Slice RestartKey(int n) {
+            int pos = RestartValue(n);
 
-        public class KeyComparer : IComparer<int> {
-            private byte[] term;
-            private Stream stream;
-            private long start, restarts;
+            // skip the first byte at pos, which is guaranteed to be 0x0 because this is a restart
+            Slice slice = kvs.Subslice(pos+1);
+            Stream stream = slice.ToStream();
 
-            public KeyComparer(byte[] term, Stream stream, long start, long restarts) {
-                this.term = term;
-                this.stream = stream;
-                this.start = start;
-                this.restarts = restarts;
+            int keyLength = MiniMsgpack.UnpackRawLength(stream.ReadByte(), stream);
+            return slice.Subslice((int)stream.Position, keyLength);
+        }
+
+        int RestartValue(int n) {
+            // decode the n'th restart to its position in the kv data
+            return Utils.ToUInt32(block.Subslice(RestartPosition(n)));
+        }
+
+        int RestartPosition(int n) {
+            if (n >= numRestarts) {
+                throw new ArgumentOutOfRangeException("Invalid restart: " + n);
             }
 
-            private long ReadRestartOffset(int index) {
-                stream.Seek(restarts + (index * 4), SeekOrigin.Begin);
-                return (long)stream.ReadInt();
-            }
-
-            private byte[] ReadKey(long offset) {
-                // Ignore prefix -- restart means it's 0 (one-byte fixpos).
-                stream.Seek(start + offset + 1, SeekOrigin.Begin);
-                var length = (int)Unpacking.UnpackByteStream(stream).Length;
-                var key = new byte[length];
-                stream.Read(key, 0, length);
-                return key;
-            }
-
-            private byte[] GetKey(int index) {
-                var offset = ReadRestartOffset(index);
-                return ReadKey(offset);
-            }
-
-            public int Compare(int x, int y) {
-                byte[] xVal, yVal;
-
-                // x or y can be negative (representing a search term passed
-                // into the ctor).
-                xVal = x < 0 ? term : GetKey(x);
-                yVal = y < 0 ? term : GetKey(y);
-
-                return xVal.CompareKey(yVal);
-            }
+            // return the in-block position of the n'th restart
+            int indexStart = block.Length - (4 * numRestarts + 4);
+            return indexStart + 4 * n;
         }
 
         private class BlockPair : IKeyValuePair {
-            private Stream stream;
-            public long ValueOffset;
-            public int ValueLength;
-
             public bool IsDeleted { get; set; }
             public Slice Key { get; set; }
+            public Slice Value { get; set; }
 
-            public Slice Value {
-                get {
-                    var pos = stream.Position;  // stash position.
-                    var val = new byte[ValueLength];
-
-                    stream.Seek(ValueOffset, SeekOrigin.Begin);
-                    var read = stream.Read(val, 0, ValueLength);
-
-                    stream.Seek(pos, SeekOrigin.Begin);  // restore position;
-                    if (read < ValueLength) {
-                        throw new InvalidOperationException("Not enough bytes");
-                    }
-
-                    return (Slice)val;
-                }
-            }
-
-            public BlockPair(Stream stream) {
-                this.stream = stream;
+            public void Reset() {
+                IsDeleted = false;
+                Key = null;
+                Value = null;
             }
         }
     }
