@@ -288,6 +288,8 @@ namespace TheFactory.DatastoreTests {
                 }
                 Assert.True(count == fs1.Length);
             }
+
+            File.Delete(Path.Combine(Path.GetTempPath(), "test"));
         }
     }
 }

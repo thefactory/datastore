@@ -50,6 +50,7 @@
     <Compile Include="src\IKeyValuePair.cs" />
     <Compile Include="src\Crc32.cs" />
     <Compile Include="src\TransactionLog.cs" />
+    <Compile Include="src\FileManager.cs" />
     <Compile Include="src\Slice.cs" />
   </ItemGroup>
   <ItemGroup>

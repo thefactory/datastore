@@ -44,7 +44,7 @@ namespace TheFactory.Datastore {
             // [ value (msgpack raw)              ]
             //
             packer.Pack(prefix);
-            packer.PackRaw(key.Skip(prefix).ToArray());
+			packer.PackRaw(((byte[])key).Skip(prefix).ToArray());
             packer.PackRaw(val);
 
             previousKey = key.Detach();
