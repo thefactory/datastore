@@ -26,6 +26,26 @@ namespace TheFactory.Datastore {
             return new Slice(array, 0, array.Length);
         }
 
+        public Slice Subslice(int skip) {
+            if (skip < 0) {
+                // slicing from [-5:] will always produce a 5-element slice
+                return Subslice(skip, -skip);
+            }
+
+            return Subslice(skip, this.Length - skip);
+        }
+
+        public Slice Subslice(int skip, int length) {
+            int newOffset;
+            if (skip < 0) {
+                newOffset = this.offset + this.length + skip;
+            } else {
+                newOffset = this.offset + skip;
+            }
+
+            return new Slice(this.array, newOffset, length);
+        }
+
         public Slice Detach() {
             return (Slice)this.ToArray();
         }

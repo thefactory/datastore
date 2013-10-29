@@ -64,7 +64,7 @@ namespace TheFactory.DatastoreTests
 			for (int i = 0; i < data.Length; i++) {
 				var key = System.Text.Encoding.ASCII.GetBytes (data [i] [0]);
 				var value = System.Text.Encoding.ASCII.GetBytes (data [i] [1]);
-                b.Append (key, (Slice)value);
+                b.Append ((Slice)key, (Slice)value);
 			}
 
 			var block = b.Finish();
@@ -77,7 +77,7 @@ namespace TheFactory.DatastoreTests
 			var d = new Snappy.Sharp.SnappyDecompressor();
 			var decompressed = d.Decompress(compressBuf, 0, compressLen);
 
-			Assert.AreEqual(block.Buffer, decompressed);
+            Assert.True(((byte[])block.Buffer).CompareBytes(0, decompressed, 0, decompressed.Length));
 		}
 	}
 }

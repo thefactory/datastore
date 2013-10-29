@@ -180,7 +180,7 @@ namespace TheFactory.Datastore {
                 throw new TabletValidationException("bad block checksum");
             }
 
-            return new Block(blockData.Data, 0, blockData.Data.Length);
+            return new Block((Slice)blockData.Data);
         }
 
         internal List<TabletIndexRecord> LoadIndex(long offset, long length, UInt32 magic) {
@@ -460,7 +460,7 @@ namespace TheFactory.Datastore {
 
                 if (len < buf.Length) {
                     // Only compress if there's an advantage.
-                    buf = compressed.Take(len).ToArray();
+                    buf = new Slice(compressed, 0, len);
                     type |= 1;  // Set compressed field.
                 }
             }

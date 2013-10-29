@@ -78,7 +78,7 @@ namespace TheFactory.Datastore {
                         continue;
                     }
 
-                    var block = new Block(blockData.Data, 0, blockData.Data.Length);
+                    var block = new Block((Slice)blockData.Data);
                     if (callback != null) {
                         callback(block.Find());
                     }

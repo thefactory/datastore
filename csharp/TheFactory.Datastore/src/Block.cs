@@ -9,7 +9,7 @@ namespace TheFactory.Datastore {
     internal class BlockWriter {
         private MemoryStream body, footer;
         private Packer packer;
-        private byte[] previousKey, firstKey;
+        private Slice previousKey, firstKey;
         private int keyRestartInterval, keyRestartCount;
 
         public BlockWriter(int keyRestartInterval) {
@@ -26,10 +26,9 @@ namespace TheFactory.Datastore {
             }
         }
 
-        public void Append(byte[] key, Slice val) {
+        public void Append(Slice key, Slice val) {
             if (firstKey == null) {
-                firstKey = new byte[key.Length];
-                Buffer.BlockCopy(key, 0, firstKey, 0, key.Length);
+                firstKey = key.Detach();
             }
 
             var prefix = 0;
@@ -48,8 +47,7 @@ namespace TheFactory.Datastore {
             packer.PackRaw(key.Skip(prefix).ToArray());
             packer.PackRaw(val);
 
-            previousKey = new byte[key.Length];
-            Buffer.BlockCopy(key, 0, previousKey, 0, key.Length);
+            previousKey = key.Detach();
             keyRestartCount = (keyRestartCount + 1) % keyRestartInterval;
         }
 
@@ -57,7 +55,7 @@ namespace TheFactory.Datastore {
             var numRestarts = footer.Length / 4;
             footer.WriteTo(body);
             body.WriteInt((UInt32)numRestarts);
-            return new BlockWriterOutput(firstKey, body.GetBuffer().Take((int)body.Length).ToArray());
+            return new BlockWriterOutput(firstKey, new Slice(body.GetBuffer(), 0, (int)body.Length));
         }
 
         public void Reset() {
@@ -70,9 +68,9 @@ namespace TheFactory.Datastore {
 
         internal class BlockWriterOutput {
             public byte[] FirstKey { get; private set; }
-            public byte[] Buffer { get; private set; }
+            public Slice Buffer { get; private set; }
 
-            public BlockWriterOutput(byte[] firstKey, byte[] buf) {
+            public BlockWriterOutput(byte[] firstKey, Slice buf) {
                 FirstKey = firstKey;
                 Buffer = buf;
             }
@@ -84,10 +82,10 @@ namespace TheFactory.Datastore {
         private long start, length;
         private BlockPair pair;
 
-        public Block(byte[] bytes, long start, long length) {
-            this.stream = new MemoryStream(bytes);
-            this.start = start;
-            this.length = length;
+        public Block(Slice block) {
+            this.stream = new MemoryStream(block.Array, block.Offset, block.Length);
+            this.start = 0;
+            this.length = block.Length;
             this.pair = new BlockPair(stream);
         }
 
