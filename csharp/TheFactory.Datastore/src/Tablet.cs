@@ -14,11 +14,19 @@ namespace TheFactory.Datastore {
         IEnumerable<IKeyValuePair> Find();
 
         IEnumerable<IKeyValuePair> Find(Slice term);
+
+        string Filename { get; }
     }
 
     internal class MemoryTablet : ITablet {
         private SortedSet<IKeyValuePair> backing;
         private ReaderWriterLockSlim backingLock;
+
+        public string Filename {
+            get {
+                return null;
+            }
+        }
 
         // Deleted key marker -- consumers of Get() and Find() enumerator
         // should check against this reference and take appropriate action.
@@ -116,7 +124,13 @@ namespace TheFactory.Datastore {
         private TabletReader reader;
         private List<TabletIndexRecord> dataIndex, metaIndex;
 
-        public FileTablet(Stream stream) {
+        public string Filename { get; private set; }
+
+        public FileTablet(string filename) : this(new FileStream(filename, FileMode.Open, FileAccess.Read)) {
+            Filename = filename;
+        }
+
+        internal FileTablet(Stream stream) {
             this.stream = stream;
             reader = new TabletReader();
         }

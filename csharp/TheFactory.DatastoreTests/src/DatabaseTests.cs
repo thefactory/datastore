@@ -13,6 +13,7 @@ namespace TheFactory.DatastoreTests {
         [SetUp]
         public void SetUp() {
             db = new Database();
+            db.Open();
         }
 
         [TearDown]
@@ -245,22 +246,27 @@ namespace TheFactory.DatastoreTests {
     [TestFixture]
     public class DatabaseFileTests {
         private Database db;
+        private string path;
 
         [SetUp]
         public void SetUp() {
-            db = new Database(Path.GetTempPath());
+            path = Path.Combine(Path.GetTempPath(), "test");
+            Directory.CreateDirectory(path);
+            db = new Database(path);
+            db.Open();
         }
 
         [TearDown]
         public void TearDown() {
             db.Close();
+            Directory.Delete(path, true);
         }
 
         [Test]
         public void TestDatabasePushTabletStream() {
             var filename = "test-data/ngrams1/ngrams1-Nblock-compressed.tab";
             using (var fs = new FileStream(filename, FileMode.Open, FileAccess.Read)) {
-                db.PushTabletStream(fs, "test", null);
+                db.PushTabletStream(fs, "streamed-tablet", null);
             }
 
             // Check that db contains all keys from the streamed tablet.
@@ -278,7 +284,7 @@ namespace TheFactory.DatastoreTests {
 
             // Check that the emitted file matches the original.
             using (var fs1 = new FileStream(filename, FileMode.Open, FileAccess.Read))
-            using (var fs2 = new FileStream(Path.Combine(Path.GetTempPath(), "test"), FileMode.Open, FileAccess.Read)) {
+            using (var fs2 = new FileStream(Path.Combine(path, "streamed-tablet"), FileMode.Open, FileAccess.Read)) {
                 Assert.True(fs1.Length == fs2.Length);
                 var count = 0;
                 for (count = 0; count < fs1.Length; count++) {
@@ -289,7 +295,7 @@ namespace TheFactory.DatastoreTests {
                 Assert.True(count == fs1.Length);
             }
 
-            File.Delete(Path.Combine(Path.GetTempPath(), "test"));
+            File.Delete(Path.Combine(path, "streamed-tablet"));
         }
     }
 }

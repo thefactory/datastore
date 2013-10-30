@@ -5,6 +5,25 @@ using NUnit.Framework;
 using TheFactory.Datastore;
 
 namespace TheFactory.DatastoreTests {
+    internal class FileManagerTestTablet : ITablet {
+        public FileManagerTestTablet(string filename) {
+            Filename = filename;
+        }
+
+        public void Close() {
+        }
+
+        public IEnumerable<IKeyValuePair> Find() {
+            yield break;
+        }
+
+        public IEnumerable<IKeyValuePair> Find(Slice term) {
+            yield break;
+        }
+
+        public string Filename { get; private set; }
+    }
+
     [TestFixture]
     public class FileManagerTests {
         private FileManager fm;
@@ -22,51 +41,24 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
-        public void TestGetEmptyStack() {
-            Assert.True(fm.TabletFileStack.Count == 0);
+        public void TestReadEmptyStack() {
+            Assert.True(fm.ReadTabletStackFile().Count == 0);
         }
 
         [Test]
-        public void TestStackOne() {
-            var s = new List<string>() {"foo"};
-            foreach (var val in s) {
-                fm.PushTabletFile(val);
-            }
-            Assert.True(fm.TabletFileStack.Count == s.Count);
-            Assert.True(fm.TabletFileStack[0] == s[0]);
-        }
-
-        [Test]
-        public void TestStackMany() {
-            var s = new List<string>() {"foo", "bar", "baz"};
-            foreach (var val in s) {
-                fm.PushTabletFile(val);
-            }
-            Assert.True(fm.TabletFileStack.Count == s.Count);
+        public void TestReadWriteStack() {
+            Assert.True(fm.ReadTabletStackFile().Count == 0);
+            var s = new List<ITablet>() {
+                new FileManagerTestTablet("foo"),
+                new FileManagerTestTablet("bar"),
+                new FileManagerTestTablet("baz")
+            };
+            fm.WriteTabletStackFile(s);
+            var stack = fm.ReadTabletStackFile();
+            Assert.True(stack.Count == s.Count);
             for (var i = 0; i < s.Count; i++) {
-                Assert.True(fm.TabletFileStack[i] == s[i]);
+                Assert.True(stack[i] == s[i].Filename);
             }
-        }
-
-        [Test]
-        public void TestStackPopEmpty() {
-            Assert.True(fm.PopTabletFile() == null);
-        }
-
-        [Test]
-        public void TestStackPushPop() {
-            var s = new List<string>() {"foo", "bar", "baz"};
-            foreach (var val in s) {
-                fm.PushTabletFile(val);
-            }
-            var count = 0;
-            string str;
-            while ((str = fm.PopTabletFile()) != null) {
-                count += 1;
-                Assert.True(str == s[s.Count - count]);
-            }
-            Assert.True(s.Count == count);
-            Assert.True(fm.TabletFileStack.Count == 0);
         }
     }
 }

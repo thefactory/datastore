@@ -1,17 +1,20 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using TheFactory.Datastore.Helpers;
 
 namespace TheFactory.Datastore {
     public class Database {
-        private List<ITablet> tablets;
+        private ObservableCollection<ITablet> tablets;
         private List<ITablet> mutableTablets;
-        public string Dir { get; private set; }
+        private FileManager fileManager;
+
+        public bool IsOpened { get; private set; }
 
         internal Database() {
-            tablets = new List<ITablet>();
+            tablets = new ObservableCollection<ITablet>();
             mutableTablets = new List<ITablet>();
             mutableTablets.Add(new MemoryTablet());
             // There's probably something that happens elsewhere which involves
@@ -19,11 +22,30 @@ namespace TheFactory.Datastore {
         }
 
         public Database(string path) : this() {
-            Dir = path;
-            // Set up directory path.
+            fileManager = new FileManager(path);
+        }
+
+        public void Open() {
+            if (IsOpened) {
+                return;
+            }
+            // Load all tablet files.
+            if (fileManager != null) {
+                foreach (var filename in fileManager.ReadTabletStackFile()) {
+                    PushTablet(filename);
+                }
+                tablets.CollectionChanged += (sender, args) => {
+                    fileManager.WriteTabletStackFile(tablets);
+                };
+            }
+            IsOpened = true;
         }
 
         public void Close() {
+            if (!IsOpened) {
+                return;
+            }
+            IsOpened = false;
             while (tablets.Count > 0) {
                 PopTablet();
             }
@@ -54,7 +76,7 @@ namespace TheFactory.Datastore {
                 throw new TabletValidationException("bad version: " + header.Version);
             }
 
-            var filepath = Path.Combine(Dir, filename);
+            var filepath = Path.Combine(fileManager.Dir, filename);
             var fs = new FileStream(filepath, FileMode.Create, FileAccess.Write);
 
             using (var writer = new BinaryWriter(fs)) {
@@ -97,8 +119,7 @@ namespace TheFactory.Datastore {
         }
 
         public void PushTablet(string filename) {
-            var t = new FileTablet(new FileStream(filename, FileMode.Open, FileAccess.Read));
-            tablets.Add(t);
+            tablets.Add(new FileTablet(filename));
         }
 
         public void PopTablet() {
