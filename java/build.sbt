@@ -2,7 +2,7 @@ name := "datastore"
 
 organization := "com.thefactory"
 
-version := "1.0.0-SNAPSHOT"
+version := "1.0.1-SNAPSHOT"
 
 scalaVersion := "2.10.2"
 
@@ -15,7 +15,7 @@ libraryDependencies ++= Seq(
   "io.netty" % "netty" % "3.6.6.Final",
   "junit" % "junit" % "4.11",
   "org.msgpack" % "msgpack" % "0.6.8",
-  "org.xerial.snappy" % "snappy-java" % "1.0.4.1"
+  "org.xerial.snappy" % "snappy-java" % "1.0.5"
 )
 
 publishMavenStyle := true
