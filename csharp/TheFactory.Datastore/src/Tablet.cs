@@ -38,6 +38,16 @@ namespace TheFactory.Datastore {
             backingLock = new ReaderWriterLockSlim();
         }
 
+        public void Apply(Batch batch) {
+            foreach (IKeyValuePair kv in batch.Pairs()) {
+                if (kv.IsDeleted) {
+                    Delete(kv.Key.Detach());
+                } else {
+                    Set(kv.Key.Detach(), kv.Value.Detach());
+                }
+            }
+        }
+
         public void Set(Slice key, Slice val) {
             // Have to remove and re-add for SortedSet backing.
             var pair = new MemoryKeyValuePair(key, val);

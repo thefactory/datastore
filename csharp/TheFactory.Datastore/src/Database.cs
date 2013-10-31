@@ -185,16 +185,22 @@ namespace TheFactory.Datastore {
             throw new KeyNotFoundException(key.ToUTF8String());
         }
 
-        public void Put(Slice key, Slice val) {
+        public void Apply(Batch batch) {
             // Last mutableTablet is the writing tablet.
             var tablet = (MemoryTablet)mutableTablets[mutableTablets.Count - 1];
-            tablet.Set(key, val);
+            tablet.Apply(batch);
+        }
+
+        public void Put(Slice key, Slice val) {
+            var batch = new Batch();
+            batch.Put(key, val);
+            Apply(batch);
         }
 
         public void Delete(Slice key) {
-            // Last mutableTablet is the writing tablet.
-            var tablet = (MemoryTablet)mutableTablets[mutableTablets.Count - 1];
-            tablet.Delete(key);
+            var batch = new Batch();
+            batch.Delete(key);
+            Apply(batch);
         }
 
         private class EnumeratorCurrentKeyComparer : IComparer<TabletEnumerator> {

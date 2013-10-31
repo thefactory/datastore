@@ -91,10 +91,10 @@ namespace TheFactory.Datastore {
             this.kvs = block.Subslice(0, end);
         }
 
-        private IEnumerable<BlockPair> Pairs(Slice slice, Slice skipTo) {
+        private IEnumerable<Pair> Pairs(Slice slice, Slice skipTo) {
             // enumerate the key-value pairs in slice, optionally skipping to the key skipTo
             Stream stream = slice.ToStream();
-            BlockPair pair = new BlockPair();
+            Pair pair = new Pair();
 
             Slice prevKey = null;
             while (stream.Position < stream.Length) {
@@ -186,18 +186,6 @@ namespace TheFactory.Datastore {
             // return the in-block position of the n'th restart
             int indexStart = block.Length - (4 * numRestarts + 4);
             return indexStart + 4 * n;
-        }
-
-        private class BlockPair : IKeyValuePair {
-            public bool IsDeleted { get; set; }
-            public Slice Key { get; set; }
-            public Slice Value { get; set; }
-
-            public void Reset() {
-                IsDeleted = false;
-                Key = null;
-                Value = null;
-            }
         }
     }
 }

@@ -54,6 +54,7 @@
     <Compile Include="src\Slice.cs" />
     <Compile Include="src\MiniMsgpack.cs" />
     <Compile Include="src\Utils.cs" />
+    <Compile Include="src\Batch.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\msgpack-cli\MsgPack.mono.iOS\MsgPack.mono.iOS.csproj">
