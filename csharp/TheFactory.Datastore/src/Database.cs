@@ -4,12 +4,14 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using TheFactory.Datastore.Helpers;
+using System.Collections;
 
 namespace TheFactory.Datastore {
     public class Database {
         private ObservableCollection<ITablet> tablets;
         private List<ITablet> mutableTablets;
         private FileManager fileManager;
+        private TransactionLogWriter writeLog;
 
         public bool IsOpened { get; private set; }
 
@@ -17,8 +19,6 @@ namespace TheFactory.Datastore {
             tablets = new ObservableCollection<ITablet>();
             mutableTablets = new List<ITablet>();
             mutableTablets.Add(new MemoryTablet());
-            // There's probably something that happens elsewhere which involves
-            // replaying a durable log for an in-flight MemoryTablet.
         }
 
         public Database(string path) : this() {
@@ -31,6 +31,16 @@ namespace TheFactory.Datastore {
             }
             // Load all tablet files.
             if (fileManager != null) {
+                var logfile = fileManager.GetTransactionLog();
+                using (var log = new TransactionLogReader(logfile)) {
+                    var tablet = (MemoryTablet)mutableTablets[mutableTablets.Count - 1];
+                    foreach (var transaction in log.Transactions()) {
+                        tablet.Apply(new Batch(transaction));
+                    }
+                }
+
+                writeLog = new TransactionLogWriter(logfile);
+
                 foreach (var filename in fileManager.ReadTabletStackFile()) {
                     PushTablet(filename);
                 }
@@ -49,7 +59,10 @@ namespace TheFactory.Datastore {
             while (tablets.Count > 0) {
                 PopTablet();
             }
-            // TODO: Not sure what to do with mutableTablets.
+
+            if (writeLog != null) {
+                writeLog.Dispose();
+            }
         }
 
         private bool EndOfBlocks(Stream stream) {
@@ -136,37 +149,17 @@ namespace TheFactory.Datastore {
         }
 
         public IEnumerable<IKeyValuePair> Find(Slice term) {
-            var cmp = new EnumeratorCurrentKeyComparer();
-            var set = new SortedSet<TabletEnumerator>(cmp);
+            var searches = tablets.Concat(mutableTablets).Reverse().ToList();
 
-            var index = 0;
-            foreach (var t in tablets.Concat(mutableTablets)) {
-                var e = t.Find(term).GetEnumerator();
-                if (e.MoveNext()) {
-                    var te = new TabletEnumerator();
-                    te.TabletIndex = index;
-                    te.Enumerator = e;
-                    set.Add(te);
-                }
-                index += 1;
-            }
+            var iter = new ParallelEnumerator(searches.Count(), (i) => {
+                return searches[i].Find(term).GetEnumerator();
+            });
 
-            var prev = new byte[0];
-            while (set.Count > 0) {
-                // Remove the first enumerator.
-                var te = set.Min;
-                set.Remove(te);
-
-                var key = te.Enumerator.Current.Key;
-                if (prev.CompareKey(key) != 0 && !te.Enumerator.Current.IsDeleted) {
-                    // Only yield keys we haven't seen.
-                    yield return te.Enumerator.Current;
-                }
-                prev = key;
-
-                // Re-add to the SortedList if we have more.
-                if (te.Enumerator.MoveNext()) {
-                    set.Add(te);
+            using (iter) {
+                while (iter.MoveNext()) {
+                    if (!iter.Current.IsDeleted) {
+                        yield return iter.Current;
+                    }
                 }
             }
 
@@ -186,6 +179,10 @@ namespace TheFactory.Datastore {
         }
 
         public void Apply(Batch batch) {
+            if (writeLog != null) {
+                writeLog.EmitTransaction(batch.ToSlice());
+            }
+
             // Last mutableTablet is the writing tablet.
             var tablet = (MemoryTablet)mutableTablets[mutableTablets.Count - 1];
             tablet.Apply(batch);
@@ -203,24 +200,103 @@ namespace TheFactory.Datastore {
             Apply(batch);
         }
 
-        private class EnumeratorCurrentKeyComparer : IComparer<TabletEnumerator> {
-            public int Compare(TabletEnumerator x, TabletEnumerator y) {
-                if (ReferenceEquals(x, y)) {
-                    return 0;
+        private class ParallelEnumerator: IEnumerator<IKeyValuePair> {
+            SortedSet<QueuePair> queue;
+            List<IEnumerator<IKeyValuePair>> iters;
+
+            Pair current;
+
+            public ParallelEnumerator(int n, Func<int, IEnumerator<IKeyValuePair>> func) {
+                queue = new SortedSet<QueuePair>(new PriorityComparer());
+                iters = new List<IEnumerator<IKeyValuePair>>(n);
+
+                for (int i=0; i<n; i++) {
+                    var iter = func(i);
+                    if (iter.MoveNext()) {
+                        queue.Add(new QueuePair(-i, iter.Current));
+                    }
+                    iters.Add(iter);
                 }
 
-                var cmp = Slice.Compare(x.Enumerator.Current.Key, y.Enumerator.Current.Key);
-                if (cmp == 0) {
-                    // Key is the same, the newer (higher index) tablet wins.
-                    return y.TabletIndex - x.TabletIndex;
-                }
-                return cmp;
+                current = new Pair();
             }
-        }
 
-        private class TabletEnumerator {
-            public int TabletIndex;
-            public IEnumerator<IKeyValuePair> Enumerator;
+            object IEnumerator.Current { get { return current; } }
+            public IKeyValuePair Current { get { return current; } }
+
+            public bool MoveNext() {
+                if (queue.Count == 0) {
+                    current = null;
+                    return false;
+                }
+
+                current = Pop();
+
+                while (queue.Count > 0 && current.Key.Equals(queue.Min.kv.Key)) {
+                    // skip any items in other iterators that have the same key
+                    Pop();
+                }
+
+                return true;
+            }
+
+            private Pair Pop() {
+                var cur = queue.Min;
+                queue.Remove(cur);
+
+                // set up new references to this item, since we're about to advance its iterator below
+                var ret = new Pair();
+                ret.Key = cur.kv.Key;
+                ret.Value = cur.kv.Value;
+                ret.IsDeleted = cur.kv.IsDeleted;
+
+                var iter = iters[-cur.Priority];
+                if (iter.MoveNext()) {
+                    queue.Add(new QueuePair(cur.Priority, iter.Current));
+                }
+
+                return ret;
+            }
+
+            public void Dispose() {
+                foreach (var iter in iters) {
+                    iter.Dispose();
+                }
+            }
+
+            // from IEnumerator: it's ok not to support this
+            public void Reset() {
+                throw new NotSupportedException();
+            }
+
+            private class QueuePair {
+                public int Priority { get; set; }
+                public IKeyValuePair kv { get; set; }
+
+                public QueuePair(int priority, IKeyValuePair kv) {
+                    this.Priority = priority;
+                    this.kv = kv;
+                }
+            }
+
+            private class PriorityComparer : IComparer<QueuePair>, IComparer {
+                public int Compare(Object x, Object y) {
+                    return this.Compare((QueuePair)x, (QueuePair)y);
+                }
+
+                public int Compare(QueuePair x, QueuePair y) {
+                    if (ReferenceEquals(x, y)) {
+                        return 0;
+                    }
+
+                    var cmp = Slice.Compare(x.kv.Key, y.kv.Key);
+                    if (cmp == 0) {
+                        // Key is the same, the higher priority pair wins
+                        return y.Priority - x.Priority;
+                    }
+                    return cmp;
+                }
+            }
         }
     }
 }

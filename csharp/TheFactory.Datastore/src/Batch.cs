@@ -49,6 +49,10 @@ namespace TheFactory.Datastore {
             return stream.Length == 0;
         }
 
+        public Slice ToSlice() {
+            return new Slice(stream.GetBuffer(), 0, (int)stream.Length);
+        }
+
         private void WriteRaw(Slice raw) {
             // pack length and content separately so we can write without an intermediate copy
             MiniMsgpack.WriteRawLength(stream, raw.Length);
@@ -68,7 +72,7 @@ namespace TheFactory.Datastore {
         public IEnumerable<IKeyValuePair> Pairs() {
             // get the underlying buffer and create a new reader, so we can return
             // slices from the existing data rather than copying
-            Slice buf = new Slice(stream.GetBuffer(), 0, (int)stream.Length);
+            Slice buf = ToSlice();
             Stream reader = buf.ToStream();
 
             var pair = new Pair();

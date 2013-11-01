@@ -39,6 +39,10 @@ namespace TheFactory.Datastore {
         }
 
         public void Apply(Batch batch) {
+            if (batch.IsEmpty()) {
+                return;
+            }
+
             foreach (IKeyValuePair kv in batch.Pairs()) {
                 if (kv.IsDeleted) {
                     Delete(kv.Key.Detach());

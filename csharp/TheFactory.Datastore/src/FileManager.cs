@@ -7,10 +7,15 @@ namespace TheFactory.Datastore {
     internal class FileManager {
         public string Dir { get; private set; }
  
+        const string TabletWriteLog = "write.log";
         const string TabletStackFilename = "stack.txt";
 
         public FileManager(string dir) {
             Dir = dir;
+        }
+
+        public string GetTransactionLog() {
+            return Path.Combine(Dir, TabletWriteLog);
         }
 
         public List<string> ReadTabletStackFile() {

@@ -251,6 +251,7 @@ namespace TheFactory.DatastoreTests {
         [SetUp]
         public void SetUp() {
             path = Path.Combine(Path.GetTempPath(), "test");
+
             Directory.CreateDirectory(path);
             db = new Database(path);
             db.Open();
@@ -276,6 +277,7 @@ namespace TheFactory.DatastoreTests {
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
                     var v = enc.GetBytes(kv[1]);
+
                     Assert.True(p.Key.Equals((Slice)k));
                     Assert.True(p.Value.Equals((Slice)v));
                 }
@@ -296,6 +298,30 @@ namespace TheFactory.DatastoreTests {
             }
 
             File.Delete(Path.Combine(path, "streamed-tablet"));
+        }
+
+        [Test]
+        public void TestDatabaseReplay() {
+            db.Put(Utils.Slice("key1"), Utils.Slice("val1"));
+            db.Put(Utils.Slice("key2"), Utils.Slice("val2"));
+
+            db.Put(Utils.Slice("key3"), Utils.Slice("oops"));
+            db.Put(Utils.Slice("key3"), Utils.Slice("val3"));
+
+            db.Put(Utils.Slice("key4"), Utils.Slice("deleteme"));
+            db.Delete(Utils.Slice("key4"));
+
+            db.Close();
+
+            db = new Database(path);
+            db.Open();
+
+            Assert.True(db.Get(Utils.Slice("key1")).Equals(Utils.Slice("val1")));
+            Assert.True(db.Get(Utils.Slice("key2")).Equals(Utils.Slice("val2")));
+            Assert.True(db.Get(Utils.Slice("key3")).Equals(Utils.Slice("val3")));
+
+            Assert.Throws(typeof(KeyNotFoundException),
+                delegate { db.Get(Utils.Slice("key4")); });
         }
     }
 }

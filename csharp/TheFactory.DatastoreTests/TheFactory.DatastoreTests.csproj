@@ -117,6 +117,7 @@
     <Compile Include="src\FileManagerTests.cs" />
     <Compile Include="src\SliceTests.cs" />
     <Compile Include="src\BatchTests.cs" />
+    <Compile Include="src\Utils.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

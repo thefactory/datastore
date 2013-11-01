@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using NUnit.Framework;
 using TheFactory.Datastore;
+using System.Collections.Generic;
 
 namespace TheFactory.DatastoreTests {
     [TestFixture]
@@ -15,9 +16,14 @@ namespace TheFactory.DatastoreTests {
             var stream = new MemoryStream(bytes);
 
             var reader = new TransactionLogReader(stream);
-            reader.ReadTransaction();
-            var data = reader.TransactionStream;
-            Assert.True(bytes.CompareBytes(TransactionLog.HeaderSize, data.GetBuffer(), 0, (int)data.Length));
+
+            Slice data = null;
+            foreach (var t in reader.Transactions()) {
+                data = t;
+                break;
+            }
+
+            Assert.True(data.Equals(new Slice(bytes, TransactionLog.HeaderSize, 10)));
         }
 
         [Test]
@@ -33,10 +39,16 @@ namespace TheFactory.DatastoreTests {
             var stream = new MemoryStream(bytes);
 
             var reader = new TransactionLogReader(stream);
-            reader.ReadTransaction();
-            var data = reader.TransactionStream;
-            Assert.True(bytes.CompareBytes(TransactionLog.HeaderSize, data.GetBuffer(), 0, 10));
-            Assert.True(bytes.CompareBytes(TransactionLog.HeaderSize * 2 + 10, data.GetBuffer(), 10, 10));
+
+            Slice data = null;
+            foreach (var t in reader.Transactions()) {
+                data = t;
+                break;
+            }
+
+            Slice orig = (Slice)bytes;
+            Assert.True(data.Subslice(0, 10).Equals(orig.Subslice(TransactionLog.HeaderSize, 10)));
+            Assert.True(data.Subslice(10, 10).Equals(orig.Subslice(2*TransactionLog.HeaderSize+10, 10)));
         }
 
         [Test]
@@ -56,11 +68,17 @@ namespace TheFactory.DatastoreTests {
             var stream = new MemoryStream(bytes);
 
             var reader = new TransactionLogReader(stream);
-            reader.ReadTransaction();
-            var data = reader.TransactionStream;
-            Assert.True(bytes.CompareBytes(TransactionLog.HeaderSize, data.GetBuffer(), 0, 10));
-            Assert.True(bytes.CompareBytes(TransactionLog.HeaderSize * 2 + 10, data.GetBuffer(), 10, 10));
-            Assert.True(bytes.CompareBytes(TransactionLog.HeaderSize * 3 + 20, data.GetBuffer(), 20, 10));
+
+            Slice data = null;
+            foreach (var t in reader.Transactions()) {
+                data = t;
+                break;
+            }
+
+            Slice orig = (Slice)bytes;
+            Assert.True(data.Subslice(0, 10).Equals(orig.Subslice(TransactionLog.HeaderSize, 10)));
+            Assert.True(data.Subslice(10, 10).Equals(orig.Subslice(2*TransactionLog.HeaderSize+10, 10)));
+            Assert.True(data.Subslice(20, 10).Equals(orig.Subslice(3*TransactionLog.HeaderSize+20, 10)));
         }
 
         [Test]
@@ -73,7 +91,7 @@ namespace TheFactory.DatastoreTests {
             var stream = new MemoryStream(bytes);
 
             var reader = new TransactionLogReader(stream);
-            reader.ReadTransaction();
+            reader.ReadTransaction(new MemoryStream());
         }
 
         [Test]
@@ -90,7 +108,7 @@ namespace TheFactory.DatastoreTests {
             var stream = new MemoryStream(bytes);
 
             var reader = new TransactionLogReader(stream);
-            reader.ReadTransaction();
+            reader.ReadTransaction(new MemoryStream());
         }
 
         [Test]
@@ -103,7 +121,7 @@ namespace TheFactory.DatastoreTests {
             var stream = new MemoryStream(bytes);
 
             var reader = new TransactionLogReader(stream);
-            reader.ReadTransaction();
+            reader.ReadTransaction(new MemoryStream());
         }
 
         [Test]
@@ -115,7 +133,11 @@ namespace TheFactory.DatastoreTests {
             var stream = new MemoryStream(bytes);
 
             var reader = new TransactionLogReader(stream);
-            var count = reader.ReplayIntoTablet(new MemoryTablet());
+            var count = 0;
+            foreach (var t in reader.Transactions()) {
+                count++;
+            }
+
             Assert.True(count == 1);
         }
 
@@ -132,8 +154,10 @@ namespace TheFactory.DatastoreTests {
             var stream = new MemoryStream(bytes);
 
             var reader = new TransactionLogReader(stream);
-            var count = reader.ReplayIntoTablet(new MemoryTablet());
-            Assert.True(count == 1);
+            var count = 0;
+            foreach (var t in reader.Transactions()) {
+                count++;
+            }
         }
     }
 
@@ -324,9 +348,14 @@ namespace TheFactory.DatastoreTests {
             // Seek to the start.
             stream.Seek(0, SeekOrigin.Begin);
 
-            // Read back out.
             var reader = new TransactionLogReader(stream);
-            return reader.ReplayIntoTablet(tablet);
+
+            int n = 0;
+            foreach (var t in reader.Transactions()) {
+                n++;
+            }
+
+            return n;
         }
 
         [Test]

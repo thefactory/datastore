@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using TheFactory.Datastore.Helpers;
+using System.Collections.Generic;
 
 namespace TheFactory.Datastore {
     internal class TransactionLog {
@@ -23,12 +24,10 @@ namespace TheFactory.Datastore {
     }
 
     internal class TransactionLogReader : IDisposable {
-        private byte[] buf = new byte[TransactionLog.MaxBlockSize];
-        internal MemoryStream TransactionStream = new MemoryStream();
         private Stream stream;
 
         public TransactionLogReader(string path) {
-            stream = new FileStream(path, FileMode.Open, FileAccess.Read);
+            stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Read);
         }
 
         internal TransactionLogReader(Stream stream) {
@@ -36,7 +35,6 @@ namespace TheFactory.Datastore {
         }
 
         public void Dispose() {
-            TransactionStream.Dispose();
             stream.Dispose();
         }
 
@@ -49,73 +47,63 @@ namespace TheFactory.Datastore {
         }
 
         private TransactionLog.Record ReadRecord() {
+            // if the transaction stream has too few bytes to handle a record
+            // header, seek to next
+            var blockRemaining = TransactionLog.MaxBlockSize - (stream.Position % TransactionLog.MaxBlockSize);
+            if (blockRemaining < TransactionLog.HeaderSize) {
+                stream.Seek(blockRemaining, SeekOrigin.Current);
+            }
+
             var record = ReadRecordHeader();
+            byte[] buf = new byte[record.Length];
             stream.Read(buf, 0, record.Length);
             if (record.Checksum != Crc32.ChecksumIeee(buf, 0, record.Length)) {
                 throw new FormatException("bad record checksum");
             }
+
             record.Value = buf;
             return record;
         }
 
-        internal void ReadTransaction() {
-            TransactionStream.SetLength(0);  // Reset.
+        internal Slice ReadTransaction(MemoryStream buffer) {
+            buffer.SetLength(0);
 
             var record = ReadRecord();
             if (record.Type != TransactionLog.RecordType.Full && record.Type != TransactionLog.RecordType.First) {
                 throw new FormatException("unexpected record type");
             }
-            TransactionStream.Write(buf, 0, record.Length);
+            buffer.Write(record.Value, 0, record.Value.Length);
 
             while (record.Type != TransactionLog.RecordType.Full && record.Type != TransactionLog.RecordType.Last) {
                 record = ReadRecord();
                 if (record.Type != TransactionLog.RecordType.Middle && record.Type != TransactionLog.RecordType.Last) {
                     throw new FormatException("unexpected record type");
                 }
-                TransactionStream.Write(buf, 0, record.Length);
+                buffer.Write(record.Value, 0, record.Value.Length);
             }
 
-            TransactionStream.Seek(0, SeekOrigin.Begin);
+            return new Slice(buffer.GetBuffer(), 0, (int)buffer.Length);
         }
 
-        private void ApplyToTablet(MemoryStream transaction, MemoryTablet tablet) {
-            // Don't know what this does yet.
-            //Console.WriteLine(BitConverter.ToString(transaction.GetBuffer()));
-        }
+        public IEnumerable<Slice> Transactions() {
+            MemoryStream buffer = new MemoryStream();
 
-        public long ReplayIntoTablet(MemoryTablet tablet) {
-            long count = 0;
             stream.Seek(0, SeekOrigin.Begin);
-            var remaining = stream.Length - stream.Position;
-            while (remaining >= TransactionLog.HeaderSize) {
+            while (stream.Length - stream.Position >= TransactionLog.HeaderSize) {
+                // can't yield from a try block, so initialize this to null and check below
+                Slice transaction = null;
                 try {
-                    ReadTransaction();
-                    ApplyToTablet(TransactionStream, tablet);
-                    count += 1;
-
-                    // Cue past any padding.
-                    var blockRemaining = TransactionLog.MaxBlockSize - (stream.Position % TransactionLog.MaxBlockSize);
-                    if (blockRemaining < TransactionLog.HeaderSize) {
-                        stream.Seek(blockRemaining, SeekOrigin.Current);
-                    }
+                    transaction = ReadTransaction(buffer);
                 } catch (FormatException) {
-                    // Cue to the next transaction.
-                    var record = ReadRecordHeader();
-                    while (record.Type != TransactionLog.RecordType.Full && record.Type != TransactionLog.RecordType.First) {
-                        stream.Seek(record.Length, SeekOrigin.Current);
-                        remaining = stream.Length - stream.Position;
-                        if (remaining < TransactionLog.HeaderSize) {
-                            return count;
-                        }
-                        record = ReadRecordHeader();
-                    }
-                    // Found the start of a transaction,
-                    // rew to it for the next iteration.
-                    stream.Seek(-TransactionLog.HeaderSize, SeekOrigin.Current);
+                    // skip this record
                 }
-                remaining = stream.Length - stream.Position;
+
+                if (transaction != null) {
+                    yield return transaction;
+                }
             }
-            return count;
+
+            yield break;
         }
     }
 

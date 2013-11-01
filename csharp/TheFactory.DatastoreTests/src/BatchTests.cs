@@ -11,8 +11,8 @@ namespace TheFactory.DatastoreTests {
             Assert.IsTrue(batch.IsEmpty());
 
             Slice[] pairs = new Slice[] {
-                StrSlice("foo"), StrSlice("bar"),
-                StrSlice("baz"), StrSlice("quux")
+                Utils.Slice("foo"), Utils.Slice("bar"),
+                Utils.Slice("baz"), Utils.Slice("quux")
             };
 
             int i;
@@ -35,9 +35,9 @@ namespace TheFactory.DatastoreTests {
             Assert.IsTrue(batch.IsEmpty());
 
             Slice[] pairs = new Slice[] {
-                StrSlice("foo"), StrSlice("bar"),
-                StrSlice("baz"), null,
-                StrSlice("quux"), StrSlice("quuux")
+                Utils.Slice("foo"), Utils.Slice("bar"),
+                Utils.Slice("baz"), null,
+                Utils.Slice("quux"), Utils.Slice("quuux")
             };
 
             int i;
@@ -61,10 +61,6 @@ namespace TheFactory.DatastoreTests {
                 }
                 i += 2;
             }
-        }
-
-        public Slice StrSlice(string str) {
-            return (Slice)System.Text.Encoding.UTF8.GetBytes(str);
         }
     }
 }
