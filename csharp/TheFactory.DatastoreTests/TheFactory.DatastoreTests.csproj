@@ -118,6 +118,8 @@
     <Compile Include="src\SliceTests.cs" />
     <Compile Include="src\BatchTests.cs" />
     <Compile Include="src\Utils.cs" />
+    <Compile Include="src\BenchmarkTests.cs" />
+    <Compile Include="src\MiniMsgpackTests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

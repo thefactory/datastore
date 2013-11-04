@@ -23,17 +23,15 @@ namespace TheFactory.Datastore {
                 return 1;
             } else if (length < 65536) {
                 stream.WriteByte((byte)MiniMsgpackCode.Raw16);
-                for (int i = 0; i < 2; i++) {
-                    stream.WriteByte((byte)length);
-                    length = length >> 8;
-                }
+                stream.WriteByte((byte)(length >> 8));
+                stream.WriteByte((byte)(length));
                 return 3;
             } else {
                 stream.WriteByte((byte)MiniMsgpackCode.Raw32);
-                for (int i = 0; i < 4; i++) {
-                    stream.WriteByte((byte)length);
-                    length = length >> 8;
-                }
+                stream.WriteByte((byte)(length >> 24));
+                stream.WriteByte((byte)(length >> 16));
+                stream.WriteByte((byte)(length >> 8));
+                stream.WriteByte((byte)(length));
                 return 5;
             }
         }

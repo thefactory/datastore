@@ -45,6 +45,11 @@ namespace TheFactory.Datastore {
             stream.WriteByte((byte)MiniMsgpackCode.NilValue);
         }
 
+        public void Clear() {
+            stream.Position = 0;
+            stream.SetLength(0);
+        }
+
         public bool IsEmpty() {
             return stream.Length == 0;
         }

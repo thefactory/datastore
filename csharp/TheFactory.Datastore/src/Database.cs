@@ -7,7 +7,7 @@ using TheFactory.Datastore.Helpers;
 using System.Collections;
 
 namespace TheFactory.Datastore {
-    public class Database {
+    public class Database: IDisposable {
         private ObservableCollection<ITablet> tablets;
         private List<ITablet> mutableTablets;
         private FileManager fileManager;
@@ -63,6 +63,10 @@ namespace TheFactory.Datastore {
             if (writeLog != null) {
                 writeLog.Dispose();
             }
+        }
+
+        public void Dispose() {
+            Close();
         }
 
         private bool EndOfBlocks(Stream stream) {
