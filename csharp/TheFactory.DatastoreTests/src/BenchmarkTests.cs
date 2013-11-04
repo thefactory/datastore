@@ -38,22 +38,45 @@ namespace TheFactory.DatastoreTests {
             tmpDir = null;
         }
 
-        [Test]
-        public void FillSeq() {
+        void RunBenchmark(String name, BenchmarkArgs args) {
             var db = new Database(tmpDir);
             db.Open();
 
+            var stats = new Stats();
+            stats.Start();
+            DoWrite(db, args, stats);
+            stats.Finish();
+
+            Console.WriteLine(Header(name, args) + stats.Report(name));
+        }
+
+        public String Header(String name, BenchmarkArgs args) {
+            var buf = new StringWriter();
+            buf.Write("{0} args:\n", name);
+            buf.Write("Keys:     {0} bytes each. sequential: {1}\n", 16, args.Seq);
+            buf.Write("Values:   {0} bytes each\n", args.ValueLen);
+            buf.Write("Entries:  {0}. batches of {1}\n", args.Count, args.EntriesPerBatch);
+            buf.Write("-------------------------------------------------------------------\n");
+
+            return buf.ToString();
+        }
+
+        [Test]
+        public void FillSeq() {
             var args = new BenchmarkArgs();
             args.Count = 1000;
 
-            DoWrite(db, args);
+            RunBenchmark("FillSeq", args);
         }
 
-        public void DoWrite(Database db, BenchmarkArgs args) {
+        public void DoWrite(Database db, BenchmarkArgs args, Stats stats) {
             var batch = new Batch();
             var rand = new Random();
             var enc = new ASCIIEncoding();
 
+            stats.AddMessage(String.Format("({0:d} ops)", args.Count));
+
+            long bytes = 0;
             for (int i=0; i<args.Count; i += args.EntriesPerBatch) {
                 batch.Clear();
                 for (int j=0; j<args.EntriesPerBatch; j++) {
@@ -62,10 +85,15 @@ namespace TheFactory.DatastoreTests {
                     var val = enc.GetBytes(Utils.RandomString(args.ValueLen));
 
                     batch.Put((Slice)key, (Slice)val);
+
+                    bytes += key.Length + val.Length;
+                    stats.FinishedSingleOp();
                 }
 
                 db.Apply(batch);
             }
+
+            stats.AddBytes(bytes);
         }
     }
 }
