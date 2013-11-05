@@ -209,7 +209,7 @@ namespace TheFactory.Datastore {
         }
 
         public void Put(string key, string val) {
-            Put((Slice)Encoding.UTF8.GetBytes(key), (Slice)Encoding.UTF8.GetBytes(key));
+            Put((Slice)Encoding.UTF8.GetBytes(key), (Slice)Encoding.UTF8.GetBytes(val));
         }
 
         public void Delete(Slice key) {
