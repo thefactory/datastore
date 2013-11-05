@@ -77,8 +77,8 @@ namespace TheFactory.Datastore {
         public IEnumerable<IKeyValuePair> Pairs() {
             // get the underlying buffer and create a new reader, so we can return
             // slices from the existing data rather than copying
-            Slice buf = ToSlice();
-            Stream reader = buf.ToStream();
+            byte[] buf = stream.GetBuffer();
+            Stream reader = new MemoryStream(buf, 0, (int)stream.Length);
 
             var pair = new Pair();
             while (reader.Position < reader.Length) {

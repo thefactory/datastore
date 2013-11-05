@@ -68,13 +68,13 @@ namespace TheFactory.Datastore {
         }
 
         public byte[] ToArray() {
-            if (this.Offset == 0 && this.Length == Array.Length) {
-                return Array;
+            if (this.offset == 0 && this.length == array.Length) {
+                return array;
             }
 
-            byte[] array = new byte[this.Length];
-            Buffer.BlockCopy(this.Array, this.Offset, array, 0, this.Length);
-            return array;
+            byte[] ret = new byte[this.length];
+            Buffer.BlockCopy(this.array, this.offset, ret, 0, this.length);
+            return ret;
         }
 
         public bool Equals(Slice that) {
@@ -94,15 +94,15 @@ namespace TheFactory.Datastore {
                 return 1;
             }
 
-            var length = Math.Min(x.Length, y.Length);
+            var length = Math.Min(x.length, y.length);
 
-            for (int xi = x.Offset, yi = y.Offset; xi < x.Offset + length; xi++, yi++) {
-                if (x.Array[xi] != y.Array[yi]) {
-                    return x.Array[xi] - y.Array[yi];
+            for (int xi = x.offset, yi = y.offset; xi < x.offset + length; xi++, yi++) {
+                if (x.array[xi] != y.array[yi]) {
+                    return x.array[xi] - y.array[yi];
                 }
             }
 
-            return x.Length - y.Length;
+            return x.length - y.length;
         }
 
         public int CommonBytes(Slice that) {
@@ -110,11 +110,11 @@ namespace TheFactory.Datastore {
                 return 0;
             }
 
-            var end = Math.Min(this.Length, that.Length);
+            var end = Math.Min(this.length, that.length);
 
             int n;
             for (n = 0; n < end; n++) {
-                if (this.Array[n] != that.Array[n]) {
+                if (this.array[n] != that.array[n]) {
                     break;
                 }
             }
