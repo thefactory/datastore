@@ -1,10 +1,33 @@
 using System;
+using System.IO;
 
 namespace TheFactory.Datastore {
     public class Utils {
         public static int ToUInt32(Slice slice) {
             // unpack the first 4 bytes of slice as a big-endian int
             return slice[0] << 24 | slice[1] << 16 | slice[2] << 8 | slice[3];
+        }
+
+        public static int WriteUInt32(Stream stream, UInt32 num) {
+            // write a uint32 to stream in big-endian byte order
+            byte[] buf = new byte[4];
+            buf[0] = (byte)(num >> 24);
+            buf[1] = (byte)(num >> 16);
+            buf[2] = (byte)(num >> 8);
+            buf[3] = (byte)num;
+
+            stream.Write(buf, 0, 4);
+            return 4;
+        }
+
+        public static int WriteUInt16(Stream stream, UInt16 num) {
+            // write a uint16 to stream in big-endian byte order
+            byte[] buf = new byte[2];
+            buf[0] = (byte)(num >> 8);
+            buf[1] = (byte)num;
+
+            stream.Write(buf, 0, 2);
+            return 2;
         }
 
         public static int Search(int n, Func<int,bool> f) {

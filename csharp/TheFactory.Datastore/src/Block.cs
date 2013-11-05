@@ -44,8 +44,8 @@ namespace TheFactory.Datastore {
             // [ value (msgpack raw)              ]
             //
             packer.Pack(prefix);
-            packer.PackRaw(key.Subslice(prefix).ToArray());
-            packer.PackRaw(val);
+            packer.PackRaw((byte[])key.Subslice(prefix));
+            packer.PackRaw((byte[])val);
 
             previousKey = key.Detach();
             keyRestartCount = (keyRestartCount + 1) % keyRestartInterval;
@@ -67,10 +67,10 @@ namespace TheFactory.Datastore {
         }
 
         internal class BlockWriterOutput {
-            public byte[] FirstKey { get; private set; }
+            public Slice FirstKey { get; private set; }
             public Slice Buffer { get; private set; }
 
-            public BlockWriterOutput(byte[] firstKey, Slice buf) {
+            public BlockWriterOutput(Slice firstKey, Slice buf) {
                 FirstKey = firstKey;
                 Buffer = buf;
             }

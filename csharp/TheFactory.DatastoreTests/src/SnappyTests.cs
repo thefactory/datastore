@@ -70,7 +70,7 @@ namespace TheFactory.DatastoreTests
 			var block = b.Finish();
 
 			var compressBuf = new byte[c.MaxCompressedLength (block.Buffer.Length)];
-			var compressLen = c.Compress(block.Buffer, 0, block.Buffer.Length, compressBuf);
+			var compressLen = c.Compress(block.Buffer.Array, 0, block.Buffer.Length, compressBuf);
 
 			compressBuf = compressBuf.Take(compressLen).ToArray ();
 

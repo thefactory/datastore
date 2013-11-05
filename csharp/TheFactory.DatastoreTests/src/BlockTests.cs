@@ -17,7 +17,7 @@ namespace TheFactory.DatastoreTests {
             var firstKey = new byte[] {1, 2, 3};
             writer.Append((Slice)firstKey, (Slice)(new byte[] {4, 5, 6}));
             var output = writer.Finish();
-            Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
+            Assert.True(output.FirstKey.Equals((Slice)(new byte[] { 1, 2, 3 })));
             Assert.True(((byte[])output.Buffer).CompareBytes(0, bytes, 0, bytes.Length));
         }
 
@@ -32,12 +32,12 @@ namespace TheFactory.DatastoreTests {
             var firstKey = new byte[] {1, 2, 3};
             writer.Append((Slice)firstKey, (Slice)(new byte[] {4, 5, 6}));
             var output = writer.Finish();
-            Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
+            Assert.True(output.FirstKey.Equals((Slice)firstKey));
             Assert.True(((byte[])output.Buffer).CompareBytes(0, bytes, 0, bytes.Length));
             writer.Reset();
             writer.Append((Slice)firstKey, (Slice)(new byte[] {4, 5, 6}));
             output = writer.Finish();
-            Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
+            Assert.True(output.FirstKey.Equals((Slice)firstKey));
             Assert.True(((byte[])output.Buffer).CompareBytes(0, bytes, 0, bytes.Length));
         }
 
@@ -72,7 +72,7 @@ namespace TheFactory.DatastoreTests {
                 sizeCount += 1;
             }
             var output = writer.Finish();
-            Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
+            Assert.True(output.FirstKey.Equals((Slice)firstKey));
             Assert.True(((byte[])output.Buffer).CompareBytes(0, bytes, 0, bytes.Length));
         }
 
@@ -104,7 +104,7 @@ namespace TheFactory.DatastoreTests {
                 writer.Append((Slice)pairs[i], (Slice)(pairs[i + 1]));
             }
             var output = writer.Finish();
-            Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
+            Assert.True(output.FirstKey.Equals((Slice)firstKey));
             Assert.True(((byte[])output.Buffer).CompareBytes(0, bytes, 0, bytes.Length));
         }
 
@@ -129,7 +129,7 @@ namespace TheFactory.DatastoreTests {
                 writer.Append((Slice)pairs[i], (Slice)(pairs[i + 1]));
             }
             var output = writer.Finish();
-            Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
+            Assert.True(output.FirstKey.Equals((Slice)firstKey));
             Assert.True(((byte[])output.Buffer).CompareBytes(0, bytes, 0, bytes.Length));
         }
 
@@ -162,7 +162,7 @@ namespace TheFactory.DatastoreTests {
                 writer.Append((Slice)pairs[i], (Slice)(pairs[i + 1]));
             }
             var output = writer.Finish();
-            Assert.True(output.FirstKey.CompareBytes(0, firstKey, 0, firstKey.Length));
+            Assert.True(output.FirstKey.Equals((Slice)firstKey));
             Assert.True(((byte[])output.Buffer).CompareBytes(0, bytes, 0, bytes.Length));
         }
     }

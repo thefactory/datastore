@@ -178,7 +178,7 @@ namespace TheFactory.DatastoreTests {
             var stream = new MemoryStream();
             var log = new TransactionLogWriter(stream);
 
-            log.EmitTransaction(data);
+            log.EmitTransaction((Slice)data);
 
             Assert.True(stream.Length == data.Length + TransactionLog.HeaderSize);
             var buf = stream.GetBuffer();
@@ -194,21 +194,24 @@ namespace TheFactory.DatastoreTests {
             var data = new byte[100];
             random.NextBytes(data);
             var first = data.Length / 2;
-            var lastOffset = TransactionLog.HeaderSize + first;
+            var lastOffset = TransactionLog.MaxBlockSize;
 
             var stream = new MemoryStream();
-            var log = new TransactionLogWriter(stream);
-            // Pretend we're near the end of the block by moving the Head pointer.
-            log.Head = TransactionLog.MaxBlockSize - TransactionLog.HeaderSize - first;
 
-            log.EmitTransaction(data);
+            // Pretend we're near the end of the block by moving the underlying stream position.
+            var skip = TransactionLog.MaxBlockSize - TransactionLog.HeaderSize - first;
+            stream.Position = skip;
+
+            var log = new TransactionLogWriter(stream);
+            log.EmitTransaction((Slice)data);
 
             var buf = stream.GetBuffer();
 
-            Assert.True(buf[4] == (byte)TransactionLog.RecordType.First);
-            Assert.True(buf[5] == (byte)0);
-            Assert.True(buf[6] == (byte)first);
-            Assert.True(buf.CompareBytes(TransactionLog.HeaderSize, data, 0, first));
+            // skip checksum: 4 bytes
+            Assert.True(buf[skip + 4] == (byte)TransactionLog.RecordType.First);
+            Assert.True(buf[skip + 5] == (byte)0);
+            Assert.True(buf[skip + 6] == (byte)first);
+            Assert.True(buf.CompareBytes(skip + TransactionLog.HeaderSize, data, 0, first));
 
             Assert.True(buf[lastOffset + 4] == (byte)TransactionLog.RecordType.Last);
             Assert.True(buf[lastOffset + 5] == (byte)0);
@@ -221,21 +224,23 @@ namespace TheFactory.DatastoreTests {
             var data = new byte[10];
             random.NextBytes(data);
             var first = 0;
-            var lastOffset = TransactionLog.HeaderSize + first;
+            var lastOffset = TransactionLog.MaxBlockSize;
 
             var stream = new MemoryStream();
             var log = new TransactionLogWriter(stream);
-            // Pretend we're near the end of the block by moving the Head pointer.
-            log.Head = TransactionLog.MaxBlockSize - TransactionLog.HeaderSize;
 
-            log.EmitTransaction(data);
+            // Pretend we're near the end of the block by moving the underlying stream position.
+            var skip = TransactionLog.MaxBlockSize - TransactionLog.HeaderSize;
+            stream.Position = skip;
+
+            log.EmitTransaction((Slice)data);
 
             var buf = stream.GetBuffer();
 
-            Assert.True(buf[4] == (byte)TransactionLog.RecordType.First);
-            Assert.True(buf[5] == (byte)0);
-            Assert.True(buf[6] == (byte)first);
-            Assert.True(buf.CompareBytes(TransactionLog.HeaderSize, data, 0, first));
+            Assert.True(buf[skip + 4] == (byte)TransactionLog.RecordType.First);
+            Assert.True(buf[skip + 5] == (byte)0);
+            Assert.True(buf[skip + 6] == (byte)first);
+            Assert.True(buf.CompareBytes(skip + TransactionLog.HeaderSize, data, 0, first));
 
             Assert.True(buf[lastOffset + 4] == (byte)TransactionLog.RecordType.Last);
             Assert.True(buf[lastOffset + 5] == (byte)0);
@@ -247,19 +252,21 @@ namespace TheFactory.DatastoreTests {
         public void TestTransactionLogWriterEmitTransactionBoundaryPadZeroes() {
             var data = new byte[10];
             random.NextBytes(data);
-            var tooSmallBy = 1;
-            var recordOffset = TransactionLog.HeaderSize - tooSmallBy;
+
+            // starting here leaves (HeaderSize-1) bytes available to write, requiring padding
+            var start = TransactionLog.MaxBlockSize - TransactionLog.HeaderSize + 1;
+            var recordOffset = TransactionLog.MaxBlockSize;
 
             var stream = new MemoryStream();
             var log = new TransactionLogWriter(stream);
-            // Pretend we're near the end of the block by moving the Head pointer.
-            log.Head = TransactionLog.MaxBlockSize - recordOffset;
 
-            log.EmitTransaction(data);
+            // Pretend we're near the end of the block by moving the underlying stream position.
+            stream.Position = start;
+
+            log.EmitTransaction((Slice)data);
 
             var buf = stream.GetBuffer();
-
-            for (var i = 0; i < recordOffset; i++) {
+            for (var i = start; i < recordOffset; i++) {
                 Assert.True(buf[i] == 0);
             }
 
@@ -270,47 +277,22 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
-        public void TestTransactionLogWriterEmitTransactionBoundaryManyComplete() {
-            var len = TransactionLog.MaxBlockSize * 3;
-            var data = new byte[len];
-            random.NextBytes(data);
-
-            var stream = new MemoryStream();
-            var log = new TransactionLogWriter(stream);
-
-            log.EmitTransaction(data);
-
-            var buf = stream.GetBuffer();
-
-            Assert.True(buf[4] == (byte)TransactionLog.RecordType.First);
-            Assert.True(buf[TransactionLog.MaxBlockSize + 4] == (byte)TransactionLog.RecordType.Middle);
-            Assert.True(buf[TransactionLog.MaxBlockSize * 2 + 4] == (byte)TransactionLog.RecordType.Middle);
-            Assert.True(buf[TransactionLog.MaxBlockSize * 3 + 4] == (byte)TransactionLog.RecordType.Last);
-        }
-
-        [Test]
         public void TestTransactionLogWriterEmitTransactionBoundaryMany() {
             var len = TransactionLog.MaxBlockSize * 3;
             var data = new byte[len];
             random.NextBytes(data);
-            var first = 10;
-            var offset = TransactionLog.HeaderSize + first;
 
             var stream = new MemoryStream();
             var log = new TransactionLogWriter(stream);
-            // Pretend we're near the end of the block by moving the Head pointer.
-            log.Head = TransactionLog.MaxBlockSize - TransactionLog.HeaderSize - first;
 
-            log.EmitTransaction(data);
+            log.EmitTransaction((Slice)data);
 
             var buf = stream.GetBuffer();
 
             Assert.True(buf[4] == (byte)TransactionLog.RecordType.First);
-            Assert.True(buf.CompareBytes(TransactionLog.HeaderSize, data, 0, first));
+            Assert.True(buf.CompareBytes(TransactionLog.HeaderSize, data, 0, TransactionLog.MaxBlockSize-TransactionLog.HeaderSize));
 
-            Assert.True(buf[offset + 4] == (byte)TransactionLog.RecordType.Middle);
-            offset += TransactionLog.MaxBlockSize;
-
+            var offset = TransactionLog.MaxBlockSize;
             Assert.True(buf[offset + 4] == (byte)TransactionLog.RecordType.Middle);
             offset += TransactionLog.MaxBlockSize;
 
@@ -324,12 +306,10 @@ namespace TheFactory.DatastoreTests {
     [TestFixture]
     public class TransactionLogIntegrationTests {
         private Random random;
-        private MemoryTablet tablet;
 
         [SetUp]
         public void SetUp() {
             random = new Random();
-            tablet = new MemoryTablet();
         }
 
         private long TransactionLogIntegration(int size, int count) {
@@ -342,7 +322,7 @@ namespace TheFactory.DatastoreTests {
             var buf = new byte[size];
             for (var i = 0; i < count; i++) {
                 Buffer.BlockCopy(bytes, i * size, buf, 0, size);
-                writer.EmitTransaction(buf);
+                writer.EmitTransaction((Slice)buf);
             }
 
             // Seek to the start.

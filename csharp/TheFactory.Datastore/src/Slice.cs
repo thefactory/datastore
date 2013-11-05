@@ -23,7 +23,7 @@ namespace TheFactory.Datastore {
         public int Offset { get { return offset; } }
         public int Length { get { return length; } }
 
-        public static implicit operator byte[](Slice s) {
+        public static explicit operator byte[](Slice s) {
             return s.ToArray();
         }
 

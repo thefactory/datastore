@@ -108,93 +108,79 @@ namespace TheFactory.Datastore {
     }
 
     internal class TransactionLogWriter : IDisposable {
-        internal int Head;
-        private byte[] buf;
-        private BinaryWriter writer;
+        Stream output;
+        MemoryStream buf;
 
         private TransactionLogWriter() {
-            Head = 0;
-            buf = new byte[TransactionLog.MaxBlockSize];
+            buf = new MemoryStream(TransactionLog.MaxBlockSize);
         }
 
         internal TransactionLogWriter(Stream stream) : this() {
-            writer = new BinaryWriter(stream);
+            output = stream;
         }
 
         public TransactionLogWriter(string path) : this() {
-            var fs = new FileStream(path, FileMode.Append, FileAccess.Write);
-            Head = (int)(fs.Length % TransactionLog.MaxBlockSize);
-            writer = new BinaryWriter(fs);
+            output = new FileStream(path, FileMode.Append, FileAccess.Write);
         }
 
         public void Dispose() {
-            writer.Dispose();
+            buf.Dispose();
+            output.Dispose();
         }
 
-        private void EmitRecord(byte[] data, TransactionLog.RecordType type, int offset, UInt16 length) {
+        public int Remaining() {
+            return (int)(TransactionLog.MaxBlockSize - (output.Position % TransactionLog.MaxBlockSize));
+        }
+
+        private void EmitRecord(Slice rec, TransactionLog.RecordType type) {
             // Records take the form of:
             //  checksum: uint32    // crc32c of data[] ; big-endian
             //  type: uint8         // One of FULL, FIRST, MIDDLE, LAST
             //  length: uint16      // big-endian
             //  data: uint8[length]
 
-            var start = Head;
+            // reset buf to empty
+            buf.SetLength(0);
 
-            var checksum = Crc32.ChecksumIeee(data, offset, length);
-            var checksumBytes = BitConverter.GetBytes(checksum);
-            if (BitConverter.IsLittleEndian) {
-                Array.Reverse(checksumBytes);
-            }
-            Buffer.BlockCopy(checksumBytes, 0, buf, Head, 4);
-            Head += 4;
+            UInt32 checksum = Crc32.ChecksumIeee(rec.Array, rec.Offset, rec.Length);
+            Utils.WriteUInt32(buf, checksum);
 
-            buf[Head++] = (byte)type;
+            buf.WriteByte((byte)type);
 
-            var lengthBytes = BitConverter.GetBytes(length);
-            if (BitConverter.IsLittleEndian) {
-                Array.Reverse(lengthBytes);
-            }
-            Buffer.BlockCopy(lengthBytes, 0, buf, Head, 2);
-            Head += 2;
+            UInt16 length = (UInt16)rec.Length;
+            Utils.WriteUInt16(buf, length);
 
-            Buffer.BlockCopy(data, offset, buf, Head, length);
-            Head += length;
+            buf.Write(rec.Array, rec.Offset, rec.Length);
 
-            writer.Write(buf, start, Head - start);
+            output.Write(buf.GetBuffer(), 0, (int)buf.Length);
         }
 
-        public void EmitTransaction(byte[] data) {
+        public void EmitTransaction(Slice data) {
+            int remaining = Remaining();
+            if (remaining < TransactionLog.HeaderSize) {
+                // there isn't enough room for a record; pad with zeros
+                output.Write(new byte[remaining], 0, remaining);
+            }
+
             var type = TransactionLog.RecordType.Full;
-
-            var remaining = data.Length;
-
-            if (Head > TransactionLog.MaxBlockSize - TransactionLog.HeaderSize) {
-                // Pad with zeroes and reset.
-                var start = Head;
-
-                while (Head < TransactionLog.MaxBlockSize) {
-                    buf[Head++] = 0;
+            while (data.Length > Remaining()) {
+                if (type == TransactionLog.RecordType.Full) {
+                    type = TransactionLog.RecordType.First;
+                } else {
+                    type = TransactionLog.RecordType.Middle;
                 }
 
-                writer.Write(buf, start, Head - start);
-
-                Head = 0;
+                var recLen = Remaining() - TransactionLog.HeaderSize;
+                EmitRecord(data.Subslice(0, recLen), type);
+                data = data.Subslice(recLen);
             }
 
-            while (remaining + TransactionLog.HeaderSize > TransactionLog.MaxBlockSize - Head) {
-                type = type == TransactionLog.RecordType.Full ? TransactionLog.RecordType.First : TransactionLog.RecordType.Middle;
-                var offset = data.Length - remaining;
-                var length = (UInt16)(TransactionLog.MaxBlockSize - Head - TransactionLog.HeaderSize);
-                EmitRecord(data, type, offset, length);
-                remaining -= length;
-                Head = 0;
+            if (type != TransactionLog.RecordType.Full) {
+                type = TransactionLog.RecordType.Last;
             }
 
-            type = type == TransactionLog.RecordType.Full ? TransactionLog.RecordType.Full : TransactionLog.RecordType.Last;
-
-            EmitRecord(data, type, data.Length - remaining, (UInt16)remaining);
-
-            writer.Flush();
+            EmitRecord(data, type);
+            output.Flush();
         }
     }
 }

@@ -487,7 +487,7 @@ namespace TheFactory.Datastore {
             if (compression) {
                 int maxLen = compressor.MaxCompressedLength(buf.Length);
                 var compressed = new byte[maxLen];
-                var len = compressor.Compress(buf, 0, buf.Length, compressed);
+                var len = compressor.Compress(buf.Array, buf.Offset, buf.Length, compressed);
 
                 if (len < buf.Length) {
                     // Only compress if there's an advantage.
@@ -497,19 +497,19 @@ namespace TheFactory.Datastore {
             }
 
             // Write block packing info.
-            var checksum = Crc32.ChecksumIeee(buf);
+            var checksum = Crc32.ChecksumIeee(buf.Array, buf.Offset, buf.Length);
             var packer = Packer.Create(writer.BaseStream, false);
             packer.Pack((uint)checksum);
             packer.Pack((uint)type);
             packer.Pack((uint)buf.Length);
 
             // Write block.
-            writer.Write(buf);
+            writer.Write(buf.Array, buf.Offset, buf.Length);
 
             var length = writer.BaseStream.Position - offset;
             indexPacker.Pack((UInt64)offset);
             indexPacker.Pack((UInt32)length);
-            indexPacker.PackRaw(output.FirstKey);
+            indexPacker.PackRaw((byte[])output.FirstKey);
 
             blockWriter.Reset();
         }
