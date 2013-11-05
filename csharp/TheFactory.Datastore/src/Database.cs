@@ -5,8 +5,10 @@ using System.IO;
 using System.Linq;
 using TheFactory.Datastore.Helpers;
 using System.Collections;
+using System.Text;
 
 namespace TheFactory.Datastore {
+
     public class Database: IDisposable {
         private ObservableCollection<ITablet> tablets;
         private List<ITablet> mutableTablets;
@@ -182,6 +184,10 @@ namespace TheFactory.Datastore {
             throw new KeyNotFoundException(key.ToUTF8String());
         }
 
+        public Slice Get(string key) {
+            return Get((Slice)Encoding.UTF8.GetBytes(key));
+        }
+
         public void Apply(Batch batch) {
             if (writeLog != null) {
                 writeLog.EmitTransaction(batch.ToSlice());
@@ -198,23 +204,34 @@ namespace TheFactory.Datastore {
             Apply(batch);
         }
 
+        public void Put(string key, Slice val) {
+            Put((Slice)Encoding.UTF8.GetBytes(key), val);
+        }
+
+        public void Put(string key, string val) {
+            Put((Slice)Encoding.UTF8.GetBytes(key), (Slice)Encoding.UTF8.GetBytes(key));
+        }
+
         public void Delete(Slice key) {
             var batch = new Batch();
             batch.Delete(key);
             Apply(batch);
         }
 
+        public void Delete(string key) {
+            Delete((Slice)Encoding.UTF8.GetBytes(key));
+        }
+
         private class ParallelEnumerator: IEnumerator<IKeyValuePair> {
             SortedSet<QueuePair> queue;
             List<IEnumerator<IKeyValuePair>> iters;
-
             Pair current;
 
             public ParallelEnumerator(int n, Func<int, IEnumerator<IKeyValuePair>> func) {
                 queue = new SortedSet<QueuePair>(new PriorityComparer());
                 iters = new List<IEnumerator<IKeyValuePair>>(n);
 
-                for (int i=0; i<n; i++) {
+                for (int i = 0; i < n; i++) {
                     var iter = func(i);
                     if (iter.MoveNext()) {
                         queue.Add(new QueuePair(-i, iter.Current));
@@ -226,6 +243,7 @@ namespace TheFactory.Datastore {
             }
 
             object IEnumerator.Current { get { return current; } }
+
             public IKeyValuePair Current { get { return current; } }
 
             public bool MoveNext() {
@@ -267,7 +285,6 @@ namespace TheFactory.Datastore {
                     iter.Dispose();
                 }
             }
-
             // from IEnumerator: it's ok not to support this
             public void Reset() {
                 throw new NotSupportedException();
@@ -275,6 +292,7 @@ namespace TheFactory.Datastore {
 
             private class QueuePair {
                 public int Priority { get; set; }
+
                 public IKeyValuePair kv { get; set; }
 
                 public QueuePair(int priority, IKeyValuePair kv) {
