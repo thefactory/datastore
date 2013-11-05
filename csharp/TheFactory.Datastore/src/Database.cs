@@ -175,7 +175,7 @@ namespace TheFactory.Datastore {
         public Slice Get(Slice key) {
             foreach (var p in Find(key)) {
                 if (Slice.Compare(p.Key, key) == 0) {
-                    return p.Value;
+                    return p.Value.Detach();
                 } else {
                     break;
                 }
