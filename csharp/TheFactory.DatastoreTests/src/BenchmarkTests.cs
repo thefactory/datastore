@@ -13,7 +13,7 @@ namespace TheFactory.DatastoreTests {
         public bool Seq = true;
 
         // number of key/value pairs to write
-        public int Count = 1000000;
+        public int Count = 100000;
 
         // key/value entries per batch
         public int EntriesPerBatch = 1;
@@ -63,9 +63,55 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void FillSeq() {
             var args = new BenchmarkArgs();
-            args.Count = 1000;
-
             RunBenchmark("FillSeq", args);
+        }
+
+        [Test]
+        public void ReadSeq() {
+            var name = "ReadSeq";
+            var args = new BenchmarkArgs();
+
+            // fill the database but throw away the writing stats
+            var db = Database.Open(tmpDir);
+            DoWrite(db, args, new Stats());
+
+            var stats = new Stats();
+            stats.Start();
+            foreach (var kv in db.Find()) {
+                stats.AddBytes(kv.Key.Length + kv.Value.Length);
+                stats.FinishedSingleOp();
+            }
+            stats.Finish();
+
+            Console.WriteLine(Header(name, args) + stats.Report(name));
+        }
+
+        [Test]
+        public void ReplayTransactionLog() {
+            var name = "ReplayTransactionLog";
+            var args = new BenchmarkArgs();
+            var options = new Options();
+
+            using (var db = Database.Open(tmpDir)) {
+                DoWrite(db, args, new Stats());
+            }
+
+            // manually replay the transaction log for stats gathering
+            var path = Path.Combine(tmpDir, "write.log");
+            var tablet = new MemoryTablet();
+            var stats = new Stats();
+
+            stats.Start();
+            using (var log = new TransactionLogReader(options.FileSystem.Open(path))) {
+                foreach (var transaction in log.Transactions()) {
+                    tablet.Apply(new Batch(transaction));
+                    stats.AddBytes(transaction.Length);
+                    stats.FinishedSingleOp();
+                }
+            }
+            stats.Finish();
+
+            Console.WriteLine(Header(name, args) + stats.Report(name));
         }
 
         public void DoWrite(Database db, BenchmarkArgs args, Stats stats) {
