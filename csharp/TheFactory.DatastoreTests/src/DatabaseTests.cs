@@ -12,12 +12,26 @@ namespace TheFactory.DatastoreTests {
 
         [SetUp]
         public void SetUp() {
-            db = Database.Open("/datastore", new MemFileSystem());
+            var opts = new Options();
+            opts.FileSystem = new MemFileSystem();
+
+            db = Database.Open("/datastore", opts);
         }
 
         [TearDown]
         public void TearDown() {
             db.Close();
+        }
+
+        [Test]
+        public void TestCreateIfMissing() {
+            var opts = new Options();
+            opts.CreateIfMissing = false;
+
+            var path = Path.Combine(Path.GetTempPath(), "does-not-exist");
+
+            Assert.Throws(typeof(DirectoryNotFoundException),
+                          delegate { Database.Open(path, opts); });
         }
 
         [Test]

@@ -8,8 +8,18 @@ using System.Collections;
 using System.Text;
 
 namespace TheFactory.Datastore {
+    public class Options {
+        public bool CreateIfMissing { get; set; }
+        public IFileSystem FileSystem { get; set; }
+
+        public Options() {
+            CreateIfMissing = true;
+            FileSystem = new FileSystem();
+        }
+    }
 
     public class Database: IDisposable {
+        private Options opts;
         private IFileSystem fs;
 
         private ObservableCollection<ITablet> tablets;
@@ -19,13 +29,10 @@ namespace TheFactory.Datastore {
 
         IDisposable fsLock;
 
-        internal Database(string path): this(path, new FileSystem()) {
-            // default FileSystem uses the underlying operating system's file operations
-        }
-
-        internal Database(string path, IFileSystem fs) {
+        internal Database(string path, Options opts) {
             this.fileManager = new FileManager(path);
-            this.fs = fs;
+            this.opts = opts;
+            this.fs = opts.FileSystem;
 
             tablets = new ObservableCollection<ITablet>();
             mutableTablets = new List<ITablet>();
@@ -33,19 +40,22 @@ namespace TheFactory.Datastore {
         }
 
         public static Database Open(string path) {
-            var db = new Database(path);
-            db.Open();
-            return db;
+            return Open(path, new Options());
         }
 
-        public static Database Open(string path, IFileSystem fs) {
-            var db = new Database(path, fs);
+        public static Database Open(string path, Options opts) {
+            var db = new Database(path, opts);
             db.Open();
             return db;
         }
 
         private void Open() {
-            fs.Mkdirs(fileManager.Dir);
+            if (!fs.Exists(fileManager.Dir)) {
+                if (!opts.CreateIfMissing) {
+                    throw new DirectoryNotFoundException();
+                }
+                fs.Mkdirs(fileManager.Dir);
+            }
 
             fsLock = fs.Lock(fileManager.GetLockFile());
 
