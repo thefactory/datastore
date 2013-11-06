@@ -21,6 +21,8 @@ namespace TheFactory.Datastore {
         void Remove(string name);
         void Rename(string oldname, string newname);
         void Mkdirs(string path);
+
+        // returns a Disposable representing a locked file; raises IOException if unable to lock
         IDisposable Lock(string name);
 
         // return a list of filenames in dir. returned names are relative to dir
@@ -59,13 +61,15 @@ namespace TheFactory.Datastore {
             lock (locks) {
                 Mutex mutex;
                 if (!locks.ContainsKey(name)) {
-                    mutex = new Mutex();
+                    mutex = new Mutex(true);
                     locks.Add(name, mutex);
                 } else {
                     mutex = locks[name];
+                    if (mutex.WaitOne(0)) {
+                        throw new IOException(String.Format("Lock already held: {0}", name));
+                    }
                 }
 
-                mutex.WaitOne();
                 return mutex;
             }
         }

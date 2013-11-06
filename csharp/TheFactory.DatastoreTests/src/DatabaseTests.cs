@@ -35,6 +35,36 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
+        public void TestFilesystemLock() {
+            var path = Path.Combine(Path.GetTempPath(), "testdb" + Utils.RandomString(8));
+
+            try {
+                using (var db1 = Database.Open(path)) {
+                    // attempt to reopen the database
+                    Assert.Throws(typeof(IOException), delegate {
+                        Database.Open(path);
+                    });
+                }
+            } finally {
+                Directory.Delete(path, true);
+            }
+        }
+
+        [Test]
+        public void TestMemoryLock() {
+            var path = Path.Combine(Path.GetTempPath(), "testdb" + Utils.RandomString(8));
+            var opts = new Options();
+            opts.FileSystem = new MemFileSystem();
+
+            using (var db1 = Database.Open(path, opts)) {
+                // attempt to reopen the database
+                Assert.Throws(typeof(IOException), delegate {
+                    Database.Open(path, opts);
+                });
+            }
+        }
+
+        [Test]
         public void TestDatabaseOneFileTabletFindAll() {
             var enc = new UTF8Encoding();
             db.PushTablet("test-data/ngrams1/ngrams1-Nblock-compressed.tab");
