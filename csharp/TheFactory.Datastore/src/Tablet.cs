@@ -19,7 +19,7 @@ namespace TheFactory.Datastore {
     }
 
     internal class MemoryTablet : ITablet {
-        private SortedSet<IKeyValuePair> backing;
+        private SortedDictionary<Slice, Slice> backing;
         private ReaderWriterLockSlim backingLock;
 
         public string Filename {
@@ -33,8 +33,7 @@ namespace TheFactory.Datastore {
         public static Slice Tombstone = (Slice)(new byte[] {0x74, 0x6f, 0x6d, 0x62});
 
         public MemoryTablet() {
-            var cmp = new MemoryTabletKeyComparer();
-            backing = new SortedSet<IKeyValuePair>(cmp);
+            backing = new SortedDictionary<Slice, Slice>(new KeyComparer());
             backingLock = new ReaderWriterLockSlim();
         }
 
@@ -53,12 +52,9 @@ namespace TheFactory.Datastore {
         }
 
         public void Set(Slice key, Slice val) {
-            // Have to remove and re-add for SortedSet backing.
-            var pair = new MemoryKeyValuePair(key, val);
             backingLock.EnterWriteLock();
             try {
-                backing.Remove(pair);
-                backing.Add(pair);
+                backing[key] = val;
             } finally {
                 backingLock.ExitWriteLock();
             }
@@ -83,46 +79,36 @@ namespace TheFactory.Datastore {
 
             backingLock.EnterReadLock();
             try {
-                var set = backing;
+                IEnumerable<KeyValuePair<Slice, Slice>> set = backing;
 
                 if (term != null) {
-                    var termSlice = (Slice)term;
-                    if (Slice.Compare(backing.Max.Key, termSlice) < 0) {
-                        // Max key is less than the search term -- empty.
-                        yield break;
-                    }
-                    var searchTerm = new MemoryKeyValuePair(termSlice, null);
-                    set = backing.GetViewBetween(searchTerm, backing.Max);
+                    // skip all elements less than term
+                    set = set.SkipWhile(elt => Slice.Compare(elt.Key, term) < 0);
                 }
 
+                var pair = new Pair();
                 foreach (var p in set) {
-                    yield return p;
-                }
+                    pair.Reset();
+                    pair.Key = p.Key;
 
-                yield break;
+                    if (ReferenceEquals(p.Value, Tombstone)) {
+                        pair.IsDeleted = true;
+                    } else {
+                        pair.Value = p.Value;
+                    }
+
+                    yield return pair;
+                }
             } finally {
                 backingLock.ExitReadLock();
             }
+
+            yield break;
         }
 
-        private class MemoryKeyValuePair : IKeyValuePair {
-            public Slice Key { get; private set; }
-            public Slice Value { get; private set; }
-            public bool IsDeleted {
-                get {
-                    return ReferenceEquals(Value, Tombstone);
-                }
-            }
-
-            public MemoryKeyValuePair(Slice key, Slice val) {
-                Key = key;
-                Value = val;
-            }
-        }
-
-        private class MemoryTabletKeyComparer : IComparer<IKeyValuePair> {
-            public int Compare(IKeyValuePair x, IKeyValuePair y) {
-                return Slice.Compare(x.Key, y.Key);
+        private class KeyComparer : IComparer<Slice> {
+            public int Compare(Slice x, Slice y) {
+                return Slice.Compare(x, y);
             }
         }
     }

@@ -58,7 +58,6 @@ namespace TheFactory.DatastoreTests {
             tablet.Delete(k);
             var count = 0;
             foreach (var p in tablet.Find(k)) {
-                Assert.True(ReferenceEquals(p.Value, MemoryTablet.Tombstone));
                 Assert.True(p.IsDeleted);
                 count += 1;
                 break;
