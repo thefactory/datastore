@@ -39,8 +39,7 @@ namespace TheFactory.DatastoreTests {
         }
 
         void RunBenchmark(String name, BenchmarkArgs args) {
-            var db = new Database(tmpDir);
-            db.Open();
+            var db = Database.Open(tmpDir);
 
             var stats = new Stats();
             stats.Start();

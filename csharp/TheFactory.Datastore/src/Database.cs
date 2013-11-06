@@ -10,60 +10,95 @@ using System.Text;
 namespace TheFactory.Datastore {
 
     public class Database: IDisposable {
+        private IFileSystem fs;
+
         private ObservableCollection<ITablet> tablets;
         private List<ITablet> mutableTablets;
         private FileManager fileManager;
         private TransactionLogWriter writeLog;
 
-        public bool IsOpened { get; private set; }
+        IDisposable fsLock;
 
-        internal Database() {
+        internal Database(string path): this(path, new FileSystem()) {
+            // default FileSystem uses the underlying operating system's file operations
+        }
+
+        internal Database(string path, IFileSystem fs) {
+            this.fileManager = new FileManager(path);
+            this.fs = fs;
+
             tablets = new ObservableCollection<ITablet>();
             mutableTablets = new List<ITablet>();
             mutableTablets.Add(new MemoryTablet());
         }
 
-        public Database(string path) : this() {
-            fileManager = new FileManager(path);
+        public static Database Open(string path) {
+            var db = new Database(path);
+            db.Open();
+            return db;
         }
 
-        public void Open() {
-            if (IsOpened) {
-                return;
+        public static Database Open(string path, IFileSystem fs) {
+            var db = new Database(path, fs);
+            db.Open();
+            return db;
+        }
+
+        private void Open() {
+            fs.Mkdirs(fileManager.Dir);
+
+            fsLock = fs.Lock(fileManager.GetLockFile());
+
+            var transLog = fileManager.GetTransactionLog();
+            if (fs.Exists(transLog)) {
+                ReplayTransactions(transLog);
             }
-            // Load all tablet files.
-            if (fileManager != null) {
-                var logfile = fileManager.GetTransactionLog();
-                using (var log = new TransactionLogReader(logfile)) {
-                    var tablet = (MemoryTablet)mutableTablets[mutableTablets.Count - 1];
-                    foreach (var transaction in log.Transactions()) {
-                        tablet.Apply(new Batch(transaction));
+
+            writeLog = new TransactionLogWriter(fs.Append(transLog));
+
+            var tabletStack = fileManager.GetTabletStack();
+            if (fs.Exists(tabletStack)) {
+                var reader = new StreamReader(fs.Open(tabletStack));
+                while (reader.Peek() >= 0) {
+                    PushTablet(reader.ReadLine());
+                }
+            }
+
+            tablets.CollectionChanged += (sender, args) => {
+                using (var stream = fs.Create(fileManager.GetTabletStack())) {
+                    var writer = new StreamWriter(stream);
+                    foreach (var t in tablets) {
+                        if (t.Filename != null) {
+                            writer.WriteLine(t.Filename.Trim());
+                        }
                     }
                 }
+            };
+        }
 
-                writeLog = new TransactionLogWriter(logfile);
+        private void ReplayTransactions(string path) {
+            var tablet = (MemoryTablet)mutableTablets[mutableTablets.Count - 1];
 
-                foreach (var filename in fileManager.ReadTabletStackFile()) {
-                    PushTablet(filename);
+            using (var log = new TransactionLogReader(fs.Open(path))) {
+                foreach (var transaction in log.Transactions()) {
+                    tablet.Apply(new Batch(transaction));
                 }
-                tablets.CollectionChanged += (sender, args) => {
-                    fileManager.WriteTabletStackFile(tablets);
-                };
             }
-            IsOpened = true;
         }
 
         public void Close() {
-            if (!IsOpened) {
-                return;
-            }
-            IsOpened = false;
             while (tablets.Count > 0) {
                 PopTablet();
             }
 
             if (writeLog != null) {
                 writeLog.Dispose();
+                writeLog = null;
+            }
+
+            if (fsLock != null) {
+                fsLock.Dispose();
+                fsLock = null;
             }
         }
 
@@ -189,9 +224,7 @@ namespace TheFactory.Datastore {
         }
 
         public void Apply(Batch batch) {
-            if (writeLog != null) {
-                writeLog.EmitTransaction(batch.ToSlice());
-            }
+            writeLog.EmitTransaction(batch.ToSlice());
 
             // Last mutableTablet is the writing tablet.
             var tablet = (MemoryTablet)mutableTablets[mutableTablets.Count - 1];

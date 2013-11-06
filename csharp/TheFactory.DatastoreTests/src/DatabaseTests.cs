@@ -12,8 +12,7 @@ namespace TheFactory.DatastoreTests {
 
         [SetUp]
         public void SetUp() {
-            db = new Database();
-            db.Open();
+            db = Database.Open("/datastore", new MemFileSystem());
         }
 
         [TearDown]
@@ -253,8 +252,7 @@ namespace TheFactory.DatastoreTests {
             path = Path.Combine(Path.GetTempPath(), "test");
 
             Directory.CreateDirectory(path);
-            db = new Database(path);
-            db.Open();
+            db = Database.Open(path);
         }
 
         [TearDown]
@@ -313,8 +311,7 @@ namespace TheFactory.DatastoreTests {
 
             db.Close();
 
-            db = new Database(path);
-            db.Open();
+            db = Database.Open(path);
 
             Assert.True(db.Get(Utils.Slice("key1")).Equals(Utils.Slice("val1")));
             Assert.True(db.Get(Utils.Slice("key2")).Equals(Utils.Slice("val2")));
