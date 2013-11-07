@@ -553,9 +553,15 @@ namespace TheFactory.Datastore {
         }
     }
 
-    internal struct TabletWriterOptions {
+    public class TabletWriterOptions {
         public UInt32 BlockSize { get; set; }
         public bool BlockCompression { get; set; }
         public int KeyRestartInterval { get; set; }
+
+        public TabletWriterOptions() {
+            BlockSize = 32768;
+            BlockCompression = true;
+            KeyRestartInterval = 128;
+        }
     }
 }
