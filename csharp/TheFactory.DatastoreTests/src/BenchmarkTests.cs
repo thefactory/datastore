@@ -157,7 +157,7 @@ namespace TheFactory.DatastoreTests {
 
             WriteTablet(filename, KVStream(args), new TabletWriterOptions());
 
-            var reader = new FileTablet(filename);
+            var reader = new FileTablet(filename, new TabletReaderOptions());
 
             var stats = new Stats();
             stats.Start();
@@ -179,7 +179,7 @@ namespace TheFactory.DatastoreTests {
 
             WriteTablet(filename, KVStream(args), new TabletWriterOptions());
 
-            var reader = new FileTablet(filename);
+            var reader = new FileTablet(filename, new TabletReaderOptions());
             var stats = new Stats();
 
             stats.Start();
@@ -199,7 +199,7 @@ namespace TheFactory.DatastoreTests {
 
             WriteTablet(filename, KVStream(args), new TabletWriterOptions());
 
-            var reader = new FileTablet(filename);
+            var reader = new FileTablet(filename, new TabletReaderOptions());
             var stats = new Stats();
 
             // read keys in random order

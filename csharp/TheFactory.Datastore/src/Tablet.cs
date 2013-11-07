@@ -123,19 +123,21 @@ namespace TheFactory.Datastore {
     }
 
     internal class FileTablet : ITablet {
+        private TabletReaderOptions opts;
         private Stream stream;
         private TabletReader reader;
         private List<TabletIndexRecord> dataIndex, metaIndex;
 
         public string Filename { get; private set; }
 
-        public FileTablet(string filename) : this(new FileStream(filename, FileMode.Open, FileAccess.Read)) {
+        public FileTablet(string filename, TabletReaderOptions opts) : this(new FileStream(filename, FileMode.Open, FileAccess.Read), opts) {
             Filename = filename;
         }
 
-        internal FileTablet(Stream stream) {
+        internal FileTablet(Stream stream, TabletReaderOptions opts) {
             this.stream = stream;
             reader = new TabletReader();
+            this.opts = opts;
         }
 
         public void Close() {
@@ -196,8 +198,10 @@ namespace TheFactory.Datastore {
             stream.Seek(offset, SeekOrigin.Begin);
             var blockData = reader.ReadBlock(stream);
 
-            if (blockData.Info.Checksum != 0 && blockData.Info.Checksum != blockData.Checksum) {
-                throw new TabletValidationException("bad block checksum");
+            if (opts.VerifyChecksums) {
+                if (blockData.Info.Checksum != 0 && blockData.Info.Checksum != blockData.Checksum) {
+                    throw new TabletValidationException("bad block checksum");
+                }
             }
 
             return new Block((Slice)blockData.Data);
@@ -550,6 +554,14 @@ namespace TheFactory.Datastore {
             writer.Write(dataIndexOffset.ToMsgPackUInt64());
             writer.Write(dataIndexLength.ToMsgPackUInt64());
             writer.Write(Constants.TabletMagic.ToNetworkBytes());
+        }
+    }
+
+    public class TabletReaderOptions {
+        public bool VerifyChecksums { get; set; }
+
+        public TabletReaderOptions() {
+            VerifyChecksums = false;
         }
     }
 

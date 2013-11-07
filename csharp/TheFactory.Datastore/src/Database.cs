@@ -11,10 +11,12 @@ namespace TheFactory.Datastore {
     public class Options {
         public bool CreateIfMissing { get; set; }
         public IFileSystem FileSystem { get; set; }
+        public bool VerifyChecksums { get; set; }
 
         public Options() {
             CreateIfMissing = true;
             FileSystem = new FileSystem();
+            VerifyChecksums = false;
         }
     }
 
@@ -183,7 +185,7 @@ namespace TheFactory.Datastore {
         }
 
         public void PushTablet(string filename) {
-            tablets.Add(new FileTablet(filename));
+            tablets.Add(new FileTablet(filename, new TabletReaderOptions()));
         }
 
         public void PopTablet() {
