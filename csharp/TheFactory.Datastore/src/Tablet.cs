@@ -19,7 +19,7 @@ namespace TheFactory.Datastore {
     }
 
     internal class MemoryTablet : ITablet {
-        private SortedDictionary<Slice, Slice> backing;
+        private OurSortedDictionary<Slice, Slice> backing;
         private ReaderWriterLockSlim backingLock;
 
         public string Filename {
@@ -33,7 +33,7 @@ namespace TheFactory.Datastore {
         public static Slice Tombstone = (Slice)(new byte[] {0x74, 0x6f, 0x6d, 0x62});
 
         public MemoryTablet() {
-            backing = new SortedDictionary<Slice, Slice>(new KeyComparer());
+            backing = new OurSortedDictionary<Slice, Slice>(new KeyComparer());
             backingLock = new ReaderWriterLockSlim();
         }
 
@@ -79,25 +79,28 @@ namespace TheFactory.Datastore {
 
             backingLock.EnterReadLock();
             try {
-                IEnumerable<KeyValuePair<Slice, Slice>> set = backing;
+                IEnumerator<KeyValuePair<Slice, Slice>> items;
 
-                if (term != null) {
+                if (term == null) {
+                    items = backing.GetEnumerator();
+                } else {
                     // skip all elements less than term
-                    set = set.SkipWhile(elt => Slice.Compare(elt.Key, term) < 0);
+                    items = backing.GetSuffixEnumerator(term);
                 }
 
-                var pair = new Pair();
-                foreach (var p in set) {
-                    pair.Reset();
-                    pair.Key = p.Key;
+                var ret = new Pair();
+                while (items.MoveNext()) {
+                    var kv = items.Current;
 
-                    if (ReferenceEquals(p.Value, Tombstone)) {
-                        pair.IsDeleted = true;
+                    ret.Reset();
+                    ret.Key = kv.Key;
+                    if (ReferenceEquals(kv.Value, Tombstone)) {
+                        ret.IsDeleted = true;
                     } else {
-                        pair.Value = p.Value;
+                        ret.Value = kv.Value;
                     }
 
-                    yield return pair;
+                    yield return ret;
                 }
             } finally {
                 backingLock.ExitReadLock();

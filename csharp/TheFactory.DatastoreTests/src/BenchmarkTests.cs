@@ -98,7 +98,6 @@ namespace TheFactory.DatastoreTests {
         public void ReadSeq() {
             var name = "ReadSeq";
             var args = new BenchmarkArgs();
-            args.Count = 1000;
 
             // fill the database but throw away the writing stats
             var db = Database.Open(tmpDir);
@@ -116,7 +115,6 @@ namespace TheFactory.DatastoreTests {
         public void ReadRandom() {
             var name = "ReadRandom";
             var args = new BenchmarkArgs();
-            args.Count = 1000;
 
             // fill the database but throw away the writing stats
             var db = Database.Open(tmpDir);
