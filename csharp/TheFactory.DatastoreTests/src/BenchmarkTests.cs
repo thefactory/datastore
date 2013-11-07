@@ -3,6 +3,7 @@ using System.IO;
 using NUnit.Framework;
 using TheFactory.Datastore;
 using System.Text;
+using System.Collections.Generic;
 
 namespace TheFactory.DatastoreTests {
     public class BenchmarkArgs {
@@ -67,8 +68,15 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
-        public void ReadSeq() {
-            var name = "ReadSeq";
+        public void FillRandom() {
+            var args = new BenchmarkArgs();
+            args.Seq = false;
+            RunBenchmark("FillRandom", args);
+        }
+
+        [Test]
+        public void FindAll() {
+            var name = "FindAll";
             var args = new BenchmarkArgs();
 
             // fill the database but throw away the writing stats
@@ -81,6 +89,42 @@ namespace TheFactory.DatastoreTests {
                 stats.AddBytes(kv.Key.Length + kv.Value.Length);
                 stats.FinishedSingleOp();
             }
+            stats.Finish();
+
+            Console.WriteLine(Header(name, args) + stats.Report(name));
+        }
+
+        [Test]
+        public void ReadSeq() {
+            var name = "ReadSeq";
+            var args = new BenchmarkArgs();
+            args.Count = 1000;
+
+            // fill the database but throw away the writing stats
+            var db = Database.Open(tmpDir);
+            DoWrite(db, args, new Stats());
+
+            var stats = new Stats();
+            stats.Start();
+            DoRead(db, args, stats);
+            stats.Finish();
+
+            Console.WriteLine(Header(name, args) + stats.Report(name));
+        }
+
+        [Test]
+        public void ReadRandom() {
+            var name = "ReadRandom";
+            var args = new BenchmarkArgs();
+            args.Count = 1000;
+
+            // fill the database but throw away the writing stats
+            var db = Database.Open(tmpDir);
+            DoWrite(db, args, new Stats());
+
+            var stats = new Stats();
+            stats.Start();
+            DoRead(db, args, stats);
             stats.Finish();
 
             Console.WriteLine(Header(name, args) + stats.Report(name));
@@ -126,6 +170,7 @@ namespace TheFactory.DatastoreTests {
                 batch.Clear();
                 for (int j=0; j<args.EntriesPerBatch; j++) {
                     int k = args.Seq ? i + j : rand.Next(args.Count);
+
                     var key = enc.GetBytes(String.Format("{0:d16}", k));
                     var val = enc.GetBytes(Utils.RandomString(args.ValueLen));
 
@@ -139,6 +184,20 @@ namespace TheFactory.DatastoreTests {
             }
 
             stats.AddBytes(bytes);
+        }
+
+        private void DoRead(Database db, BenchmarkArgs args, Stats stats) {
+            Random rand = new Random();
+            for (int i = 0; i < args.Count; i++) {
+                int num = rand.Next(args.Count);
+                var key = String.Format("{0:d16}", num);
+                try {
+                    var val = db.Get(key);
+                    stats.AddBytes(val.Length);
+                } catch (KeyNotFoundException e) {
+                }
+                stats.FinishedSingleOp();
+            }
         }
     }
 }
