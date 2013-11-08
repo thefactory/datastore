@@ -35,6 +35,10 @@ namespace TheFactory.Datastore {
             yield break;
         }
 
+        public static IEnumerable<IKeyValuePair> FindByPrefix(this IDatabase db, string term) {
+            return db.FindByPrefix((Slice)Encoding.UTF8.GetBytes(term));
+        }
+
         public static Slice Get(this IDatabase db, string key) {
             return db.Get((Slice)Encoding.UTF8.GetBytes(key));
         }
