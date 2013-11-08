@@ -20,7 +20,7 @@ namespace TheFactory.Datastore {
         }
     }
 
-    public class Database: IDisposable {
+    public class Database: IDatabase {
         private Options opts;
         private IFileSystem fs;
 
@@ -41,11 +41,11 @@ namespace TheFactory.Datastore {
             mutableTablets.Add(new MemoryTablet());
         }
 
-        public static Database Open(string path) {
+        public static IDatabase Open(string path) {
             return Open(path, new Options());
         }
 
-        public static Database Open(string path, Options opts) {
+        public static IDatabase Open(string path, Options opts) {
             var db = new Database(path, opts);
             db.Open();
             return db;
@@ -197,10 +197,6 @@ namespace TheFactory.Datastore {
             t.Close();
         }
 
-        public IEnumerable<IKeyValuePair> Find() {
-            return Find(null);
-        }
-
         public IEnumerable<IKeyValuePair> Find(Slice term) {
             var searches = tablets.Concat(mutableTablets).Reverse().ToList();
 
@@ -219,16 +215,6 @@ namespace TheFactory.Datastore {
             yield break;
         }
 
-        public IEnumerable<IKeyValuePair> FindByPrefix(Slice term) {
-            foreach (var kv in Find(term)) {
-                if (!Slice.IsPrefix(kv.Key, term)) {
-                    break;
-                }
-                yield return kv;
-            }
-            yield break;
-        }
-
         public Slice Get(Slice key) {
             foreach (var p in Find(key)) {
                 if (Slice.Compare(p.Key, key) == 0) {
@@ -241,11 +227,7 @@ namespace TheFactory.Datastore {
             throw new KeyNotFoundException(key.ToUTF8String());
         }
 
-        public Slice Get(string key) {
-            return Get((Slice)Encoding.UTF8.GetBytes(key));
-        }
-
-        public void Apply(Batch batch) {
+        internal void Apply(Batch batch) {
             writeLog.EmitTransaction(batch.ToSlice());
 
             // Last mutableTablet is the writing tablet.
@@ -259,22 +241,10 @@ namespace TheFactory.Datastore {
             Apply(batch);
         }
 
-        public void Put(string key, Slice val) {
-            Put((Slice)Encoding.UTF8.GetBytes(key), val);
-        }
-
-        public void Put(string key, string val) {
-            Put((Slice)Encoding.UTF8.GetBytes(key), (Slice)Encoding.UTF8.GetBytes(val));
-        }
-
         public void Delete(Slice key) {
             var batch = new Batch();
             batch.Delete(key);
             Apply(batch);
-        }
-
-        public void Delete(string key) {
-            Delete((Slice)Encoding.UTF8.GetBytes(key));
         }
 
         private class ParallelEnumerator: IEnumerator<IKeyValuePair> {

@@ -57,6 +57,7 @@
     <Compile Include="src\Batch.cs" />
     <Compile Include="src\SortedDictionary.cs" />
     <Compile Include="src\RBTree.cs" />
+    <Compile Include="src\IDatabase.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\msgpack-cli\MsgPack.mono.iOS\MsgPack.mono.iOS.csproj">

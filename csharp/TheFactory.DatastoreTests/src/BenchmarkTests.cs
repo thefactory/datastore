@@ -40,7 +40,7 @@ namespace TheFactory.DatastoreTests {
         }
 
         void RunBenchmark(String name, BenchmarkArgs args) {
-            var db = Database.Open(tmpDir);
+            var db = Database.Open(tmpDir) as Database;
 
             var stats = new Stats();
             stats.Start();
@@ -80,7 +80,7 @@ namespace TheFactory.DatastoreTests {
             var args = new BenchmarkArgs();
 
             // fill the database but throw away the writing stats
-            var db = Database.Open(tmpDir);
+            var db = Database.Open(tmpDir) as Database;
             DoWrite(db, args, new Stats());
 
             var stats = new Stats();
@@ -100,7 +100,7 @@ namespace TheFactory.DatastoreTests {
             var args = new BenchmarkArgs();
 
             // fill the database but throw away the writing stats
-            var db = Database.Open(tmpDir);
+            var db = Database.Open(tmpDir) as Database;
             DoWrite(db, args, new Stats());
 
             var stats = new Stats();
@@ -117,7 +117,7 @@ namespace TheFactory.DatastoreTests {
             var args = new BenchmarkArgs();
 
             // fill the database but throw away the writing stats
-            var db = Database.Open(tmpDir);
+            var db = Database.Open(tmpDir) as Database;
             DoWrite(db, args, new Stats());
 
             var stats = new Stats();
@@ -218,7 +218,7 @@ namespace TheFactory.DatastoreTests {
             var args = new BenchmarkArgs();
             var options = new Options();
 
-            using (var db = Database.Open(tmpDir)) {
+            using (var db = (Database)Database.Open(tmpDir)) {
                 DoWrite(db, args, new Stats());
             }
 
