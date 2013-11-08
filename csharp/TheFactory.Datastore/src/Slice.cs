@@ -105,6 +105,20 @@ namespace TheFactory.Datastore {
             return x.length - y.length;
         }
 
+        public static bool IsPrefix(Slice slice, Slice prefix) {
+            if (slice.Length < prefix.Length) {
+                return false;
+            }
+
+            for (int i = 0; i < prefix.Length; i++) {
+                if (slice[i] != prefix[i]) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         public int CommonBytes(Slice that) {
             if (that == null) {
                 return 0;

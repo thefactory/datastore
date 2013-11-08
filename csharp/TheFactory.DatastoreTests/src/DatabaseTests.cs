@@ -284,6 +284,27 @@ namespace TheFactory.DatastoreTests {
                 Assert.True(data.ReadLine() != null);
             }
         }
+
+        [Test]
+        public void TestPrefixQuery() {
+            db.Put("aaaa", "aaaa");
+            db.Put("key0", "val0");
+            db.Put("key1", "val1");
+            db.Put("key2", "val2");
+            db.Put("key3", "val3");
+            db.Put("key4", "val4");
+            db.Put("zzzz", "zzzz");
+
+            var iter = db.FindByPrefix(Utils.Slice("key")).GetEnumerator();
+            for (int i = 0; i < 5; i++) {
+                if (!iter.MoveNext()) {
+                    Assert.Fail("unexpected end of prefix query");
+                }
+                Slice expected = Utils.Slice(String.Format("key{0}", i));
+                Assert.True(iter.Current.Key.Equals(expected));
+            }
+            Assert.False(iter.MoveNext(), "extra items in prefix iteration: " + iter.Current.Key);
+        }
     }
 
     [TestFixture]

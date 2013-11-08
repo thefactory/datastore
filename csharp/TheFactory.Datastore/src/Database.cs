@@ -219,6 +219,16 @@ namespace TheFactory.Datastore {
             yield break;
         }
 
+        public IEnumerable<IKeyValuePair> FindByPrefix(Slice term) {
+            foreach (var kv in Find(term)) {
+                if (!Slice.IsPrefix(kv.Key, term)) {
+                    break;
+                }
+                yield return kv;
+            }
+            yield break;
+        }
+
         public Slice Get(Slice key) {
             foreach (var p in Find(key)) {
                 if (Slice.Compare(p.Key, key) == 0) {
