@@ -99,10 +99,6 @@ namespace TheFactory.Datastore {
         }
 
         public void Close() {
-            while (tablets.Count > 0) {
-                PopTablet();
-            }
-
             if (writeLog != null) {
                 writeLog.Dispose();
                 writeLog = null;
@@ -186,15 +182,6 @@ namespace TheFactory.Datastore {
 
         public void PushTablet(string filename) {
             tablets.Add(new FileTablet(filename, new TabletReaderOptions()));
-        }
-
-        public void PopTablet() {
-            if (tablets.Count == 0) {
-                return;
-            }
-            var t = tablets[tablets.Count - 1];
-            tablets.RemoveAt(tablets.Count - 1);
-            t.Close();
         }
 
         public IEnumerable<IKeyValuePair> Find(Slice term) {

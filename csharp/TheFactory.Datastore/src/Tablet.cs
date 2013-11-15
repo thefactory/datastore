@@ -20,7 +20,7 @@ namespace TheFactory.Datastore {
 
     internal class MemoryTablet : ITablet {
         private OurSortedDictionary<Slice, Slice> backing;
-        private ReaderWriterLockSlim backingLock;
+        private object backingLock;
 
         public string Filename {
             get {
@@ -52,11 +52,8 @@ namespace TheFactory.Datastore {
         }
 
         public void Set(Slice key, Slice val) {
-            backingLock.EnterWriteLock();
-            try {
+            lock (backingLock) {
                 backing[key] = val;
-            } finally {
-                backingLock.ExitWriteLock();
             }
         }
 
@@ -77,8 +74,7 @@ namespace TheFactory.Datastore {
                 yield break;
             }
 
-            backingLock.EnterReadLock();
-            try {
+            lock (backingLock) {
                 IEnumerator<KeyValuePair<Slice, Slice>> items;
 
                 if (term == null) {
@@ -102,8 +98,6 @@ namespace TheFactory.Datastore {
 
                     yield return ret;
                 }
-            } finally {
-                backingLock.ExitReadLock();
             }
 
             yield break;

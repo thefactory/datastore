@@ -6,11 +6,9 @@ using System.Text;
 namespace TheFactory.Datastore {
 
     public interface IDatabase : IDisposable {
-        void PushTablet(string filename);
-        void PopTablet();
-
         IEnumerable<IKeyValuePair> Find(Slice term);
 
+        void PushTablet(string filename);
         void PushTabletStream(Stream stream, Action<IEnumerable<IKeyValuePair>> callback);
 
         Slice Get(Slice key);

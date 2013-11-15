@@ -305,6 +305,23 @@ namespace TheFactory.DatastoreTests {
             }
             Assert.False(iter.MoveNext(), "extra items in prefix iteration: " + iter.Current.Key);
         }
+
+        [Test]
+        public void TestDatabaseRecursiveLock() {
+            var nil = Utils.Slice("");
+
+            db.Put(Utils.Slice("deleteme"), nil);
+            db.Put(Utils.Slice("key1"), nil);
+            db.Put(Utils.Slice("key2"), nil);
+
+            // ensure we can modify the database while a read lock is held
+            foreach (var kv in db.FindByPrefix("key")) {
+                db.Delete("deleteme");
+            }
+
+            Assert.Throws(typeof(KeyNotFoundException),
+                delegate { db.Get("deleteme"); });
+        }
     }
 
     [TestFixture]
