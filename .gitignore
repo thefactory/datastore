@@ -1,0 +1,26 @@
+.project
+.DS_Store
+
+# Eclipse project files
+.settings
+.project
+.idea
+.idea_modules
+
+# python virtual env
+venv
+
+# Markdown tmp files
+.README.md.html
+
+*.class
+*.log
+
+# sbt specific
+dist/*
+target/
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project/
+
