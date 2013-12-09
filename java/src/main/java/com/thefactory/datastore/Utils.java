@@ -1,6 +1,11 @@
 package com.thefactory.datastore;
 
 public class Utils {
+
+    public static int toUInt32(Slice slice) {
+        return slice.getAt(0) << 24 | slice.getAt(1) << 16 | slice.getAt(2) << 8 | slice.getAt(3);
+    }
+
     public static int commonPrefix(byte[] bin1, byte[] bin2) {
         int num = Math.min(bin1.length, bin2.length);
         int count = 0;
