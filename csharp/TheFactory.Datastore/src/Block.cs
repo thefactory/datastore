@@ -154,8 +154,8 @@ namespace TheFactory.Datastore {
             });
 
             if (restart == 0) {
-                // even the first restart key was greater than our term; return an empty iterator
-                return Pairs(kvs.Subslice(kvs.Length), term);
+                // even the first restart key was greater than our term; return them all
+                return Pairs(kvs, term);
             }
 
             // start from the previous restart and advance to term

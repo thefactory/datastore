@@ -302,10 +302,14 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 3};    // 3 restart indexes.
             var block = new Block((Slice)bytes);
             var term = (Slice)(new byte[] {2, 3, 4});
+            var count = 0;
             foreach (var p in block.Find(term)) {
+                count += 1;
                 Assert.True(p.Key.Equals(term));
                 break;
             }
+
+            Assert.True(count == 1);
         }
 
         [Test]
@@ -353,9 +357,14 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 0};    // no restart indexes.
             var block = new Block((Slice)bytes);
             var term = (Slice)(new byte[] {1, 2, 5});
+
+            var count = 0;
             foreach (var p in block.Find(term)) {
+                count += 1;
                 Assert.True(Slice.Compare(p.Key, term) >= 0);
             }
+
+            Assert.True(count == 2);
         }
 
         [Test]
@@ -377,9 +386,15 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 2};    // 2 restart indexes.
             var block = new Block((Slice)bytes);
             var term = (Slice)(new byte[] {0, 1, 2});
+
+            var count = 0;
             foreach (var p in block.Find(term)) {
+                count += 1;
                 Assert.True(Slice.Compare(p.Key, term) > 0);
             }
+
+            // ensure all results were yielded
+            Assert.True(count == 4);
         }
 
         [Test]
@@ -428,10 +443,15 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 2};    // 2 restart indexes.
             var block = new Block((Slice)bytes);
             var term = (Slice)(new byte[] {1, 2, 4});
+
+            var count = 0;
             foreach (var p in block.Find((Slice)(new byte[] {1, 2, 3, 4}))) {
+                count += 1;
                 Assert.True(Slice.Compare(p.Key, term) == 0);
                 break;
             }
+
+            Assert.True(count == 1);
         }
     }
 }
