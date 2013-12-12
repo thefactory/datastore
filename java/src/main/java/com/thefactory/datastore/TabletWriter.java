@@ -66,7 +66,7 @@ public class TabletWriter {
 
         while (kvs.hasNext()) {
             KV kv = kvs.next();
-            bw.append(kv.getKey(), kv.getValue());
+            bw.append(kv.getKeyBytes(), kv.getValueBytes());
 
             if (bw.size() > opts.blockSize) {
                 index.add(flushBlock(out, pos, bw, opts));

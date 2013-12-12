@@ -140,7 +140,7 @@ public class Slice implements Comparable<Slice> {
         w.write("TheFactory.Datastore.Slice[");
 
         for (int i = offset; i < offset + length; i++) {
-            w.write(String.format("{0:X2}", array[i]));
+            w.write(String.format("{0:%02X}", array[i]));
             if (i != offset + length - 1)
                 w.write(" ");
         }

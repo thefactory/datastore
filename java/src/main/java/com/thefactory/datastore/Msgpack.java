@@ -5,6 +5,7 @@ import java.io.DataInput;
 import java.io.IOException;
 
 public class Msgpack {
+    public static final int NIL_VALUE = 0xc0;
     public static final int MSG_FIX_POS = 0x00;
     public static final int MSG_UINT_8 = 0xcc;
     public static final int MSG_UINT_16 = 0xcd;
@@ -19,8 +20,7 @@ public class Msgpack {
     public static final int MINIMUM_FIXED_RAW = 0xa0;
 
     /* lightweight msgpack routines */
-    public static int writeUint(DataOutput
- out, long n) throws IOException {
+    public static int writeUint(DataOutput out, long n) throws IOException {
         if (n <= 0x7fL) {
             out.write((int) n);
             return 1;
@@ -43,8 +43,7 @@ public class Msgpack {
         }
     }
 
-    public static int writeRawLength(DataOutput
- out, int length) throws IOException {
+    public static int writeRawLength(DataOutput out, int length) throws IOException {
         if (length < 32) {
             out.writeByte((byte)(MINIMUM_FIXED_RAW | length));
             return 1;
@@ -64,8 +63,7 @@ public class Msgpack {
     }
 
 
-    public static int writeRaw(DataOutput
- out, byte[] data) throws IOException {
+    public static int writeRaw(DataOutput out, byte[] data) throws IOException {
         int n = 0;
         if (data.length < 32) {
             out.write(MSG_FIX_RAW | (byte)data.length);
@@ -85,50 +83,8 @@ public class Msgpack {
         return n + data.length;
     }
 
-    public static void writeUint64(DataOutput
- out, long num) throws IOException {
+    public static void writeUint64(DataOutput out, long num) throws IOException {
         out.writeByte(MSG_UINT_64);
         out.writeLong(num);
-    }
-
-    public static int unpackUInt32(DataInput in) throws IOException {
-        int num = 0;
-
-        int flag = in.readByte();
-        if (flag <= MAXIMUM_FIXED_POS) {
-            return flag;
-        } else if (flag == MSG_UINT_16) {
-            for (int i = 0; i < 2; i++) {
-                num = (num << 8) | (byte)in.readByte();
-            }
-        } else if (flag == MSG_UINT_32) {
-            for (int i = 0; i < 4; i++) {
-                num = (num << 8) | (byte)in.readByte();
-            }
-        }
-
-        return num;
-    }
-
-    public static int unpackRawLength(int flag, DataInput in) throws IOException {
-        int length = 0;
-
-        if ((flag & 0xe0) == MINIMUM_FIXED_RAW) {
-            length = (int)(flag & 0x1f);
-        } else if (flag == MSG_RAW_16) {
-            for (int i = 0; i < 2; i++) {
-                length = (length << 8) | (byte)in.readByte();
-            }
-        } else if (flag == MSG_RAW_32) {
-            for (int i = 0; i < 4; i++) {
-                length = (length << 8) | (byte)in.readByte();
-            }
-        } else {
-            throw new IOException("Unexpected message pack raw flag byte: " + flag);
-        }
-
-        return length;
-    }
-
-   
+    }   
 }
