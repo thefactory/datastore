@@ -12,6 +12,10 @@ public class KV {
         reset(null, null, true);
     }
 
+    public KV(Slice key, Slice value) {
+        reset(key, value, false);
+    }
+
     public KV(final String key, final String value){
         reset(key, value);
         isDeleted = false;
