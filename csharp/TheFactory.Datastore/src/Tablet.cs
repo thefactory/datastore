@@ -208,7 +208,7 @@ namespace TheFactory.Datastore {
 
         internal TabletFooter LoadFooter() {
             stream.Seek(-40, SeekOrigin.End);
-            return reader.ReadFooter(stream);
+            return reader.ParseFooter((Slice)(stream.ReadBytes(40)));
         }
 
         internal class TabletIndexRecordDataComparer : IComparer<TabletIndexRecord> {
@@ -424,25 +424,35 @@ namespace TheFactory.Datastore {
             return ret;
         }
 
-        internal TabletFooter ReadFooter(Stream stream) {
+        internal TabletFooter ParseFooter(Slice buf) {
             //
             // Tablet footer (40 bytes):
-            //   [ meta index offset (msgpack uint64) ] - 9 bytes
-            //   [ meta index length (msgpack uint64) ] - 9 bytes
-            //   [ data index offset (msgpack uint64) ] - 9 bytes
-            //   [ data index length (msgpack uint64) ] - 9 bytes
+            //   [ meta index offset (msgpack uint) ]
+            //   [ meta index length (msgpack uint) ]
+            //   [ data index offset (msgpack uint) ]
+            //   [ data index length (msgpack uint) ]
+            //   [ padding to 40 bytes total (magic included) ]
             //   [ magic ] - 4 bytes
             //
+
+            if (buf.Length != 40) {
+                var msg = String.Format("Internal error: tablet footer length != 40 (was {0})", buf.Length);
+                throw new TabletValidationException(msg);
+            }
+
+            var magic = Utils.ToUInt32(buf.Subslice(-4));
+            if (magic != Constants.TabletMagic) {
+                var msg = String.Format("Bad tablet magic {0:X}", magic);
+                throw new TabletValidationException(msg);
+            }
+
+            var stream = buf.ToStream();
+
             var footer = new TabletFooter();
             footer.MetaIndexOffset = Unpacking.UnpackObject(stream).AsInt64();
             footer.MetaIndexLength = Unpacking.UnpackObject(stream).AsInt64();
             footer.DataIndexOffset = Unpacking.UnpackObject(stream).AsInt64();
             footer.DataIndexLength = Unpacking.UnpackObject(stream).AsInt64();
-            var magic = stream.ReadInt();
-            if (magic != Constants.TabletMagic) {
-                var msg = String.Format("Bad tablet magic {0:X}", magic);
-                throw new TabletValidationException(msg);
-            }
             return footer;
         }
     }

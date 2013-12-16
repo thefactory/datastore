@@ -269,6 +269,26 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
+        public void TestTabletFooterPaddedLoad() {
+            // test various tighter encodings for the uints
+            var bytes = new byte[] {
+                0,                      // MetaIndexOffset (msgpack fixpos)
+                0xcc, 0,                // MetaIndexLength (msgpack uint8)
+                0xcd, 0, 0,             // DataIndexOffset (msgpack uint16)
+                0xce, 0, 0, 0, 0,       // DataIndexLength (msgpack uint32)
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // padding
+                0x0b, 0x50, 0x1e, 0x7e  // Tablet magic (0x0b501e7e).
+            };
+            var stream = new MemoryStream(bytes);
+            var tablet = new FileTablet(stream, new TabletReaderOptions());
+            var footer = tablet.LoadFooter();
+            Assert.True(footer.MetaIndexOffset == 0);
+            Assert.True(footer.MetaIndexLength == 0);
+            Assert.True(footer.DataIndexOffset == 0);
+            Assert.True(footer.DataIndexLength == 0);
+        }
+
+        [Test]
         [ExpectedException(typeof(TabletValidationException))]
         public void TestTabletFooterLoadBadMagic() {
             var bytes = new byte[] {

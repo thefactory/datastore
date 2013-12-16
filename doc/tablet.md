@@ -141,8 +141,12 @@ records, one per meta block in the file.
 The file footer is a fixed-length block with pointers to the major sections of
 the file, followed by a magic number.
 
+The 40-byte footer includes padding if necessary to ensure its magic
+number is contained in the last 4 bytes. Padding bytes must be 0x0.
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[ meta index offset (uint64) | meta index length (uint64) ]
-[ data index offset (uint64) | data index length (uint64) ]
+[ meta index offset (uint) | meta index length (uint) ]
+[ data index offset (uint) | data index length (uint) ]
+[ padding (0x0...) ]
 [ 0x0b501e7e ]
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
