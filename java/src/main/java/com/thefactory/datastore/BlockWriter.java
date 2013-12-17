@@ -9,7 +9,7 @@ import java.io.OutputStream;
 import java.util.Arrays;
 
 public class BlockWriter {
-    private TabletOptions opts;
+    private TabletWriterOptions opts;
 
     private Packer packer;
 
@@ -20,7 +20,7 @@ public class BlockWriter {
     private byte[] firstKey;
     private int keyCount;
 
-    public BlockWriter(TabletOptions opts) {
+    public BlockWriter(TabletWriterOptions opts) {
         this.opts = opts;
         this.buf = new ByteArrayOutputStream(2*opts.blockSize);
 

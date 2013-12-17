@@ -5,8 +5,8 @@ import junit.framework.TestCase;
 import static org.junit.Assert.assertArrayEquals;
 
 public class BlockWriterTest extends TestCase {
-    public TabletOptions getTabletOptions() {
-        TabletOptions opts = new TabletOptions();
+    public TabletWriterOptions getTabletOptions() {
+        TabletWriterOptions opts = new TabletWriterOptions();
         opts.blockSize = 4096;
         opts.keyRestartInterval = 10;
         opts.useCompression = false;

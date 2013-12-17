@@ -14,9 +14,9 @@ import java.util.LinkedList;
 import java.util.zip.CRC32;
 
 public class TabletWriter {
-    TabletOptions opts;
+    TabletWriterOptions opts;
 
-    public TabletWriter(TabletOptions opts) {
+    public TabletWriter(TabletWriterOptions opts) {
         this.opts = opts;
     }
 
@@ -48,7 +48,7 @@ public class TabletWriter {
         return count;
     }
 
-    private ByteArrayOutputStream writeHeader(ByteArrayOutputStream out, TabletOptions opts) throws IOException {
+    private ByteArrayOutputStream writeHeader(ByteArrayOutputStream out, TabletWriterOptions opts) throws IOException {
         DataOutputStream dos = new DataOutputStream(out);
 
         dos.writeInt(TabletConstants.TABLET_MAGIC);
@@ -60,7 +60,7 @@ public class TabletWriter {
         return out;
     }
 
-    private Deque<IndexRecord> writeDataBlocks(WritableByteChannel out, Iterator<KV> kvs, int pos, TabletOptions opts) throws IOException {
+    private Deque<IndexRecord> writeDataBlocks(WritableByteChannel out, Iterator<KV> kvs, int pos, TabletWriterOptions opts) throws IOException {
         Deque<IndexRecord> index = new LinkedList<IndexRecord>();
         BlockWriter bw = new BlockWriter(opts);
 
@@ -82,7 +82,7 @@ public class TabletWriter {
         return index;
     }
 
-    private IndexRecord flushBlock(WritableByteChannel out, int pos, BlockWriter bw, TabletOptions opts) throws IOException {
+    private IndexRecord flushBlock(WritableByteChannel out, int pos, BlockWriter bw, TabletWriterOptions opts) throws IOException {
         byte[] firstKey = bw.getFirstKey();
         byte[] data = bw.finish();
         byte blockFlags = 0x00; // uncompressed block
