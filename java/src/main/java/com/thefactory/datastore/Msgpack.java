@@ -1,7 +1,6 @@
 package com.thefactory.datastore;
 
 import java.io.DataOutput;
-import java.io.DataInput;
 import java.io.IOException;
 
 public class Msgpack {
@@ -45,11 +44,12 @@ public class Msgpack {
 
 
     public static long readUint(Slice in) throws IOException {
-        byte t = in.readByte();
-        if ((t & (1L << 7)) == 0) {
+        int t = in.readByte();
+        if (t <= 0x7fL) {
             return t;
         } else if (t == MSG_UINT_8) {
-            return in.readByte();
+            long l = in.readByte();
+            return l;
         } else if (t == MSG_UINT_16) {
             return in.readShort();
         } else if (t == MSG_UINT_32) {
@@ -94,7 +94,7 @@ public class Msgpack {
         } else if (flag == Msgpack.MSG_RAW_32) {
             length = in.readInt();
         } else {
-            throw new IOException("Unexpected message pack raw flag byte: " + flag);
+            throw new IOException(String.format("Unexpected message pack raw flag byte: %02x", flag));
         }
         return length;
     }

@@ -52,11 +52,11 @@ public class KV {
     }
 
     public byte[] getKeyBytes() {
-        return key.getArray();
+        return key.toArray();
     }
 
     public byte[] getValueBytes() {
-        return value.getArray();
+        return value.toArray();
     }
 
     public boolean isDeleted() {
