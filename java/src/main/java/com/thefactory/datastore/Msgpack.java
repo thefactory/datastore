@@ -1,7 +1,6 @@
 package com.thefactory.datastore;
 
 import java.io.DataOutput;
-import java.io.DataInput;
 import java.io.IOException;
 
 public class Msgpack {
@@ -43,6 +42,24 @@ public class Msgpack {
         }
     }
 
+
+    public static long readUint(Slice in) throws IOException {
+        int t = in.readByte();
+        if (t <= 0x7fL) {
+            return t;
+        } else if (t == MSG_UINT_8) {
+            long l = in.readByte();
+            return l;
+        } else if (t == MSG_UINT_16) {
+            return in.readShort();
+        } else if (t == MSG_UINT_32) {
+            return in.readInt();
+        }
+
+        return in.readLong();
+    }   
+
+
     public static int writeRawLength(DataOutput out, int length) throws IOException {
         if (length < 32) {
             out.writeByte((byte)(MINIMUM_FIXED_RAW | length));
@@ -62,6 +79,25 @@ public class Msgpack {
         }
     }
 
+    public static int readRawLength(Slice in) throws IOException {
+        int length = 0;
+
+        int flag = in.readByte();
+        if (flag == Msgpack.NIL_VALUE) {
+            return -1;
+        }
+
+        if ((flag & 0xe0) == Msgpack.MINIMUM_FIXED_RAW) {
+            length = (int)(flag & 0x1f);
+        } else if (flag == Msgpack.MSG_RAW_16) {
+            length = in.readShort();
+        } else if (flag == Msgpack.MSG_RAW_32) {
+            length = in.readInt();
+        } else {
+            throw new IOException(String.format("Unexpected message pack raw flag byte: %02x", flag));
+        }
+        return length;
+    }
 
     public static int writeRaw(DataOutput out, byte[] data) throws IOException {
         int n = 0;
@@ -86,5 +122,5 @@ public class Msgpack {
     public static void writeUint64(DataOutput out, long num) throws IOException {
         out.writeByte(MSG_UINT_64);
         out.writeLong(num);
-    }   
+    }
 }

@@ -28,16 +28,53 @@ public class Slice implements Comparable<Slice> {
         this.length = array.length;
     }
 
-    public byte[] getArray() {
-        return array;
-    }
-    
     public int getOffset() { 
         return offset; 
     }
         
     public int getLength() { 
         return length;
+    }
+
+    public void forward(int nbytes) {
+        if(nbytes > length) {
+            throw new IndexOutOfBoundsException("Slice index out of bounds");
+        }
+        offset += nbytes;
+        length -= nbytes;
+    }
+
+    public int readByte() {
+        int ret = getAt(0) & 0x000000FF;
+        forward(1);
+        return ret;
+    }
+
+    public int readShort() {
+        int ret = 0;        
+        for (int i = 0; i < 2; i++) {
+            ret = (ret << 8) | getAt(i);
+        }
+        forward(2);
+        return ret;
+    }
+
+    public int readInt() {
+        int ret = 0;        
+        for (int i = 0; i < 4; i++) {
+            ret = (ret << 8) | getAt(i);
+        }
+        forward(4);
+        return ret;
+    }
+
+    public long readLong() {
+        long ret = 0;        
+        for (int i = 0; i < 8; i++) {
+            ret = (ret << 8) | getAt(i);
+        }
+        forward(8);
+        return ret;
     }
 
     public byte[] toArray() {
@@ -55,7 +92,7 @@ public class Slice implements Comparable<Slice> {
         return new ByteArrayInputStream(array, offset, length); 
     }
 
-    public byte getAt(int i) {
+    public int getAt(int i) {
         return array[offset + i];
     }
 
@@ -95,6 +132,13 @@ public class Slice implements Comparable<Slice> {
             }
         }
         return end - 1;
+    }
+
+    public static Slice prefix(Slice prefix, Slice suffix, int common){
+        byte[] tmp = new byte[common + suffix.getLength()];
+        System.arraycopy(prefix.array, prefix.getOffset(), tmp, 0, common);
+        System.arraycopy(suffix.array, suffix.getOffset(), tmp, common, suffix.getLength());
+        return new Slice(tmp);
     }
 
     public static boolean isPrefix(Slice slice, Slice prefix) {

@@ -12,7 +12,7 @@ import static org.junit.Assert.assertArrayEquals;
 
 public class TabletWriterTest extends TestCase {
     public void testWriteTablet() throws Exception {
-        TabletOptions opts = new TabletOptions();
+        TabletWriterOptions opts = new TabletWriterOptions();
         opts.blockSize = 4096;
         opts.keyRestartInterval = 10;
         opts.useCompression = false;
@@ -49,7 +49,7 @@ public class TabletWriterTest extends TestCase {
     }
 
     public void testWriteCompressedTablet() throws Exception {
-        TabletOptions opts = new TabletOptions();
+        TabletWriterOptions opts = new TabletWriterOptions();
         opts.blockSize = 4096;
         opts.keyRestartInterval = 10;
         opts.useCompression = true;

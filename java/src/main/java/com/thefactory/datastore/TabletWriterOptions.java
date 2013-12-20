@@ -1,15 +1,15 @@
 package com.thefactory.datastore;
 
-public class TabletOptions {
+public class TabletWriterOptions {
     public int blockSize;
     public boolean useCompression;
     public int keyRestartInterval;
 
-    public TabletOptions() {
+    public TabletWriterOptions() {
         this(4096, true, 16);
     }
 
-    public TabletOptions(int blockSize, boolean useCompression, int keyRestartInterval) {
+    public TabletWriterOptions(int blockSize, boolean useCompression, int keyRestartInterval) {
         this.blockSize = blockSize;
         this.useCompression = useCompression;
         this.keyRestartInterval = keyRestartInterval;

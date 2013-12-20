@@ -140,10 +140,7 @@ public class BlockReader {
             if (common == 0) {
                 key = suffix;
             } else {
-                byte[] tmp = new byte[common + suffix.getLength()];
-                System.arraycopy(previousKey.getArray(), previousKey.getOffset(), tmp, 0, common);
-                System.arraycopy(suffix.getArray(), suffix.getOffset(), tmp, common, suffix.getLength());
-                key = new Slice(tmp);
+                key = Slice.prefix(previousKey, suffix, common);
             }
 
             previousKey = key;
