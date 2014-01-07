@@ -30,6 +30,7 @@ namespace TheFactory.Datastore {
         private TransactionLogWriter writeLog;
 
         IDisposable fsLock;
+        private object batchLock = new object();
 
         internal Database(string path, Options opts) {
             this.fileManager = new FileManager(path);
@@ -215,11 +216,13 @@ namespace TheFactory.Datastore {
         }
 
         internal void Apply(Batch batch) {
-            writeLog.EmitTransaction(batch.ToSlice());
+            lock (batchLock) {
+                writeLog.EmitTransaction(batch.ToSlice());
 
-            // Last mutableTablet is the writing tablet.
-            var tablet = (MemoryTablet)mutableTablets[mutableTablets.Count - 1];
-            tablet.Apply(batch);
+                // Last mutableTablet is the writing tablet.
+                var tablet = (MemoryTablet)mutableTablets[mutableTablets.Count - 1];
+                tablet.Apply(batch);
+            }
         }
 
         public void Put(Slice key, Slice val) {

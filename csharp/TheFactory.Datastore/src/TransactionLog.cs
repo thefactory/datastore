@@ -90,14 +90,7 @@ namespace TheFactory.Datastore {
 
             stream.Seek(0, SeekOrigin.Begin);
             while (stream.Length - stream.Position >= TransactionLog.HeaderSize) {
-                // can't yield from a try block, so initialize this to null and check below
-                Slice transaction = null;
-                try {
-                    transaction = ReadTransaction(buffer);
-                } catch (FormatException) {
-                    // skip this record
-                }
-
+                Slice transaction = ReadTransaction(buffer);
                 if (transaction != null) {
                     yield return transaction;
                 }
