@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using NUnit.Framework;
 using TheFactory.Datastore;
+using System.Threading;
 
 namespace TheFactory.DatastoreTests {
     [TestFixture]
@@ -401,6 +402,41 @@ namespace TheFactory.DatastoreTests {
 
             Assert.Throws(typeof(KeyNotFoundException),
                 delegate { db.Get(Utils.Slice("key4")); });
+        }
+
+        [Test]
+        public void TestLogManyWriters()
+        {
+            // write a bunch of stuff simultaneously
+            int nThreads = 5;
+            int nItems = 100;
+
+            ThreadStart ts = delegate {
+                for (int i = 0; i < nItems; i++) {
+                    db.Put(Utils.Slice("asdf"), Utils.Slice("fdsa"));
+                }
+            };
+
+            var threads = new List<Thread>();
+            for (int i = 0; i < nThreads; i++) {
+                threads.Add(new Thread(ts));
+            }
+
+            foreach (var t in threads) {
+                t.Start();
+            }
+
+            foreach (var t in threads) {
+                t.Join();
+            }
+
+            db.Close();
+
+            // replay the log
+            var r = new TransactionLogReader(Path.Combine(path, "write.log"));
+            foreach (var t in r.Transactions()) {
+                // do nothing: rely on the internal consistency checks in r
+            }
         }
     }
 }
