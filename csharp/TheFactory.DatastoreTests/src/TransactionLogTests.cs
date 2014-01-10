@@ -144,20 +144,24 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTransactionLogReaderReplayFirstBad() {
             var bytes = new byte[] { 0xB2, 0x16, 0x3A, 0xFF,    // checksum.
-                                     0x04,                      // type (Last).
-                                     0x00, 0x0A,                // length.
-                                     0x82, 0xD1, 0xAF, 0x84, 0x29, 0xD1, 0x04, 0x58, 0x67, 0xC1,
-                                     0xB2, 0x16, 0x3A, 0xFF,    // checksum.
-                                     0x01,                      // type (Full).
-                                     0x00, 0x0A,                // length.
-                                     0x82, 0xD1, 0xAF, 0x84, 0x29, 0xD1, 0x04, 0x58, 0x67, 0xC1 };
+                0x04,                      // type (Last).
+                0x00, 0x0A,                // length.
+                0x82, 0xD1, 0xAF, 0x84, 0x29, 0xD1, 0x04, 0x58, 0x67, 0xC1,
+                0xB2, 0x16, 0x3A, 0xFF,    // checksum.
+                0x01,                      // type (Full).
+                0x00, 0x0A,                // length.
+                0x82, 0xD1, 0xAF, 0x84, 0x29, 0xD1, 0x04, 0x58, 0x67, 0xC1
+            };
             var stream = new MemoryStream(bytes);
 
             var reader = new TransactionLogReader(stream);
             var count = 0;
-            foreach (var t in reader.Transactions()) {
-                count++;
-            }
+
+            Assert.Throws(typeof(FormatException), delegate {
+                foreach (var t in reader.Transactions()) {
+                    count++;
+                }
+            });
         }
     }
 
