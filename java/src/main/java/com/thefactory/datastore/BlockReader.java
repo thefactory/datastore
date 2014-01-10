@@ -3,6 +3,8 @@ package com.thefactory.datastore;
 import java.io.DataInputStream;
 import java.io.InputStream;
 import java.util.Iterator;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.NoSuchElementException;
 import java.lang.UnsupportedOperationException;
 import java.io.IOException;
@@ -26,21 +28,19 @@ public class BlockReader {
     }
 
     public Iterator<KV> find(Slice term) {
-        if (term == null || term.getLength() == 0 || numRestarts == 0) {
+        if (term == null || term.getLength() == 0 || numRestarts <= 1) {
             return pairs(kvs, term);
         }
 
         int restart = 0;
-        int upper = numRestarts;
-
         try {
+            int upper = numRestarts - 1;
             while (restart < upper) {
-                int half = restart + ((upper - restart) / 2);
-                if (Slice.compare(restartKey(half), term) < 0) {
-                    restart = half + 1;
-                } else {
-                    upper = half;
+                int probe = restart + 1;
+                if (Slice.compare(restartKey(probe), term) > 0) {
+                    break;
                 }
+                restart += 1;
             }
         } catch (IOException e) {
             throw new IllegalArgumentException("reading block failed");            
@@ -53,6 +53,14 @@ public class BlockReader {
         }
 
         return pairs(kvs.subslice(restartValue(restart - 1)), term);
+    }
+
+    public List<Slice> restarts() throws IOException {
+        ArrayList<Slice> ret = new ArrayList<Slice>();
+        for(int i = 0; i < numRestarts; i++){
+            ret.add(restartKey(i));
+        }
+        return ret;
     }
 
     private Iterator<KV> empty() {
@@ -83,6 +91,7 @@ public class BlockReader {
                             if ((Slice.compare(startKey.getKey(), fromKey) >= 0)) {
                                 break;
                             }
+                            startKey = null;
                         }
                     } catch (IOException e) {
                         throw new IllegalArgumentException("corrupt block");
@@ -91,7 +100,7 @@ public class BlockReader {
             }
 
             public boolean hasNext() {
-                return reader.getPos() < kvs.getLength();
+                return (startKey != null) || (reader.getPos() < kvs.getLength());
             }
 
             public KV next() {

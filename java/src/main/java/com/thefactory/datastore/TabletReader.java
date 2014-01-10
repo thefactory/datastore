@@ -18,7 +18,7 @@ public class TabletReader {
 
     public List<TabletIndexRecord> readIndex(Slice in, long length, int magic) throws IOException {
         long offset = in.getOffset();
-        
+
         int m = in.readInt();
         if (m != magic) {
             throw new IOException(String.format("bad index magic {%02X}, expected {%02X}", m, magic));
@@ -34,7 +34,16 @@ public class TabletReader {
     }
 
     public BlockReader readBlock(Slice in) throws IOException {
+        return readBlock(in, false);
+    }
+
+    public BlockReader readBlock(Slice in, boolean verifyChecksum) throws IOException {
         TabletBlockData blockData = new TabletBlockData(in);
+
+        if(verifyChecksum && blockData.info.checksum != 0 && blockData.info.checksum != blockData.checksum) {
+            throw new IOException("bad block checksum");
+        }
+
         return new BlockReader(new Slice(blockData.data));
     }    
 
@@ -46,7 +55,7 @@ public class TabletReader {
         DATA, META
     }
 
-    public class TabletIndexRecord {
+    public static class TabletIndexRecord {
         public final long offset;
         public final int length;
         public final Slice data;
@@ -60,7 +69,7 @@ public class TabletReader {
         }
     }
 
-    public class TabletHeader {
+    public static class TabletHeader {
         public final int magic;
         public final int version;
 
@@ -77,7 +86,7 @@ public class TabletReader {
         }
     }
 
-    public class TabletFooter {
+    public static class TabletFooter {
         public final long metaIndexOffset;
         public final long metaIndexLength;
         public final long dataIndexOffset;
@@ -98,7 +107,7 @@ public class TabletReader {
         }
     }
 
-    public class TabletBlockInfo {
+    public static class TabletBlockInfo {
         public final BlockType type;
         public final long checksum;
         public final int length;
@@ -117,7 +126,7 @@ public class TabletReader {
         }
     }    
 
-    public class TabletBlockData {
+    public static class TabletBlockData {
         public final TabletBlockInfo info;
         public final byte[] data;
         public long checksum;
