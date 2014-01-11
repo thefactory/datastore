@@ -32,19 +32,7 @@ public class BlockReader {
             return pairs(kvs, term);
         }
 
-        int restart = 0;
-        try {
-            int upper = numRestarts - 1;
-            while (restart < upper) {
-                int probe = restart + 1;
-                if (Slice.compare(restartKey(probe), term) > 0) {
-                    break;
-                }
-                restart += 1;
-            }
-        } catch (IOException e) {
-            throw new IllegalArgumentException("reading block failed");            
-        }  
+        int restart = search(term);
 
         if (restart == 0) {
             return pairs(kvs, term);
@@ -61,6 +49,25 @@ public class BlockReader {
             ret.add(restartKey(i));
         }
         return ret;
+    }
+
+    private int search(Slice term) {
+        int ret = 0;
+        try {
+            int upper = numRestarts - 1;
+            while (ret < upper) {
+                int probe = ret + (upper - ret) / 2;
+                if (Slice.compare(restartKey(probe), term) <= 0) {
+                    ret = probe + 1;
+                } else {
+                    upper = probe;
+                }
+            }
+        } catch (IOException e) {
+            throw new IllegalArgumentException("reading block failed");            
+        }
+
+        return ret;  
     }
 
     private Iterator<KV> empty() {

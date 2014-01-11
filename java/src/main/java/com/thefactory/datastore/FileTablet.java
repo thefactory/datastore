@@ -8,7 +8,7 @@ import java.io.EOFException;
 import java.util.NoSuchElementException;
 import java.util.List;
 import java.util.Iterator;
-import java.util.Comparator;
+//import java.util.Comparator;
 import java.util.ArrayList;
 
 public class FileTablet {
@@ -43,14 +43,7 @@ public class FileTablet {
 
             {
                 if (term != null && term.getLength() != 0) {
-                    int upper = dataIndex.size() - 1;
-                    while(currentBlockIndex < upper){
-                        int probe = currentBlockIndex + 1;
-                        if(Slice.compare(dataIndex.get(probe).data, term) > 0){
-                            break;
-                        }
-                        currentBlockIndex += 1;
-                    }
+                    currentBlockIndex = search(term);
                 }
 
                 currentBlock = loadBlock(currentBlockIndex);
@@ -77,6 +70,20 @@ public class FileTablet {
 
             public void remove() {
                 throw new UnsupportedOperationException();
+            }
+
+            private int search(Slice term) {
+                int lower = 0;
+                int upper = dataIndex.size();
+                while (lower < upper) {
+                    int mid = lower + (upper - lower) / 2;
+                    if (Slice.compare(dataIndex.get(mid).data, term) <= 0) {
+                        lower = mid + 1;
+                    } else {
+                        upper = mid;
+                    }
+                }
+                return (lower > 0) ? lower - 1 : lower;
             }
         };
     }
