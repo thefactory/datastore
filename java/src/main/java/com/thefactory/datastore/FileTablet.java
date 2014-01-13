@@ -8,7 +8,6 @@ import java.io.EOFException;
 import java.util.NoSuchElementException;
 import java.util.List;
 import java.util.Iterator;
-//import java.util.Comparator;
 import java.util.ArrayList;
 
 public class FileTablet {
@@ -101,24 +100,12 @@ public class FileTablet {
     }
 
     private TabletReader.TabletFooter loadFooter() throws IOException {
-        tabletFile.seek(tabletFile.length() - 40);
-        byte[] bytes = new byte[40];
-        try {
-            tabletFile.readFully(bytes);
-        } catch (EOFException e) {
-            throw new IOException("tablet file with corrupt footer detected");
-        }
+        byte[] bytes = preadFully(tabletFile.length() - 40, 40);
         return reader.readFooter(new Slice(bytes));
     }
 
     private List<TabletReader.TabletIndexRecord> loadIndex(long offset, long length, int magic) throws IOException {
-        tabletFile.seek(offset);
-        byte[] bytes = new byte[(int)length];
-        try {
-            tabletFile.readFully(bytes);
-        } catch (EOFException e) {
-            throw new IOException("tablet file with corrupt index detected");
-        }
+        byte[] bytes = preadFully(offset, length);
         return reader.readIndex(new Slice(bytes), length, magic);
     }
 
@@ -126,16 +113,22 @@ public class FileTablet {
         long offset = dataIndex.get((int) index).offset;
         int length = dataIndex.get((int) index).length;
 
-        tabletFile.seek(offset);
-        byte[] bytes = new byte[(int)length];
-        try {        
-            tabletFile.readFully(bytes);
-        } catch (EOFException e) {
-            throw new IOException("tablet file with corrupt block detected");
-        }
+        byte[] bytes = preadFully(offset, length);
         BlockReader block = reader.readBlock(new Slice(bytes), options.verifyChecksums);
-
         return block;
+    }
+
+    private byte[] preadFully(long pos, long bytes) throws IOException {
+        synchronized(tabletFile) {
+            tabletFile.seek(pos);
+            byte[] ret = new byte[(int) bytes];
+            try {        
+                tabletFile.readFully(ret);
+            } catch (EOFException e) {
+                throw new IOException("tablet file with corrupt block detected");
+            }
+            return ret;
+        }
     }
 }
 

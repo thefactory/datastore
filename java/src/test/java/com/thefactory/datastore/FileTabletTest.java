@@ -235,11 +235,12 @@ public class FileTabletTest extends TestCase {
         for(int i = 0; i < blocks.size(); i++){
             System.out.println("\nBlock " + i + "\n---------------------------------------------------");
             BlockReader block = blocks.get(i);
-            List<Slice> restarts = block.restarts();
-            System.out.println(restarts.size() + " restarts:");
-            for(int k = 0; k < restarts.size(); k++){
-                System.out.println(restarts.get(k).toUTF8String());
+            int k = 0;
+            Slice restart;
+            while((restart = block.restartKey(k)) != null) {
+                System.out.println(restart.toUTF8String());                
             }
+            System.out.println(k + " restarts:");
             System.out.println("\nData:");            
             Iterator<KV> kvs = block.find();
             while(kvs.hasNext()){

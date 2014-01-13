@@ -43,14 +43,6 @@ public class BlockReader {
         return pairs(kvs.subslice(restartValue(restart - 1)), term);
     }
 
-    public List<Slice> restarts() throws IOException {
-        ArrayList<Slice> ret = new ArrayList<Slice>();
-        for(int i = 0; i < numRestarts; i++){
-            ret.add(restartKey(i));
-        }
-        return ret;
-    }
-
     private int search(Slice term) {
         int ret = 0;
         try {
@@ -225,7 +217,11 @@ public class BlockReader {
         }
     }
 
-    private Slice restartKey(int n) throws IOException {
+    public Slice restartKey(int n) throws IOException {
+        if(n >= numRestarts) {
+            return null;
+        } 
+
         int pos = restartValue(n);
 
         // skip the first byte at pos, which is guaranteed to be 0x0 because this is a restart
