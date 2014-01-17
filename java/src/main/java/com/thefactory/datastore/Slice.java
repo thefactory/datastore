@@ -93,7 +93,7 @@ public class Slice implements Comparable<Slice> {
     }
 
     public int getAt(int i) {
-        return array[offset + i];
+        return (array[offset + i] & 0xff);
     }
 
     public Slice subslice(int skip) {
@@ -214,7 +214,9 @@ public class Slice implements Comparable<Slice> {
 
         for (int xi = x.offset, yi = y.offset; xi < x.offset + length; xi++, yi++) {
             if (x.array[xi] != y.array[yi]) {
-                return x.array[xi] - y.array[yi];
+                // Java bytes are signed, cast to int before substracting to ensure
+                // correct results for all values with bit 7 set ...
+                return ((int)x.array[xi] & 0xff) - ((int)y.array[yi] & 0xff);
             }
         }
 

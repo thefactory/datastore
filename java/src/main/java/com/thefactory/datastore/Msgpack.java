@@ -45,7 +45,7 @@ public class Msgpack {
 
     public static long readUint(Slice in) throws IOException {
         int t = in.readByte();
-        if (t <= 0x7fL) {
+         if ((t & (1L << 7)) == 0) {
             return t;
         } else if (t == MSG_UINT_8) {
             long l = in.readByte();

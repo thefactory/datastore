@@ -54,6 +54,13 @@ public class SliceTest extends TestCase {
         assertTrue(Slice.compare(s0.subslice(-4, 2), new Slice(new byte[]{6, 7})) == 0);
     }
 
+    public void testCompareUTF8chars() {
+       Slice s1 = new Slice(new byte[] {1, 2, 3, (byte)0x20});
+       Slice s2 = new Slice(new byte[] {1, 2, 3, (byte)0xe0});
+
+       assertTrue(Slice.compare(s1, s2) < 0);
+    }
+
     public void testCommonBytes() {
         assertTrue(new Slice(new byte[]{0, 1, 2, 3, 4}).commonBytes(new Slice(new byte[]{0, 1, 9, 9, 9})) == 2);
     }
@@ -64,4 +71,3 @@ public class SliceTest extends TestCase {
     }
 
 }
-
