@@ -6,17 +6,17 @@ import java.util.NoSuchElementException;
 import java.util.List;
 import java.util.Iterator;
 import java.util.ArrayList;
-import java.nio.channels.SeekableByteChannel;
+import java.nio.channels.FileChannel;
 import java.nio.ByteBuffer;
 
 public class FileTablet {
-    private final SeekableByteChannel in;
+    private final FileChannel in;
     private final TabletReader reader = new TabletReader();
     private final TabletReaderOptions options;
     private List<TabletReader.TabletIndexRecord> dataIndex;
     private List<TabletReader.TabletIndexRecord> metaIndex;
 
-    public FileTablet(SeekableByteChannel in, TabletReaderOptions options) throws IOException {
+    public FileTablet(FileChannel in, TabletReaderOptions options) throws IOException {
         this.in = in;
         this.options = options; 
         TabletReader.TabletFooter footer = loadFooter();
@@ -99,12 +99,12 @@ public class FileTablet {
     }
 
     private TabletReader.TabletFooter loadFooter() throws IOException {
-        byte[] bytes = preadFully(in.size() - 40, 40);
+        byte[] bytes = readFully(in.size() - 40, 40);
         return reader.readFooter(new Slice(bytes));
     }
 
     private List<TabletReader.TabletIndexRecord> loadIndex(long offset, long length, int magic) throws IOException {
-        byte[] bytes = preadFully(offset, (int)length);
+        byte[] bytes = readFully(offset, (int)length);
         return reader.readIndex(new Slice(bytes), length, magic);
     }
 
@@ -112,28 +112,25 @@ public class FileTablet {
         long offset = dataIndex.get((int) index).offset;
         int length = dataIndex.get((int) index).length;
 
-        byte[] bytes = preadFully(offset, length);
+        byte[] bytes = readFully(offset, length);
         BlockReader block = reader.readBlock(new Slice(bytes));
         return block;
     }
 
-    private byte[] preadFully(long pos, int bytes) throws IOException {
-        synchronized(in) {
-            in.position(pos);
-            byte[] ret = new byte[bytes];
-            try {
-                int n, ofs = 0;
-                while(ofs < bytes) {
-                    n = in.read(ByteBuffer.wrap(ret, ofs, bytes - ofs));
-                    if(n < 0){
-                        throw new IOException("failed to read all bytes from tablet file"); 
-                    }
-                    ofs += n;
+    private byte[] readFully(long pos, int bytes) throws IOException {
+        byte[] ret = new byte[bytes];
+        try {
+            int n, ofs = 0;
+            while(ofs < bytes) {
+                n = in.read(ByteBuffer.wrap(ret, ofs, bytes - ofs), pos);
+                if(n < 0){
+                    throw new IOException("failed to read all bytes from tablet file"); 
                 }
-            } catch (Exception e) {
-                throw new IOException("failed to read from tablet file: " + e.getMessage());
+                ofs += n;
             }
-            return ret;
+        } catch (Exception e) {
+            throw new IOException("failed to read from tablet file: " + e.getMessage());
         }
+        return ret;
     }
 }
