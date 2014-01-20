@@ -2,9 +2,6 @@ package com.thefactory.datastore;
 
 import junit.framework.TestCase;
 import java.util.Iterator;
-//import java.io.IOException;
-
-import static org.junit.Assert.assertArrayEquals;
 
 public class BatchTests extends TestCase {
         

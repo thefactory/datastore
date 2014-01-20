@@ -8,6 +8,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.FileInputStream;
+import java.nio.channels.FileChannel;
 import java.util.List;
 import org.xerial.snappy.Snappy;
 
@@ -42,7 +44,7 @@ public class FileTabletTest extends TestCase {
         output.flush(); 
         output.close();   
 
-        FileTablet tablet = new FileTablet(tmpFile, new TabletReaderOptions());
+        FileTablet tablet = new FileTablet(new FileInputStream(tmpFile).getChannel(), new TabletReaderOptions());
         Slice term = new Slice(new byte[] {1, 2, 3});
         Iterator<KV> kvs = tablet.find(term);
         while(kvs.hasNext()){
@@ -54,7 +56,7 @@ public class FileTabletTest extends TestCase {
     }
 
     public void testTabletFileUncompressed1BlockAll() throws Exception {
-        FileTablet tablet = new FileTablet(getFile("test-data/ngrams1/ngrams1-1block-uncompressed.tab"), new TabletReaderOptions());
+        FileTablet tablet = new FileTablet(getFileChannel("test-data/ngrams1/ngrams1-1block-uncompressed.tab"), new TabletReaderOptions());
         Iterator<KV> p = tablet.find();
         BufferedReader reader = new BufferedReader(new FileReader(getFile("test-data/ngrams1/ngrams1.txt")));
         String line;
@@ -72,7 +74,7 @@ public class FileTabletTest extends TestCase {
     public void testTabletFileUncompressed1BlockFrom1() throws Exception {
         BufferedReader reader = new BufferedReader(new FileReader(getFile("test-data/ngrams1/ngrams1.txt")));
         String[] kv = reader.readLine().split(" ");
-        FileTablet tablet = new FileTablet(getFile("test-data/ngrams1/ngrams1-1block-uncompressed.tab"), new TabletReaderOptions());
+        FileTablet tablet = new FileTablet(getFileChannel("test-data/ngrams1/ngrams1-1block-uncompressed.tab"), new TabletReaderOptions());
         Iterator<KV> p = tablet.find(new Slice(kv[0].getBytes("UTF-8")));
         while(true){
             byte[] k = kv[0].getBytes("UTF-8");
@@ -97,8 +99,7 @@ public class FileTabletTest extends TestCase {
         for(int i = 0; i < 10; i++){
             kv = reader.readLine().split(" ");
         }
-
-        FileTablet tablet = new FileTablet(getFile("test-data/ngrams1/ngrams1-1block-uncompressed.tab"), new TabletReaderOptions());
+        FileTablet tablet = new FileTablet(getFileChannel("test-data/ngrams1/ngrams1-1block-uncompressed.tab"), new TabletReaderOptions());
         Iterator<KV> p = tablet.find(new Slice(kv[0].getBytes("UTF-8")));
         while(true){
             byte[] k = kv[0].getBytes("UTF-8");
@@ -117,7 +118,7 @@ public class FileTabletTest extends TestCase {
     }
 
     public void testTabletFileCompressed1BlockAll() throws Exception {
-        FileTablet tablet = new FileTablet(getFile("test-data/ngrams1/ngrams1-1block-compressed.tab"), new TabletReaderOptions());
+        FileTablet tablet = new FileTablet(getFileChannel("test-data/ngrams1/ngrams1-1block-compressed.tab"), new TabletReaderOptions());
         Iterator<KV> p = tablet.find();
         BufferedReader reader = new BufferedReader(new FileReader(getFile("test-data/ngrams1/ngrams1.txt")));
         String line;
@@ -133,7 +134,7 @@ public class FileTabletTest extends TestCase {
     }
 
     public void testTabletFileCompressedNBlockAll() throws Exception {
-        FileTablet tablet = new FileTablet(getFile("test-data/ngrams1/ngrams1-Nblock-compressed.tab"), new TabletReaderOptions());
+        FileTablet tablet = new FileTablet(getFileChannel("test-data/ngrams1/ngrams1-Nblock-compressed.tab"), new TabletReaderOptions());
         Iterator<KV> p = tablet.find();
         BufferedReader reader = new BufferedReader(new FileReader(getFile("test-data/ngrams1/ngrams1.txt")));
         String line;
@@ -151,7 +152,7 @@ public class FileTabletTest extends TestCase {
     public void testTabletFileCompressedNBlockFrom1() throws Exception {
         BufferedReader reader = new BufferedReader(new FileReader(getFile("test-data/ngrams1/ngrams1.txt")));
         String[] kv = reader.readLine().split(" ");
-        FileTablet tablet = new FileTablet(getFile("test-data/ngrams1/ngrams1-Nblock-compressed.tab"), new TabletReaderOptions());
+        FileTablet tablet = new FileTablet(getFileChannel("test-data/ngrams1/ngrams1-Nblock-compressed.tab"), new TabletReaderOptions());
         Iterator<KV> p = tablet.find(new Slice(kv[0].getBytes("UTF-8")));
         while(true){
             byte[] k = kv[0].getBytes("UTF-8");
@@ -177,7 +178,7 @@ public class FileTabletTest extends TestCase {
             kv = reader.readLine().split(" ");
         }
 
-        FileTablet tablet = new FileTablet(getFile("test-data/ngrams1/ngrams1-Nblock-compressed.tab"), new TabletReaderOptions());
+        FileTablet tablet = new FileTablet(getFileChannel("test-data/ngrams1/ngrams1-Nblock-compressed.tab"), new TabletReaderOptions());
         Iterator<KV> p = tablet.find(new Slice(kv[0].getBytes("UTF-8")));
         while(true){
             byte[] k = kv[0].getBytes("UTF-8");
@@ -221,9 +222,12 @@ public class FileTabletTest extends TestCase {
         return ret;
     } 
 
-    private void dumpTablet(File tabletFile) throws Exception {
-        FileTablet tablet = new FileTablet(tabletFile, new TabletReaderOptions());
+    private FileChannel getFileChannel(String path) throws FileNotFoundException {
+        return new FileInputStream(getFile(path)).getChannel();
+    }
 
+    private void dumpTablet(File tabletFile) throws Exception {
+        FileTablet tablet = new FileTablet(new FileInputStream(tabletFile).getChannel(), new TabletReaderOptions());
         System.out.println("Index:\n---------------------------------------------------");
         List<TabletReader.TabletIndexRecord> index = tablet.index();
         for(int i = 0; i < index.size(); i++){
@@ -266,7 +270,7 @@ public class FileTabletTest extends TestCase {
                 kv = reader.readLine().split(" ");
             }
 
-            FileTablet tablet = new FileTablet(getFile("test-data/ngrams1/ngrams1-Nblock-compressed.tab"), new TabletReaderOptions());
+            FileTablet tablet = new FileTablet(getFileChannel("test-data/ngrams1/ngrams1-Nblock-compressed.tab"), new TabletReaderOptions());
             Iterator<KV> p = tablet.find(new Slice(kv[0].getBytes("UTF-8")));
             while(true){
                 byte[] k = kv[0].getBytes("UTF-8");
