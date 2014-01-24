@@ -170,18 +170,18 @@ public class BlockReader {
         private int readUInt32() throws IOException {
             int num = 0;
 
-            int flag = stream.readByte();
+            int flag = stream.readUnsignedByte();
+            pos += 1;
             if (flag <= Msgpack.MAXIMUM_FIXED_POS) {
-                pos += 1;
                 return flag;
             } else if (flag == Msgpack.MSG_UINT_16) {
                 for (int i = 0; i < 2; i++) {
-                    num = (num << 8) | (byte)stream.readByte();
+                    num = (num << 8) | stream.readUnsignedByte();
                 }
                 pos += 2;
             } else if (flag == Msgpack.MSG_UINT_32) {
                 for (int i = 0; i < 4; i++) {
-                    num = (num << 8) | (byte)stream.readByte();
+                    num = (num << 8) | stream.readUnsignedByte();
                 }
                 pos += 3;
             }
@@ -192,22 +192,22 @@ public class BlockReader {
         private int readRawLength() throws IOException {
             int length = 0;
 
-            int flag = stream.readByte();
+            int flag = stream.readUnsignedByte();
+            pos += 1;
             if (flag == Msgpack.NIL_VALUE) {
                 return -1;
             }
 
             if ((flag & 0xe0) == Msgpack.MINIMUM_FIXED_RAW) {
                 length = (int)(flag & 0x1f);
-                pos += 1;
             } else if (flag == Msgpack.MSG_RAW_16) {
                 for (int i = 0; i < 2; i++) {
-                    length = (length << 8) | (byte)stream.readByte();
+                    length = (length << 8) | stream.readUnsignedByte();
                 }
                 pos += 2;
             } else if (flag == Msgpack.MSG_RAW_32) {
                 for (int i = 0; i < 4; i++) {
-                    length = (length << 8) | (byte)stream.readByte();
+                    length = (length << 8) | stream.readUnsignedByte();
                 }
                 pos += 3;
             } else {
