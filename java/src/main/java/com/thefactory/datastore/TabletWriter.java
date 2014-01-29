@@ -51,7 +51,7 @@ public class TabletWriter {
     private ByteArrayOutputStream writeHeader(ByteArrayOutputStream out, TabletWriterOptions opts) throws IOException {
         DataOutputStream dos = new DataOutputStream(out);
 
-        dos.writeInt(TabletConstants.TABLET_MAGIC);
+        dos.writeInt((int)TabletConstants.TABLET_MAGIC);
 
         // 0x01: prefix-compressed blocks
         // 0x000000: reserved for future use
@@ -119,9 +119,9 @@ public class TabletWriter {
         return crc32.getValue();
     }
 
-    private ByteArrayOutputStream writeIndex(ByteArrayOutputStream out, int magic, Deque<IndexRecord> recs) throws IOException {
+    private ByteArrayOutputStream writeIndex(ByteArrayOutputStream out, long magic, Deque<IndexRecord> recs) throws IOException {
         DataOutput dos = new DataOutputStream(out);
-        dos.writeInt(magic);
+        dos.writeInt((int)magic);
 
         for (IndexRecord rec: recs) {
             Msgpack.writeUint(dos, rec.offset);
@@ -138,7 +138,7 @@ public class TabletWriter {
         Msgpack.writeUint64(dos, metaIndexHandle.length);
         Msgpack.writeUint64(dos, dataIndexHandle.offset);
         Msgpack.writeUint64(dos, dataIndexHandle.length);
-        dos.writeInt(TabletConstants.TABLET_MAGIC);
+        dos.writeInt((int)TabletConstants.TABLET_MAGIC);
 
         return out;
     }

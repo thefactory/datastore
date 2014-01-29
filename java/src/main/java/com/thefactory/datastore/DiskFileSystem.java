@@ -85,6 +85,15 @@ public class DiskFileSystem implements FileSystem {
         return d.list();
     }
 
+    @Override
+    public long size(String name) {
+        File f = new File(name);
+        if(!f.exists() || !f.isFile()){
+            throw new IllegalArgumentException("Not found: " + name);            
+        }
+        return f.length();
+    }
+
     private class FileDatastoreChannel implements DatastoreChannel{
         
         private final FileChannel channel;

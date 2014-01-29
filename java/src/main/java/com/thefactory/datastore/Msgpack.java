@@ -79,8 +79,8 @@ public class Msgpack {
         }
     }
 
-    public static int readRawLength(Slice in) throws IOException {
-        int length = 0;
+    public static long readRawLength(Slice in) throws IOException {
+        long length = 0;
 
         int flag = in.readByte();
         if (flag == Msgpack.NIL_VALUE) {

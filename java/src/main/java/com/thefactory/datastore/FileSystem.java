@@ -25,6 +25,9 @@ public interface FileSystem {
     // Create full path to a resource
     void mkdirs(String name);
 
+    // Get the size in bytes for a resource
+    long size(String name);
+
     // Lock a resource
     Closeable lock(String name) throws IOException;
 

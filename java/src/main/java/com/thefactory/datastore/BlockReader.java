@@ -144,7 +144,6 @@ public class BlockReader {
             int common = readUInt32();
             int suffixLength = readRawLength();
             Slice suffix = readSubslice(suffixLength);
-
             if (common == 0) {
                 key = suffix;
             } else {
@@ -157,7 +156,7 @@ public class BlockReader {
             if(valueLength == -1){
                 return kv.tombstone(key);
             }
-            return kv.reset(key, readSubslice(valueLength));                                  
+            return kv.reset(key, readSubslice(valueLength));
         }
 
         private Slice readSubslice(int len) throws IOException{
@@ -197,7 +196,6 @@ public class BlockReader {
             if (flag == Msgpack.NIL_VALUE) {
                 return -1;
             }
-
             if ((flag & 0xe0) == Msgpack.MINIMUM_FIXED_RAW) {
                 length = (int)(flag & 0x1f);
             } else if (flag == Msgpack.MSG_RAW_16) {

@@ -70,10 +70,10 @@ public class Batch {
     private int readLength() throws IOException {
         Slice in = asSlice();
         int offsetBefore = in.getOffset();
-        int ret = Msgpack.readRawLength(in);
+        long ret = Msgpack.readRawLength(in);
         int nBytesRead = in.getOffset() - offsetBefore;
         buffer.skipBytes(nBytesRead);
-        return ret;
+        return (int)ret;
     }
 
     private Slice readSlice() throws IOException {

@@ -9,7 +9,7 @@ import java.io.InputStream;
 import java.io.StringWriter;
 
 public class Slice implements Comparable<Slice> {
-    private byte[] array;
+    public final byte[] array;
     private int offset;
     private int length;
 
@@ -56,16 +56,16 @@ public class Slice implements Comparable<Slice> {
             ret = (ret << 8) | getAt(i);
         }
         forward(2);
-        return ret;
+        return ret & 0xffff;
     }
 
-    public int readInt() {
-        int ret = 0;        
+    public long readInt() {
+        long ret = 0;        
         for (int i = 0; i < 4; i++) {
             ret = (ret << 8) | getAt(i);
         }
         forward(4);
-        return ret;
+        return ret & 0xffffffff;
     }
 
     public long readLong() {

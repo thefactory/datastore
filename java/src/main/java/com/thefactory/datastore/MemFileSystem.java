@@ -81,6 +81,15 @@ public class MemFileSystem implements FileSystem {
         return buffers.keySet().toArray(new String[0]);
     }
 
+    @Override
+    public long size(String name) {
+        ChannelBuffer buffer = buffers.get(name);
+        if(buffer == null) {
+            throw new IllegalArgumentException("Not found: " + name);
+        }
+        return buffer.readableBytes();
+    }
+
     private class Lock implements Closeable {
         private Map<String, Lock> locks;
         private String name;
