@@ -144,7 +144,7 @@ namespace TheFactory.Datastore {
         }
 
         public IEnumerable<IKeyValuePair> Find(Slice term) {
-            if (term == null || term.Length == 0 || numRestarts == 0) {
+            if (term == null || term.Length == 0 || numRestarts <= 1) {
                 return Pairs(kvs, term);
             }
 
