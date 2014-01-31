@@ -18,6 +18,16 @@ namespace TheFactory.Datastore {
         void Close();
     }
 
+    internal interface ITablet {
+        void Close();
+
+        IEnumerable<IKeyValuePair> Find();
+
+        IEnumerable<IKeyValuePair> Find(Slice term);
+
+        string Filename { get; }
+    }
+
     public static class IDatabaseExtensions {
         public static IEnumerable<IKeyValuePair> Find(this IDatabase db) {
             return db.Find(null);

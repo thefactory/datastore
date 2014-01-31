@@ -42,7 +42,6 @@
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <Compile Include="src\Block.cs" />
     <Compile Include="src\Helpers.cs" />
     <Compile Include="src\Tablet.cs" />
     <Compile Include="src\AssemblyInfo.cs" />
@@ -58,6 +57,11 @@
     <Compile Include="src\SortedDictionary.cs" />
     <Compile Include="src\RBTree.cs" />
     <Compile Include="src\IDatabase.cs" />
+    <Compile Include="src\MemoryTablet.cs" />
+    <Compile Include="src\TabletWriter.cs" />
+    <Compile Include="src\BlockWriter.cs" />
+    <Compile Include="src\BlockReader.cs" />
+    <Compile Include="src\TabletReader.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\msgpack-cli\MsgPack.mono.iOS\MsgPack.mono.iOS.csproj">

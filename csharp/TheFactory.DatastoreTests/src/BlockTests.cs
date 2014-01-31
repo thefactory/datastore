@@ -176,7 +176,7 @@ namespace TheFactory.DatastoreTests {
                                     0xa3, 1, 2, 3,  // 3-byte key suffix.
                                     0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0};    // no restart indexes.
-            var block = new Block((Slice)bytes);
+            var block = new BlockReader((Slice)bytes);
             var count = 0;
             foreach (var p in block.Find()) {
                 Assert.True(p.Key.Equals((Slice)new byte[] { 1, 2, 3 }));
@@ -197,7 +197,7 @@ namespace TheFactory.DatastoreTests {
                                     0xa3, 1, 2, 3,  // 3-byte key suffix.
                                     0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0};    // no restart indexes.
-            var block = new Block((Slice)bytes);
+            var block = new BlockReader((Slice)bytes);
             var count = 0;
             foreach (var p in block.Find()) {
                 Assert.True(p.Key.Equals((Slice)(new byte[] { 1, 2, 3 })));
@@ -224,7 +224,7 @@ namespace TheFactory.DatastoreTests {
                                     0xa0,           // 0-byte key suffix.
                                     0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0};    // no restart indexes.
-            var block = new Block((Slice)bytes);
+            var block = new BlockReader((Slice)bytes);
             var count = 0;
             foreach (var p in block.Find()) {
                 Assert.True(p.Key.Equals((Slice)new byte[] { 1, 2, 3 }));
@@ -247,7 +247,7 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 0,     // first restart.
                                     0, 0, 0, 9,     // second restart.
                                     0, 0, 0, 2};    // 2 restart indexes.
-            var block = new Block((Slice)bytes);
+            var block = new BlockReader((Slice)bytes);
             var count = 0;
             foreach (var p in block.Find()) {
                 Assert.True(p.Key.Equals((Slice)new byte[] { 1, 2, 3 }));
@@ -273,7 +273,7 @@ namespace TheFactory.DatastoreTests {
                                     0xa3, 1, 2, 3,  // 3-byte key suffix.
                                     0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0};    // no restart indexes.
-            var block = new Block(new Slice(bytes, 13, 13));  // read the middle block.
+            var block = new BlockReader(new Slice(bytes, 13, 13));  // read the middle block.
             var count = 0;
             foreach (var p in block.Find()) {
                 Assert.True(p.Key.Equals((Slice)new byte[] { 1, 2, 3 }));
@@ -300,7 +300,7 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 9,     // second restart.
                                     0, 0, 0, 18,    // third restart.
                                     0, 0, 0, 3};    // 3 restart indexes.
-            var block = new Block((Slice)bytes);
+            var block = new BlockReader((Slice)bytes);
             var term = (Slice)(new byte[] {2, 3, 4});
             var count = 0;
             foreach (var p in block.Find(term)) {
@@ -329,7 +329,7 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 0,     // first restart.
                                     0, 0, 0, 18,    // second restart.
                                     0, 0, 0, 2};    // 2 restart indexes.
-            var block = new Block((Slice)bytes);
+            var block = new BlockReader((Slice)bytes);
             var term = (Slice)(new byte[] {1, 2, 4});
             var count = 0;
             foreach (var p in block.Find(term)) {
@@ -355,7 +355,7 @@ namespace TheFactory.DatastoreTests {
                                     0xa1, 6,        // 0-byte key suffix.
                                     0xa3, 4, 5, 6,  // 3-byte value.
                                     0, 0, 0, 0};    // no restart indexes.
-            var block = new Block((Slice)bytes);
+            var block = new BlockReader((Slice)bytes);
             var term = (Slice)(new byte[] {1, 2, 5});
 
             var count = 0;
@@ -384,7 +384,7 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 0,     // first restart.
                                     0, 0, 0, 18,    // second restart.
                                     0, 0, 0, 2};    // 2 restart indexes.
-            var block = new Block((Slice)bytes);
+            var block = new BlockReader((Slice)bytes);
             var term = (Slice)(new byte[] {0, 1, 2});
 
             var count = 0;
@@ -414,7 +414,7 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 0,     // first restart.
                                     0, 0, 0, 18,    // second restart.
                                     0, 0, 0, 2};    // 2 restart indexes.
-            var block = new Block((Slice)bytes);
+            var block = new BlockReader((Slice)bytes);
             var count = 0;
             foreach (var p in block.Find((Slice)(new byte[] {2, 3, 4}))) {
                 count += 1;
@@ -441,7 +441,7 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 0,     // first restart.
                                     0, 0, 0, 18,    // second restart.
                                     0, 0, 0, 2};    // 2 restart indexes.
-            var block = new Block((Slice)bytes);
+            var block = new BlockReader((Slice)bytes);
             var term = (Slice)(new byte[] {1, 2, 4});
 
             var count = 0;

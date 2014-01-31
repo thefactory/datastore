@@ -163,7 +163,7 @@ namespace TheFactory.Datastore {
                         continue;
                     }
 
-                    var block = new Block((Slice)blockData.Data);
+                    var block = new BlockReader((Slice)blockData.Data);
                     if (callback != null) {
                         callback(block.Find());
                     }
