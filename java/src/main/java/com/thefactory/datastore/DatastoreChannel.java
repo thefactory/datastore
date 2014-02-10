@@ -5,5 +5,7 @@ import java.nio.ByteBuffer;
 import java.io.IOException;
 
 public interface DatastoreChannel extends ByteChannel {
-    public long read(ByteBuffer dst, long position) throws IOException;
+    public int read(ByteBuffer dst, long position) throws IOException;
+
+    public long size() throws IOException;
 }

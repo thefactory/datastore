@@ -62,4 +62,12 @@ public class KV {
     public boolean isDeleted() {
         return isDeleted;
     }
+
+    public KV detach() {
+        if(isDeleted) {
+            return tombstone(key.detach());
+        } else {
+            return new KV(key.detach(), value.detach());
+        }
+    }
 }

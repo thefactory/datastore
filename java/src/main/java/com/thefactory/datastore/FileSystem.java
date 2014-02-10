@@ -2,6 +2,7 @@ package com.thefactory.datastore;
 
 import java.io.IOException;
 import java.io.Closeable;
+import java.util.Collection;
 
 public interface FileSystem {
     // Open a named resource for writing
@@ -22,7 +23,7 @@ public interface FileSystem {
     // Rename a resource
     void rename(String oldName, String newName);
 
-    // Create full path to a resource
+    // Create full directory path to a resource
     void mkdirs(String name);
 
     // Get the size in bytes for a resource
@@ -31,6 +32,10 @@ public interface FileSystem {
     // Lock a resource
     Closeable lock(String name) throws IOException;
 
-    // Return a list with all resources names
-    String[] list(String dir);
+    // Store a list of strings as a named resource
+    void storeList(Collection<String> items, String name) throws IOException;
+
+    // Load a list of strings from a named resource
+    Collection<String> loadList(String name) throws IOException;
+
 }

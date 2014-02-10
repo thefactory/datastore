@@ -4,11 +4,16 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Closeable;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.lang.Override;
+import java.util.Collection;
+import java.util.ArrayList;
 
 
 public class DiskFileSystem implements FileSystem {
@@ -68,8 +73,21 @@ public class DiskFileSystem implements FileSystem {
 
     @Override
     public Closeable lock(String name) throws IOException{
-        FileChannel fc = new FileInputStream(new File(name)).getChannel();
-        FileLock lock = fc.tryLock();
+        File lockFile = new File(name);
+        if(lockFile.isDirectory()) {
+            throw new IOException("can't create lock file " + name 
+                + " because there is already a directory existing with the same name");
+        }
+        if(!lockFile.exists() && !lockFile.createNewFile()) {
+            throw new IOException("failed to create lock file " + name); 
+        }
+        FileChannel fc = new FileOutputStream(lockFile).getChannel();
+        FileLock lock;
+        try {
+            lock = fc.tryLock();
+        } catch (Exception e) {
+            throw new IOException("Failed to obtain lock for " + name + " due to " + e);            
+        }
         if(lock == null){
             throw new IOException("Failed to obtain lock for " + name);
         }
@@ -77,15 +95,39 @@ public class DiskFileSystem implements FileSystem {
     }
 
     @Override
-    public String[] list(String dir) {
-        File d = new File(dir);
-        if(!d.isDirectory()) {
-            throw new IllegalArgumentException("Not a directory: " + dir);
+    public void storeList(Collection<String> items, String name) throws IOException {
+        FileWriter fw = new FileWriter(name);
+        try {
+            for(String item: items) {
+                fw.write(String.format("%s\n", item));
+            }
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Storing list failed: " + e);            
         }
-        return d.list();
+        finally {
+            fw.close();
+        }
     }
 
     @Override
+    public Collection<String> loadList(String name) throws IOException {
+        Collection<String> ret = new ArrayList<String>();
+        FileReader fr = new FileReader(name);
+        try {
+            BufferedReader reader = new BufferedReader(fr);
+            String line;
+            while((line = reader.readLine()) != null){
+                ret.add(line.trim());
+            }
+            return ret;
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Loading list failed: " + e);            
+        }
+        finally {
+            fr.close();
+        }
+    }
+
     public long size(String name) {
         File f = new File(name);
         if(!f.exists() || !f.isFile()){
@@ -108,7 +150,7 @@ public class DiskFileSystem implements FileSystem {
         }
 
         @Override
-        public long read(ByteBuffer dst, long position) throws IOException{
+        public int read(ByteBuffer dst, long position) throws IOException{
             return channel.read(dst, position);
         }
 
@@ -125,6 +167,11 @@ public class DiskFileSystem implements FileSystem {
         @Override
         public final boolean isOpen() {
             return channel.isOpen();
+        }
+
+        @Override
+        public long size() throws IOException {
+            return channel.size();
         }
     }
 

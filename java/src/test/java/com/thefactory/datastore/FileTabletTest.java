@@ -44,7 +44,7 @@ public class FileTabletTest extends TestCase {
         output.flush(); 
         output.close();   
 
-        FileTablet tablet = new FileTablet(new FileInputStream(tmpFile).getChannel(), new TabletReaderOptions());
+        FileTablet tablet = new FileTablet(getFileChannel(tmpFile.getPath()), new TabletReaderOptions());
         Slice term = new Slice(new byte[] {1, 2, 3});
         Iterator<KV> kvs = tablet.find(term);
         while(kvs.hasNext()){
@@ -222,12 +222,12 @@ public class FileTabletTest extends TestCase {
         return ret;
     } 
 
-    private FileChannel getFileChannel(String path) throws FileNotFoundException {
-        return new FileInputStream(getFile(path)).getChannel();
+    private DatastoreChannel getFileChannel(String path) throws FileNotFoundException {
+        return new DiskFileSystem().open(getFile(path).getPath());
     }
 
     private void dumpTablet(File tabletFile) throws Exception {
-        FileTablet tablet = new FileTablet(new FileInputStream(tabletFile).getChannel(), new TabletReaderOptions());
+        FileTablet tablet = new FileTablet(getFileChannel(tabletFile.getPath()), new TabletReaderOptions());
         System.out.println("Index:\n---------------------------------------------------");
         List<TabletReader.TabletIndexRecord> index = tablet.index();
         for(int i = 0; i < index.size(); i++){

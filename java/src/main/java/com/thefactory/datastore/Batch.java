@@ -17,9 +17,13 @@ public class Batch {
         out = new ChannelBufferOutputStream(buffer);
     }
 
-    public Batch(Slice fromSlice) {
-        buffer = ChannelBuffers.wrappedBuffer(fromSlice.toArray());
+    private Batch(Slice fromSlice) {
+        buffer = ChannelBuffers.wrappedBuffer(fromSlice.array, fromSlice.getOffset(), fromSlice.getLength());
         out = new ChannelBufferOutputStream(buffer);
+    }
+
+    public static Batch wrap(Slice slice) {
+        return new Batch(slice);
     }
 
     public void put(Slice key, Slice val) {
@@ -60,7 +64,7 @@ public class Batch {
 
     private void writeSlice(Slice slice) throws IOException {
         Msgpack.writeRawLength(out, slice.getLength());
-        out.write(slice.toArray(), slice.getOffset(), slice.getLength());
+        out.write(slice.array, slice.getOffset(), slice.getLength());
     }
 
     private int bytesLeft() {

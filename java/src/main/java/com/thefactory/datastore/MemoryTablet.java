@@ -8,6 +8,7 @@ import java.util.NoSuchElementException;
 
 public class MemoryTablet {    
     private final TreeMap<Slice, Slice> backing;
+    private long size = 0;
 
     public static Slice tombstone = new Slice(new byte[] {(byte)0x74, (byte)0x6f, (byte)0x6d, (byte)0x62});
 
@@ -21,9 +22,10 @@ public class MemoryTablet {
         );        
     }
 
-    public void set(Slice key, Slice val) {
+    public void set(Slice key, Slice value) {
         synchronized(backing) {
-            backing.put(key, val);
+            backing.put(key, value);
+            size += key.getLength() + value.getLength();
         }
     }
 
@@ -92,6 +94,10 @@ public class MemoryTablet {
                 set(kv.getKey().detach(), kv.getValue().detach());
             }
         }
+    }
+
+    public long size() {
+        return size;
     }
 
     private Iterator<KV> empty() {

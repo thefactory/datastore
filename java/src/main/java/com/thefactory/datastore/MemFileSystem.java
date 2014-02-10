@@ -8,12 +8,14 @@ import java.io.IOException;
 import java.io.Closeable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Collection;
 import java.lang.Override;
 
 public class MemFileSystem implements FileSystem {
 
     private final HashMap<String, Lock> locks = new HashMap<String, Lock>();
     private final HashMap<String, ChannelBuffer> buffers = new HashMap<String, ChannelBuffer>();
+    private final HashMap<String, Collection<String>> lists = new HashMap<String, Collection<String>>();
 
     @Override
     public DatastoreChannel create(String name) {
@@ -43,7 +45,7 @@ public class MemFileSystem implements FileSystem {
 
     @Override
     public boolean exists(String name) {
-        return buffers.containsKey(name);
+        return (buffers.containsKey(name) || locks.containsKey(name) || lists.containsKey(name));
     }
 
     @Override
@@ -77,8 +79,17 @@ public class MemFileSystem implements FileSystem {
     }
 
     @Override
-    public String[] list(String dir) {
-        return buffers.keySet().toArray(new String[0]);
+    public void storeList(Collection<String> items, String name){
+        lists.put(name, items);
+    }
+
+    @Override
+    public Collection<String> loadList(String name){
+        Collection<String> ret = lists.get(name);
+        if(ret == null) {
+            throw new IllegalArgumentException("List not found: " + name);
+        }
+        return ret;
     }
 
     @Override
@@ -121,7 +132,7 @@ public class MemFileSystem implements FileSystem {
         }
 
         @Override
-        public long read(ByteBuffer dst, long position) throws IOException{
+        public int read(ByteBuffer dst, long position) throws IOException{
             buffer.getBytes((int)position, dst);
             return dst.capacity();
         }
@@ -134,6 +145,11 @@ public class MemFileSystem implements FileSystem {
 
         @Override
         public void close() throws IOException {
+        }
+
+        @Override
+        public long size() throws IOException {
+            return buffer.writerIndex();
         }
 
         @Override

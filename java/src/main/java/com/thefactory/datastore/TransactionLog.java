@@ -1,5 +1,6 @@
 package com.thefactory.datastore;
 
+import java.io.Closeable;
 import java.nio.ByteBuffer;
 import java.util.zip.CRC32;
 import java.util.Iterator;
@@ -77,10 +78,14 @@ public class TransactionLog {
     }
 
     public Writer getWriter(String transactionLogfile) {
-        return new Writer(transactionLogfile);
+        return new Writer(transactionLogfile, false);
     }
 
-    public class Reader {
+    public Writer getWriter(String transactionLogfile, boolean append) {
+        return new Writer(transactionLogfile, append);
+    }
+
+    public class Reader implements Closeable {
         private final DatastoreChannel channel;
         private final CRC32 crc32 = new CRC32();
         private long position = 0;
@@ -109,6 +114,10 @@ public class TransactionLog {
                     throw new UnsupportedOperationException();
                 }
             };
+        }
+
+        public void close() throws IOException {
+            channel.close();
         }
 
         private void readFully(byte[] buffer) throws IOException {
@@ -173,7 +182,7 @@ public class TransactionLog {
         }
     }
 
-    public class Writer {
+    public class Writer implements Closeable {
         private final DatastoreChannel channel;
         private final CRC32 crc32 = new CRC32();
         private int position = 0;
@@ -181,6 +190,14 @@ public class TransactionLog {
 
         public Writer(String transactionLogfile){
             this.channel = fileSystem.create(transactionLogfile);
+        }
+
+        public Writer(String transactionLogfile, boolean append){
+            if(append) {
+                this.channel = fileSystem.append(transactionLogfile);
+            } else {
+                this.channel = fileSystem.create(transactionLogfile);                
+            }
         }
 
         public void writeTransaction(Slice data) throws IOException {
@@ -213,7 +230,11 @@ public class TransactionLog {
             writeRecord(data, type);
         }
 
-        public int remaining() {
+        public void close() throws IOException {
+            channel.close();
+        }
+
+        private int remaining() {
             return MAX_BLOCK_SIZE - (position % MAX_BLOCK_SIZE);
         }
 

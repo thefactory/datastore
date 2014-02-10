@@ -6,17 +6,16 @@ import java.util.NoSuchElementException;
 import java.util.List;
 import java.util.Iterator;
 import java.util.ArrayList;
-import java.nio.channels.FileChannel;
 import java.nio.ByteBuffer;
 
 public class FileTablet {
-    private final FileChannel in;
+    private final DatastoreChannel in;
     private final TabletReader reader = new TabletReader();
     private final TabletReaderOptions options;
     private List<TabletReader.TabletIndexRecord> dataIndex;
     private List<TabletReader.TabletIndexRecord> metaIndex;
 
-    public FileTablet(FileChannel in, TabletReaderOptions options) throws IOException {
+    public FileTablet(DatastoreChannel in, TabletReaderOptions options) throws IOException {
         this.in = in;
         this.options = options; 
         TabletReader.TabletFooter footer = loadFooter();

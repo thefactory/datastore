@@ -81,11 +81,7 @@ public class Slice implements Comparable<Slice> {
         if (this.offset == 0 && this.length == array.length) {
             return array;
         }
-
-        byte[] ret = new byte[this.length];
-
-        System.arraycopy(this.array, this.offset, ret, 0, this.length);
-        return ret;
+        return detach().array;
     }
 
     public InputStream toStream() {
@@ -193,8 +189,12 @@ public class Slice implements Comparable<Slice> {
         return w.toString();
     }  
 
-    public String toUTF8String() throws UnsupportedEncodingException {
-        return new String(toArray(), "UTF-8");
+    public String toUTF8String() {
+        try {
+            return new String(detach().array, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            return toString();
+        }
     }
 
     public static int compare(Slice x, Slice y) {
@@ -224,12 +224,17 @@ public class Slice implements Comparable<Slice> {
     }
 
     public Slice detach() {
-        return new Slice(toArray(), 0, this.length);
+        if (this.offset == 0 && this.length == this.array.length) {
+            return new Slice(this.array);
+        }        
+
+        byte[] ret = new byte[this.length];
+        System.arraycopy(this.array, this.offset, ret, 0, this.length);
+        return new Slice(ret);
     }
 
     @Override
     public int compareTo(Slice that) {
         return compare(this, that);
     }
-
 }
