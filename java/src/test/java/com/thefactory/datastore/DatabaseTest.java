@@ -439,6 +439,26 @@ public class DatabaseTest extends TestCase {
         }
     }
 
+    public void testDatabaseFindByPrefix() throws Exception {
+        FileSystem fs = new DiskFileSystem();
+        Database db = setupDatabase(fs, new String[]{});
+        for(int i = 0; i < 100; i++) {
+            Slice key = new Slice(String.format("key%04d", i).getBytes());
+            Slice value = new Slice(String.format("value%04d", i).getBytes());
+            db.put(key, value);
+        }
+
+        int count = 0;
+        Iterator<KV> it = db.find(new Slice("key".getBytes()));
+        while(it.hasNext()) {
+            KV kv = it.next();
+            assertEquals(Slice.compare(kv.getKey(), new Slice(String.format("key%04d", count).getBytes())), 0);
+            count++;
+        }
+        assertEquals(count, 100);
+    }
+
+
     private Slice nextRandomSlice(int maxSize) {
         if(maxSize >= MAX_SLICE_SIZE) {
             throw new IllegalArgumentException("slice size exceeds max size of " + MAX_SLICE_SIZE);
