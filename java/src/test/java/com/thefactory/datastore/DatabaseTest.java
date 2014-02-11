@@ -177,19 +177,11 @@ public class DatabaseTest extends TestCase {
         Slice key = new Slice("A special key that is not random".getBytes());
         Slice value = new Slice("A special value for our key".getBytes());
         db.put(key, value);
-        // Add more keys
-        for(int i = 0; i < 1000; i++){
+        // Add many keys (+4MBytes) to ensure that we trigger flushing our memory tablet to disk ...
+        for(int i = 0; i < 10000; i++){
             db.put(nextRandomSlice(1000), nextRandomSlice(1000));
         }
 
-        // Rotate memory tablet and ensure our key becomes part of
-        // a file tablet
-        db.flush();
-
-        // Add more keys
-        for(int i = 0; i < 1000; i++){
-            db.put(nextRandomSlice(1000), nextRandomSlice(1000));
-        }
         assertEquals(db.get(key), value);
     }
 

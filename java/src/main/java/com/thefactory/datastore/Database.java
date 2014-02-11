@@ -8,13 +8,16 @@ import java.util.Deque;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Map;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.NoSuchElementException;
 import java.util.Iterator;
 import java.util.TreeSet;
 import java.util.Comparator;
 import java.util.UUID;
 import java.lang.Override;
+import java.lang.Thread;
+import org.apache.commons.logging.Log; 
+import org.apache.commons.logging.LogFactory; 
 
 
 public class Database implements Closeable {
@@ -23,6 +26,7 @@ public class Database implements Closeable {
     private final FileManager fileManager;
     private Closeable lock = null;
     private TransactionLog.Writer transactionLogWriter = null;
+    private Log log = LogFactory.getLog(Database.class);
 
     public static class Options {
         public final boolean createIfMissing;
@@ -57,7 +61,7 @@ public class Database implements Closeable {
 
     private class Tablets {
         public final Deque<String> stack = new ArrayDeque<String>();
-        public final Map<String, FileTablet> file = new HashMap<String, FileTablet>();        
+        public final Map<String, FileTablet> file = new ConcurrentHashMap<String, FileTablet>();        
 
         public MemoryTablet mutable = new MemoryTablet();
         public MemoryTablet saving = null;
@@ -83,15 +87,6 @@ public class Database implements Closeable {
         tablets.file.put(name, new FileTablet(tabletChannel, new TabletReaderOptions()));
         tablets.stack.addLast(name);
         fileManager.writeTabletFilenames(tablets.stack);
-    }
-
-    public void flush() throws IOException {
-        tablets.saving = tablets.mutable;
-        tablets.mutable = new MemoryTablet();        
-        String name = UUID.randomUUID().toString();
-        save(name);
-        pushTablet(name); 
-        tablets.saving = null;
     }
 
     public Slice get(Slice key) throws KeyNotFoundException, IOException {
@@ -288,7 +283,23 @@ public class Database implements Closeable {
             if((tablets.saving != null) || (tablets.mutable.size() < options.maxMutableTabletSize)){
                 return;
             }
-            flush();
+
+            tablets.saving = tablets.mutable;
+            tablets.mutable = new MemoryTablet();        
+
+            new Thread() {
+                public void run() {
+                    try {
+                        String name = UUID.randomUUID().toString();
+                        save(name);
+                        pushTablet(name); 
+                        tablets.saving = null;
+                        log.debug(String.format("Successfully flushed tablet (%s)", name));
+                    } catch (IOException e) {
+                        log.error(String.format("Flushing tablet failed with %s", e));
+                    }
+                }
+            }.start();
         }
     }
 
