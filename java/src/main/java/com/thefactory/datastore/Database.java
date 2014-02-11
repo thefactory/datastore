@@ -60,6 +60,7 @@ public class Database implements Closeable {
         public final Map<String, FileTablet> file = new HashMap<String, FileTablet>();        
 
         public MemoryTablet mutable = new MemoryTablet();
+        public MemoryTablet saving = null;
     }
 
     private Database(final String path, final Options options) {
@@ -85,10 +86,12 @@ public class Database implements Closeable {
     }
 
     public void flush() throws IOException {
+        tablets.saving = tablets.mutable;
+        tablets.mutable = new MemoryTablet();        
         String name = UUID.randomUUID().toString();
         save(name);
-        tablets.mutable = new MemoryTablet();
         pushTablet(name); 
+        tablets.saving = null;
     }
 
     public Slice get(Slice key) throws KeyNotFoundException, IOException {
@@ -187,7 +190,11 @@ public class Database implements Closeable {
                     }                    
                 }
                 kvIterator = tablets.mutable.find(term);
-                enqueueNextItem(kvIterator, priority);
+                enqueueNextItem(kvIterator, priority++);
+                if(tablets.saving != null) {
+                    kvIterator = tablets.saving.find(term);
+                    enqueueNextItem(kvIterator, priority);                    
+                }
                 current = pop();
             }
 
@@ -278,7 +285,7 @@ public class Database implements Closeable {
         synchronized(this) {
             transactionLogWriter.writeTransaction(batch.asSlice());
             tablets.mutable.apply(batch);
-            if(tablets.mutable.size() < options.maxMutableTabletSize){
+            if((tablets.saving != null) || (tablets.mutable.size() < options.maxMutableTabletSize)){
                 return;
             }
             flush();
@@ -286,7 +293,10 @@ public class Database implements Closeable {
     }
 
     private void save(String name) throws IOException {
-        Iterator<KV> kvs = tablets.mutable.find();
+        if(tablets.saving == null) {
+            return;
+        }
+        Iterator<KV> kvs = tablets.saving.find();
         TabletWriter writer = new TabletWriter(new TabletWriterOptions());
         DatastoreChannel channel = options.fileSystem.create(fileManager.dbFilename(name));
         writer.writeTablet(channel, kvs);
