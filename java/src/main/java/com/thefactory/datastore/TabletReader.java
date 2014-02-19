@@ -16,10 +16,10 @@ public class TabletReader {
         return new TabletHeader(in);
     }
 
-    public List<TabletIndexRecord> readIndex(Slice in, long length, int magic) throws IOException {
+    public List<TabletIndexRecord> readIndex(Slice in, long length, long magic) throws IOException {
         long offset = in.getOffset();
 
-        int m = (int) in.readInt();
+        long m = in.readInt();
         if (m != magic) {
             throw new IOException(String.format("bad index magic {%02X}, expected {%02X}", m, magic));
         }
@@ -100,7 +100,7 @@ public class TabletReader {
             this.metaIndexLength = Msgpack.readUint(in);
             this.dataIndexOffset = Msgpack.readUint(in);
             this.dataIndexLength = Msgpack.readUint(in);
-            int magic = Utils.toUInt32(in.subslice(-4)); 
+            long magic = Utils.toUInt32(in.subslice(-4)); 
             if (magic != TabletConstants.TABLET_MAGIC) {
                 throw new IOException(String.format("bad tablet magic {0:%02X}", magic));
             }

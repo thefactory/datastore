@@ -17,7 +17,7 @@ public class BlockReader {
 
     public BlockReader(final Slice block) {
         this.block = block;
-        this.numRestarts = Utils.toUInt32(block.subslice(-4));
+        this.numRestarts = (int) Utils.toUInt32(block.subslice(-4));
 
         int end = block.getLength() - 4 * this.numRestarts - 4;
         this.kvs = block.subslice(0, end);
@@ -226,7 +226,7 @@ public class BlockReader {
 
     private int restartValue(int n) {
         // decode the n'th restart to its position in the kv data
-        return Utils.toUInt32(block.subslice(restartPosition(n)));
+        return (int) Utils.toUInt32(block.subslice(restartPosition(n)));
     }
 
     private int restartPosition(int n) {

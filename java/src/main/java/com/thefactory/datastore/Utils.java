@@ -2,8 +2,8 @@ package com.thefactory.datastore;
 
 public class Utils {
 
-    public static int toUInt32(Slice slice) {
-        return slice.getAt(0) << 24 | slice.getAt(1) << 16 | slice.getAt(2) << 8 | slice.getAt(3);
+    public static long toUInt32(Slice slice) {
+        return (long)(slice.getAt(0) << 24 | slice.getAt(1) << 16 | slice.getAt(2) << 8 | slice.getAt(3)) & 0xffffffff;
     }
 
     public static int commonPrefix(byte[] bin1, byte[] bin2) {

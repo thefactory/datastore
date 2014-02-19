@@ -102,7 +102,7 @@ public class FileTablet {
         return reader.readFooter(new Slice(bytes));
     }
 
-    private List<TabletReader.TabletIndexRecord> loadIndex(long offset, long length, int magic) throws IOException {
+    private List<TabletReader.TabletIndexRecord> loadIndex(long offset, long length, long magic) throws IOException {
         byte[] bytes = readFully(offset, (int)length);
         return reader.readIndex(new Slice(bytes), length, magic);
     }
