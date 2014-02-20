@@ -18,17 +18,16 @@ namespace TheFactory.Datastore {
         public TabletReader() {
         }
 
-        internal TabletHeader ReadHeader(Stream stream) {
+        internal TabletHeader ParseHeader(Slice slice) {
             //
             // [ tablet magic ] - 4 bytes.
             // [ version      ] - 1 byte.
             // [ unused       ] - 3 bytes.
             //
-            var buf = stream.ReadBytes(8);
 
-            var header = new TabletHeader(buf);
+            var header = new TabletHeader(slice);
             if (header.Magic != Constants.TabletMagic) {
-                throw new TabletValidationException("bad magic");
+                throw new TabletValidationException(String.Format("bad magic: was {0:X8} expected {0:X8}", header.Magic, Constants.TabletMagic));
             }
 
             if (header.Version < 1) {
@@ -38,31 +37,14 @@ namespace TheFactory.Datastore {
             return header;
         }
 
-        internal TabletBlockInfo ReadBlockInfo(Stream stream) {
-            //
-            // In a tablet, a block is preceeded by:
-            //   [ checksum (msgpack uint32)          ]
-            //   [ type/compression (msgpack fixpos)  ]
-            //   [ length (msgpack uint32)            ]
-            //
-            var pos = stream.Position;
+        internal int ReadBlockHeaderLength(Stream stream) {
+            // Read a block header long enough to get its length; the caller
+            // will maintain the stream position. This is a little hackish
+            // but is necessary for our current stream API.
 
-            var checksum = Unpacking.UnpackObject(stream).AsUInt32();
-            var type = Unpacking.UnpackObject(stream).AsInt32();
-            var length = Unpacking.UnpackObject(stream).AsInt32();
-
-            // This is probably awful. Read it again to get raw.
-            var infoLen = stream.Position - pos;
-            stream.Seek(-infoLen, SeekOrigin.Current);
-            var raw = stream.ReadBytes((int)infoLen);
-
-            return new TabletBlockInfo(checksum, (byte)type, length, raw);
-        }
-
-        internal TabletBlockData ReadBlock(Stream stream) {
-            var info = ReadBlockInfo(stream);
-            var raw = stream.ReadBytes(info.Length);
-            return new TabletBlockData(info, raw);
+            Unpacking.UnpackObject(stream).AsUInt32();       // checksum
+            Unpacking.UnpackObject(stream).AsInt32();        // flags
+            return Unpacking.UnpackObject(stream).AsInt32(); // length
         }
 
         private TabletIndexRecord ReadIndexRecord(Stream stream) {
@@ -80,7 +62,7 @@ namespace TheFactory.Datastore {
             return i;
         }
 
-        internal List<TabletIndexRecord> ReadIndex(Stream stream, long length, UInt32 magic) {
+        internal List<TabletIndexRecord> ParseIndex(Slice slice, UInt32 magic) {
             //
             // Tablet index:
             //   [ magic (4 bytes) ]
@@ -88,16 +70,17 @@ namespace TheFactory.Datastore {
             //   ...
             //   [ index record N  ]
             //
-            long offset = stream.Position;
-            var m = stream.ReadInt();
+            var m = Utils.ToUInt32(slice);
             if (m != magic) {
                 var msg = String.Format("Bad index magic {0:X}, expected {1:X}", m, magic);
                 throw new TabletValidationException(msg);
             }
 
-            var ret = new List<TabletIndexRecord>();
+            var recSlice = slice.Subslice(4);
+            var stream = recSlice.ToStream();
 
-            while (stream.Position < offset + length) {
+            var ret = new List<TabletIndexRecord>();
+            while (stream.Position < recSlice.Length) {
                 ret.Add(ReadIndexRecord(stream));
             }
 
@@ -115,7 +98,7 @@ namespace TheFactory.Datastore {
             //   [ magic ] - 4 bytes
             //
 
-            if (buf.Length != 40) {
+            if (buf.Length != Constants.TabletFooterLength) {
                 var msg = String.Format("Internal error: tablet footer length != 40 (was {0})", buf.Length);
                 throw new TabletValidationException(msg);
             }

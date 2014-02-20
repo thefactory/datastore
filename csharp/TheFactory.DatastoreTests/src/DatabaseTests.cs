@@ -346,14 +346,14 @@ namespace TheFactory.DatastoreTests {
 
         [Test]
         public void TestDatabasePushTabletStream() {
-            var filename = "test-data/ngrams1/ngrams1-Nblock-compressed.tab";
+            var filename = Helpers.TestFile("ngrams1/ngrams1-Nblock-compressed.tab");
             using (var fs = new FileStream(filename, FileMode.Open, FileAccess.Read)) {
                 db.PushTabletStream(fs, "streamed-tablet", null);
             }
 
             // Check that db contains all keys from the streamed tablet.
             var enc = new UTF8Encoding();
-            using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
+            using (var data = new StreamReader(Helpers.TestFile("ngrams1/ngrams1.txt"))) {
                 foreach (var p in db.Find()) {
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);

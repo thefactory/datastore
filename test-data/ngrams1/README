@@ -23,3 +23,7 @@ ngrams1-1block-compressed.tab: one key-value block, Snappy compressed
 ngrams1-Nblock-compressed.tab: several key-value blocks, Snappy compressed
 
 They all contain the same data as ngrams1.txt in the same order.
+
+To rebuild these tablets:
+
+    $ go run main.go

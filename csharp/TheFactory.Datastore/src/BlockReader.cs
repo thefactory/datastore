@@ -14,10 +14,10 @@ namespace TheFactory.Datastore {
 
         public BlockReader(Slice block) {
             this.block = block;
-            this.numRestarts = Utils.ToUInt32(block.Subslice(-4));
+            this.numRestarts = (int)Utils.ToUInt32(block.Subslice(-4));
 
             // create a subslice that contains only the data in the block
-            int end = block.Length - 4 * this.numRestarts - 4;
+            int end = (int)(block.Length - 4 * this.numRestarts - 4);
             this.kvs = block.Subslice(0, end);
         }
 
@@ -105,7 +105,7 @@ namespace TheFactory.Datastore {
 
         int RestartValue(int n) {
             // decode the n'th restart to its position in the kv data
-            return Utils.ToUInt32(block.Subslice(RestartPosition(n)));
+            return (int)Utils.ToUInt32(block.Subslice(RestartPosition(n)));
         }
 
         int RestartPosition(int n) {

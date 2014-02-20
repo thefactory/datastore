@@ -93,16 +93,10 @@
   <ItemGroup>
     <Folder Include="Resources\" />
     <Folder Include="src\" />
-    <Folder Include="test-data\" />
+    <Folder Include="Resources\test-data\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Info.plist" />
-    <None Include="..\..\test-data\ngrams1\README">
-      <Link>test-data\ngrams1\README</Link>
-    </None>
-    <None Include="..\..\test-data\ngrams2\README">
-      <Link>test-data\ngrams2\README</Link>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\Main.cs" />
@@ -134,26 +128,38 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="..\..\test-data\ngrams1\ngrams1-1block-compressed.tab">
-      <Link>test-data\ngrams1\ngrams1-1block-compressed.tab</Link>
-    </Content>
-    <Content Include="..\..\test-data\ngrams1\ngrams1-1block-uncompressed.tab">
-      <Link>test-data\ngrams1\ngrams1-1block-uncompressed.tab</Link>
-    </Content>
-    <Content Include="..\..\test-data\ngrams1\ngrams1-Nblock-compressed.tab">
-      <Link>test-data\ngrams1\ngrams1-Nblock-compressed.tab</Link>
-    </Content>
-    <Content Include="..\..\test-data\ngrams1\ngrams1.txt">
-      <Link>test-data\ngrams1\ngrams1.txt</Link>
-    </Content>
-    <Content Include="..\..\test-data\ngrams2\ngrams.tab.0">
-      <Link>test-data\ngrams2\ngrams.tab.0</Link>
-    </Content>
-    <Content Include="..\..\test-data\ngrams2\ngrams.tab.1">
-      <Link>test-data\ngrams2\ngrams.tab.1</Link>
-    </Content>
-    <Content Include="..\..\test-data\ngrams2\ngrams2.txt">
-      <Link>test-data\ngrams2\ngrams2.txt</Link>
-    </Content>
+    <BundleResource Include="..\..\test-data\half.tab">
+      <Link>Resources\test-data\half.tab</Link>
+    </BundleResource>
+    <BundleResource Include="..\..\test-data\ngrams1\README">
+      <Link>Resources\test-data\ngrams1\README</Link>
+    </BundleResource>
+    <BundleResource Include="..\..\test-data\ngrams1\main.go">
+      <Link>Resources\test-data\ngrams1\main.go</Link>
+    </BundleResource>
+    <BundleResource Include="..\..\test-data\ngrams1\ngrams1-1block-compressed.tab">
+      <Link>Resources\test-data\ngrams1\ngrams1-1block-compressed.tab</Link>
+    </BundleResource>
+    <BundleResource Include="..\..\test-data\ngrams1\ngrams1-1block-uncompressed.tab">
+      <Link>Resources\test-data\ngrams1\ngrams1-1block-uncompressed.tab</Link>
+    </BundleResource>
+    <BundleResource Include="..\..\test-data\ngrams1\ngrams1-Nblock-compressed.tab">
+      <Link>Resources\test-data\ngrams1\ngrams1-Nblock-compressed.tab</Link>
+    </BundleResource>
+    <BundleResource Include="..\..\test-data\ngrams1\ngrams1.txt">
+      <Link>Resources\test-data\ngrams1\ngrams1.txt</Link>
+    </BundleResource>
+    <BundleResource Include="..\..\test-data\ngrams2\README">
+      <Link>Resources\test-data\ngrams2\README</Link>
+    </BundleResource>
+    <BundleResource Include="..\..\test-data\ngrams2\ngrams.tab.0">
+      <Link>Resources\test-data\ngrams2\ngrams.tab.0</Link>
+    </BundleResource>
+    <BundleResource Include="..\..\test-data\ngrams2\ngrams.tab.1">
+      <Link>Resources\test-data\ngrams2\ngrams.tab.1</Link>
+    </BundleResource>
+    <BundleResource Include="..\..\test-data\ngrams2\ngrams2.txt">
+      <Link>Resources\test-data\ngrams2\ngrams2.txt</Link>
+    </BundleResource>
   </ItemGroup>
 </Project>

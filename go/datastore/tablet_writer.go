@@ -2,11 +2,12 @@ package datastore
 
 import (
 	"bytes"
-	"code.google.com/p/snappy-go/snappy"
 	"encoding/binary"
 	"hash/crc32"
 	"io"
 	"log"
+
+	"code.google.com/p/snappy-go/snappy"
 )
 
 const (
@@ -109,18 +110,14 @@ func writeBlock(w io.Writer, pos uint64, bw *BlockWriter, opts *TabletOptions) *
 }
 
 func compress(opts *TabletOptions, input []byte) ([]byte, BlockCompressionType, error) {
-	var buf bytes.Buffer
-
 	switch opts.BlockCompression {
 	case Snappy:
 		comp, err := snappy.Encode(nil, input)
 		if len(comp) > len(input) {
 			// no gains, write an uncompressed block
-			buf.Write(input)
-			return buf.Bytes(), None, err
+			return input, None, err
 		} else {
-			buf.Write(comp)
-			return buf.Bytes(), Snappy, err
+			return comp, Snappy, err
 		}
 	default:
 		return input, None, nil

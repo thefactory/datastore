@@ -5,8 +5,15 @@ using System.Text;
 using NUnit.Framework;
 using Snappy.Sharp;
 using TheFactory.Datastore;
+using MonoTouch.Foundation;
 
 namespace TheFactory.DatastoreTests {
+    public class Helpers {
+        public static string TestFile(string relativePath) {
+            return Path.Combine(Path.Combine(NSBundle.MainBundle.BundlePath, "test-data"), relativePath);
+        }
+    }
+
     [TestFixture]
     public class MemoryTabletTests {
         private MemoryTablet tablet;
@@ -217,11 +224,12 @@ namespace TheFactory.DatastoreTests {
                 0xa3, 4, 5, 6,              // 3-byte value.
                 0, 0, 0, 0                  // no restart indexes.
             };
-            var stream = new MemoryStream(bytes);
-            var tablet = new FileTablet(stream, new TabletReaderOptions());
-            var block = tablet.LoadBlock(0);
+
+            var block = new TabletBlock((Slice)bytes);
+            var reader = new BlockReader(block.KvData);
+
             var count = 0;
-            foreach (var p in block.Find()) {
+            foreach (var p in reader.Find()) {
                 Assert.True(p.Key.Equals((Slice)(new byte[] {1, 2, 3})));
                 Assert.True(p.Value.Equals((Slice)(new byte[] {4, 5, 6})));
                 count += 1;
@@ -231,18 +239,24 @@ namespace TheFactory.DatastoreTests {
 
         [Test]
         public void TestTabletLoadBlockOneSnappy() {
-            var blockBytes = new byte[] {
-                0,                          // 0-byte key prefix.
-                0xa3, 1, 2, 3,              // 3-byte key suffix.
-                0xa3, 4, 5, 6,              // 3-byte value.
-                0, 0, 0, 0                  // no restart indexes.
+            var bytes = new byte[] {
+                0,                          // H: checksum.
+                1,                          // H: type (compressed).
+                15,                         // H: length.
+
+                // Snappy compressed: one kv pair, {1, 2, 3} => {4, 5, 6}
+                // 0,                          // 0-byte key prefix.
+                // 0xa3, 1, 2, 3,              // 3-byte key suffix.
+                // 0xa3, 4, 5, 6,              // 3-byte value.
+                // 0, 0, 0, 0                  // no restart indexes.
+                0x0d, 0x30, 0x0, 0xa3, 0x1, 0x2, 0x3, 0xa3, 0x4, 0x5, 0x6, 0x0, 0x0, 0x0, 0x0
             };
-            var bytes = SnappyCompressedBlock(blockBytes);
-            var stream = new MemoryStream(bytes);
-            var tablet = new FileTablet(stream, new TabletReaderOptions());
-            var block = tablet.LoadBlock(0);
+
+            var block = new TabletBlock((Slice)bytes);
+            var reader = new BlockReader(block.KvData);
+
             var count = 0;
-            foreach (var p in block.Find()) {
+            foreach (var p in reader.Find()) {
                 Assert.True(p.Key.Equals((Slice)(new byte[] {1, 2, 3})));
                 Assert.True(p.Value.Equals((Slice)(new byte[] {4, 5, 6})));
                 count += 1;
@@ -259,9 +273,10 @@ namespace TheFactory.DatastoreTests {
                 0xcf, 0, 0, 0, 0, 0, 0, 0, 0,  // DataIndexLength msgpack uint64.
                 0x0b, 0x50, 0x1e, 0x7e         // Tablet magic (0x0b501e7e).
             };
-            var stream = new MemoryStream(bytes);
-            var tablet = new FileTablet(stream, new TabletReaderOptions());
-            var footer = tablet.LoadFooter();
+
+            var reader = new TabletReader();
+            var footer = reader.ParseFooter((Slice)bytes);
+
             Assert.True(footer.MetaIndexOffset == 0);
             Assert.True(footer.MetaIndexLength == 0);
             Assert.True(footer.DataIndexOffset == 0);
@@ -279,9 +294,10 @@ namespace TheFactory.DatastoreTests {
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // padding
                 0x0b, 0x50, 0x1e, 0x7e  // Tablet magic (0x0b501e7e).
             };
-            var stream = new MemoryStream(bytes);
-            var tablet = new FileTablet(stream, new TabletReaderOptions());
-            var footer = tablet.LoadFooter();
+
+            var reader = new TabletReader();
+            var footer = reader.ParseFooter((Slice)bytes);
+
             Assert.True(footer.MetaIndexOffset == 0);
             Assert.True(footer.MetaIndexLength == 0);
             Assert.True(footer.DataIndexOffset == 0);
@@ -298,10 +314,11 @@ namespace TheFactory.DatastoreTests {
                 0xcf, 0, 0, 0, 0, 0, 0, 0, 0,  // DataIndexLength msgpack uint64.
                 0, 0, 0, 0                     // Bad tablet magic.
             };
-            var stream = new MemoryStream(bytes);
-            var tablet = new FileTablet(stream, new TabletReaderOptions());
-            tablet.LoadFooter();
-            Assert.True(false);  // LoadFooter() should throw.
+
+            var reader = new TabletReader();
+            reader.ParseFooter((Slice)bytes);
+
+            Assert.True(false);  // ParseFooter() should throw.
         }
 
         [Test]
@@ -311,9 +328,10 @@ namespace TheFactory.DatastoreTests {
                 0, 10, 0xa1, 1,   // offset: 0, length: 10, data: 1.
                 10, 10, 0xa1, 2,  // offset: 10, length: 10, data: 2.
             };
-            var stream = new MemoryStream(bytes);
-            var tablet = new FileTablet(stream, new TabletReaderOptions());
-            var index = tablet.LoadIndex(0, 10, 0);
+
+            var reader = new TabletReader();
+            var index = reader.ParseIndex((Slice)bytes, 0);
+
             Assert.True(index.Count == 2);
             Assert.True(index[0].Offset == bytes[4]);
             Assert.True(index[0].Length == bytes[5]);
@@ -331,10 +349,10 @@ namespace TheFactory.DatastoreTests {
                 0, 10, 0xa1, 1,   // offset: 0, length: 10, data: 1.
                 10, 10, 0xa1, 2,  // offset: 10, length: 10, data: 2.
             };
-            var stream = new MemoryStream(bytes);
-            var tablet = new FileTablet(stream, new TabletReaderOptions());
-            tablet.LoadIndex(0, 10, 1);  // send magic 1.
-            Assert.True(false);  // LoadIndex should throw.
+
+            var reader = new TabletReader();
+            reader.ParseIndex((Slice)bytes, 1); // look for (wrong) magic==1
+            Assert.True(false);  // ParseIndex should throw.
         }
 
         [Test]
@@ -372,9 +390,9 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTabletFileUncompressed1BlockAll() {
             var enc = new UTF8Encoding();
-            using (var stream = new FileStream("test-data/ngrams1/ngrams1-1block-uncompressed.tab", FileMode.Open, FileAccess.Read)) {
+            using (var stream = new FileStream(Helpers.TestFile("ngrams1/ngrams1-1block-uncompressed.tab"), FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream, new TabletReaderOptions());
-                using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
+                using (var data = new StreamReader(Helpers.TestFile("ngrams1/ngrams1.txt"))) {
                     foreach (var p in tablet.Find()) {
                         var kv = data.ReadLine().Split(new char[] {' '});
                         var k = enc.GetBytes(kv[0]);
@@ -390,9 +408,9 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTabletFileUncompressed1BlockFrom1() {
             var enc = new UTF8Encoding();
-            using (var stream = new FileStream("test-data/ngrams1/ngrams1-1block-uncompressed.tab", FileMode.Open, FileAccess.Read)) {
+            using (var stream = new FileStream(Helpers.TestFile("ngrams1/ngrams1-1block-uncompressed.tab"), FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream, new TabletReaderOptions());
-                using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
+                using (var data = new StreamReader(Helpers.TestFile("ngrams1/ngrams1.txt"))) {
                     // Read the first line to find a term.
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var term = (Slice)enc.GetBytes(kv[0]);
@@ -415,9 +433,9 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTabletFileUncompressed1BlockFromN() {
             var enc = new UTF8Encoding();
-            using (var stream = new FileStream("test-data/ngrams1/ngrams1-1block-uncompressed.tab", FileMode.Open, FileAccess.Read)) {
+            using (var stream = new FileStream(Helpers.TestFile("ngrams1/ngrams1-1block-uncompressed.tab"), FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream, new TabletReaderOptions());
-                using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
+                using (var data = new StreamReader(Helpers.TestFile("ngrams1/ngrams1.txt"))) {
                     var count = 0;
                     string[] kv;
                     do {
@@ -444,9 +462,9 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTabletFileCompressed1BlockAll() {
             var enc = new UTF8Encoding();
-            using (var stream = new FileStream("test-data/ngrams1/ngrams1-1block-compressed.tab", FileMode.Open, FileAccess.Read)) {
+            using (var stream = new FileStream(Helpers.TestFile("ngrams1/ngrams1-1block-compressed.tab"), FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream, new TabletReaderOptions());
-                using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
+                using (var data = new StreamReader(Helpers.TestFile("ngrams1/ngrams1.txt"))) {
                     foreach (var p in tablet.Find()) {
                         var kv = data.ReadLine().Split(new char[] {' '});
                         var k = enc.GetBytes(kv[0]);
@@ -462,9 +480,9 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTabletFileCompressedNBlockAll() {
             var enc = new UTF8Encoding();
-            using (var stream = new FileStream("test-data/ngrams1/ngrams1-Nblock-compressed.tab", FileMode.Open, FileAccess.Read)) {
+            using (var stream = new FileStream(Helpers.TestFile("ngrams1/ngrams1-Nblock-compressed.tab"), FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream, new TabletReaderOptions());
-                using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
+                using (var data = new StreamReader(Helpers.TestFile("ngrams1/ngrams1.txt"))) {
                     foreach (var p in tablet.Find()) {
                         var kv = data.ReadLine().Split(new char[] {' '});
                         var k = enc.GetBytes(kv[0]);
@@ -480,9 +498,9 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTabletFileCompressedNBlockFrom1() {
             var enc = new UTF8Encoding();
-            using (var stream = new FileStream("test-data/ngrams1/ngrams1-Nblock-compressed.tab", FileMode.Open, FileAccess.Read)) {
+            using (var stream = new FileStream(Helpers.TestFile("ngrams1/ngrams1-Nblock-compressed.tab"), FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream, new TabletReaderOptions());
-                using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
+                using (var data = new StreamReader(Helpers.TestFile("ngrams1/ngrams1.txt"))) {
                     // Read the first line to find a term.
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var term = (Slice)enc.GetBytes(kv[0]);
@@ -505,9 +523,9 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestTabletFileCompressedNBlockFromN() {
             var enc = new UTF8Encoding();
-            using (var stream = new FileStream("test-data/ngrams1/ngrams1-Nblock-compressed.tab", FileMode.Open, FileAccess.Read)) {
+            using (var stream = new FileStream(Helpers.TestFile("ngrams1/ngrams1-Nblock-compressed.tab"), FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream, new TabletReaderOptions());
-                using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
+                using (var data = new StreamReader(Helpers.TestFile("ngrams1/ngrams1.txt"))) {
                     var count = 0;
                     string[] kv;
                     do {
@@ -550,7 +568,7 @@ namespace TheFactory.DatastoreTests {
         public void TestTabletWriterUncompressed() {
             var writeStream = new MemoryStream();
             var binaryWriter = new BinaryWriter(writeStream);
-            var filename = "test-data/ngrams1/ngrams1-1block-uncompressed.tab";
+            var filename = Helpers.TestFile("ngrams1/ngrams1-1block-uncompressed.tab");
             using (var stream = new FileStream(filename, FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream, new TabletReaderOptions());
                 var opts = new TabletWriterOptions() {
@@ -575,7 +593,7 @@ namespace TheFactory.DatastoreTests {
         public void TestTabletWriterCompressed() {
             var writeStream = new MemoryStream();
             var binaryWriter = new BinaryWriter(writeStream);
-            var filename = "test-data/ngrams1/ngrams1-1block-uncompressed.tab";
+            var filename = Helpers.TestFile("ngrams1/ngrams1-1block-uncompressed.tab");
             using (var stream = new FileStream(filename, FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream, new TabletReaderOptions());
                 var opts = new TabletWriterOptions() {

@@ -3,9 +3,9 @@ using System.IO;
 
 namespace TheFactory.Datastore {
     public class Utils {
-        public static int ToUInt32(Slice slice) {
+        public static UInt32 ToUInt32(Slice slice) {
             // unpack the first 4 bytes of slice as a big-endian int
-            return slice[0] << 24 | slice[1] << 16 | slice[2] << 8 | slice[3];
+            return (UInt32)(slice[0] << 24 | slice[1] << 16 | slice[2] << 8 | slice[3]);
         }
 
         public static int WriteUInt32(Stream stream, UInt32 num) {

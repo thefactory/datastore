@@ -24,8 +24,21 @@ namespace TheFactory.Datastore {
         private Options opts;
         private IFileSystem fs;
 
-        private ObservableCollection<ITablet> tablets;
-        private List<ITablet> mutableTablets;
+        // Database provides a unified key-value view across three things:
+        //   a mutable in-memory tablet (writes go here)
+        //   an immutable in-memory tablet (temporary; while being written to disk)
+        //   a collection of immutable file tablets
+        //
+        // The immutable file tablets are treated like the 0th level of leveldb:
+        //   they can contain overlapping keys
+        //   in case of duplicate keys, the most recently written tablet wins
+        //
+        // Changes to any of these references are protected with tabLock.
+        private MemoryTablet mem = new MemoryTablet();
+        private MemoryTablet mem2 = null;
+        private List<ITablet> tablets = new List<ITablet>();
+        private object tabLock = new object();
+
         private FileManager fileManager;
         private TransactionLogWriter writeLog;
 
@@ -36,10 +49,6 @@ namespace TheFactory.Datastore {
             this.fileManager = new FileManager(path);
             this.opts = opts;
             this.fs = opts.FileSystem;
-
-            tablets = new ObservableCollection<ITablet>();
-            mutableTablets = new List<ITablet>();
-            mutableTablets.Add(new MemoryTablet());
         }
 
         public static IDatabase Open(string path) {
@@ -72,29 +81,16 @@ namespace TheFactory.Datastore {
             var tabletStack = fileManager.GetTabletStack();
             if (fs.Exists(tabletStack)) {
                 var reader = new StreamReader(fs.Open(tabletStack));
-                while (reader.Peek() >= 0) {
+                while (!reader.EndOfStream) {
                     PushTablet(reader.ReadLine());
                 }
             }
-
-            tablets.CollectionChanged += (sender, args) => {
-                using (var stream = fs.Create(fileManager.GetTabletStack())) {
-                    var writer = new StreamWriter(stream);
-                    foreach (var t in tablets) {
-                        if (t.Filename != null) {
-                            writer.WriteLine(t.Filename.Trim());
-                        }
-                    }
-                }
-            };
         }
 
-        private void ReplayTransactions(string path) {
-            var tablet = (MemoryTablet)mutableTablets[mutableTablets.Count - 1];
-
+        void ReplayTransactions(string path) {
             using (var log = new TransactionLogReader(fs.Open(path))) {
                 foreach (var transaction in log.Transactions()) {
-                    tablet.Apply(new Batch(transaction));
+                    mem.Apply(new Batch(transaction));
                 }
             }
         }
@@ -129,7 +125,8 @@ namespace TheFactory.Datastore {
         internal void PushTabletStream(Stream stream, string filename, Action<IEnumerable<IKeyValuePair>> callback) {
             var reader = new TabletReader();
 
-            var header = reader.ReadHeader(stream);
+            var headerData = (Slice)stream.ReadBytes(Constants.TabletHeaderLength);
+            var header = reader.ParseHeader(headerData);
             if (header.Magic != Constants.TabletMagic) {
                 // Not a tablet.
                 throw new TabletValidationException("bad magic");
@@ -143,29 +140,36 @@ namespace TheFactory.Datastore {
             var fs = new FileStream(filepath, FileMode.Create, FileAccess.Write);
 
             using (var writer = new BinaryWriter(fs)) {
-                // Write the header.
-                writer.Write(header.Raw, 0, header.Raw.Length);
+                writer.Write(headerData.Array, headerData.Offset, headerData.Length);
 
                 while (!EndOfBlocks(stream) && stream.Position < stream.Length) {
-                    var blockData = reader.ReadBlock(stream);
+                    var headerOffset = stream.Position;
+                    var dataLength = reader.ReadBlockHeaderLength(stream);
+                    var headerLength = stream.Position - headerOffset;
+
+                    // Reset the stream position and read the whole block in one shot.
+                    stream.Position = headerOffset;
+
+                    var blockData = (Slice)stream.ReadBytes((int)(headerLength + dataLength));
 
                     // Write the block as-is.
-                    writer.Write(blockData.Info.Raw, 0, blockData.Info.Raw.Length);
-                    writer.Write(blockData.Raw, 0, blockData.Raw.Length);
+                    writer.Write(blockData.Array, blockData.Offset, blockData.Length);
 
-                    if (blockData.Info.Checksum != 0 && blockData.Info.Checksum != blockData.Checksum) {
-                        // Bad block checksum.
+                    var block = new TabletBlock(blockData);
+
+                    if (!block.IsChecksumValid) {
+                        // Skip blocks with bad checksums.
                         continue;
                     }
 
-                    if (blockData.Info.Type != BlockType.Data) {
+                    if (block.Type != BlockType.Data) {
                         // Skip non-Data blocks.
                         continue;
                     }
 
-                    var block = new BlockReader((Slice)blockData.Data);
+                    var blockReader = new BlockReader(block.KvData);
                     if (callback != null) {
-                        callback(block.Find());
+                        callback(blockReader.Find());
                     }
                 }
 
@@ -182,12 +186,43 @@ namespace TheFactory.Datastore {
         }
 
         public void PushTablet(string filename) {
-            tablets.Add(new FileTablet(filename, new TabletReaderOptions()));
+            lock (tabLock) {
+                tablets.Add(new FileTablet(filename, new TabletReaderOptions()));
+                WriteLevel0List();
+            }
+        }
+
+        void WriteLevel0List() {
+            using (var stream = fs.Create(fileManager.GetTabletStack())) {
+                var writer = new StreamWriter(stream);
+                foreach (var t in tablets) {
+                    if (t.Filename != null) {
+                        writer.WriteLine(t.Filename.Trim());
+                    }
+                }
+            }
+        }
+
+        ITablet[] CurrentTablets() {
+            // Return all a snapshot of current tablets in order of search priority.
+            var all = new List<ITablet>(tablets.Count + 2);
+
+            lock(tabLock) {
+                all.Add(mem);
+                if (mem2 != null) {
+                    all.Add(mem2);
+                }
+
+                for (var i = tablets.Count - 1; i >= 0; i--) {
+                    all.Add(tablets[i]);
+                }
+            }
+
+            return all.ToArray();
         }
 
         public IEnumerable<IKeyValuePair> Find(Slice term) {
-            var searches = tablets.Concat(mutableTablets).Reverse().ToList();
-
+            var searches = CurrentTablets();
             var iter = new ParallelEnumerator(searches.Count(), (i) => {
                 return searches[i].Find(term).GetEnumerator();
             });
@@ -218,10 +253,7 @@ namespace TheFactory.Datastore {
         internal void Apply(Batch batch) {
             lock (batchLock) {
                 writeLog.EmitTransaction(batch.ToSlice());
-
-                // Last mutableTablet is the writing tablet.
-                var tablet = (MemoryTablet)mutableTablets[mutableTablets.Count - 1];
-                tablet.Apply(batch);
+                mem.Apply(batch);
             }
         }
 

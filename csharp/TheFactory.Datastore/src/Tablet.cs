@@ -13,13 +13,16 @@ namespace TheFactory.Datastore {
         public const UInt32 TabletMagic = 0x0b501e7e;
         public const UInt32 MetaIndexMagic = 0x0ea7da7a;
         public const UInt32 DataIndexMagic = 0xda7aba5e;
+
+        public const int TabletHeaderLength = 8;
+        public const int TabletFooterLength = 40;
     }
 
     internal class FileTablet : ITablet {
         private TabletReaderOptions opts;
         private Stream stream;
         private TabletReader reader;
-        private List<TabletIndexRecord> dataIndex, metaIndex;
+        private List<TabletIndexRecord> dataIndex;
 
         public string Filename { get; private set; }
 
@@ -31,6 +34,9 @@ namespace TheFactory.Datastore {
             this.stream = stream;
             reader = new TabletReader();
             this.opts = opts;
+
+            var footer = LoadFooter();
+            dataIndex = LoadIndex(footer.DataIndexOffset, footer.DataIndexLength, Constants.DataIndexMagic);
         }
 
         public void Close() {
@@ -42,13 +48,6 @@ namespace TheFactory.Datastore {
         }
 
         public IEnumerable<IKeyValuePair> Find(Slice term) {
-            // Load indexes if we have no dataIndex.
-            if (dataIndex == null) {
-                var footer = LoadFooter();
-                metaIndex = LoadIndex(footer.MetaIndexOffset, footer.MetaIndexLength, Constants.MetaIndexMagic);
-                dataIndex = LoadIndex(footer.DataIndexOffset, footer.DataIndexLength, Constants.DataIndexMagic);
-            }
-
             int blockIndex = 0;
 
             if (term != null && term.Length != 0) {
@@ -70,7 +69,7 @@ namespace TheFactory.Datastore {
             for (var i = blockIndex; i < dataIndex.Count ; i++) {
                 BlockReader block;
                 try {
-                    block = LoadBlock(dataIndex[i].Offset);
+                    block = LoadBlock(dataIndex[i].Offset, dataIndex[i].Length);
                 } catch(TabletValidationException) {
                     // Bad block checksum.
                     continue;
@@ -87,27 +86,34 @@ namespace TheFactory.Datastore {
             yield break;
         }
 
-        internal BlockReader LoadBlock(long offset) {
-            stream.Seek(offset, SeekOrigin.Begin);
-            var blockData = reader.ReadBlock(stream);
+        object posLock = new object();
+        Slice PRead(long offset, long length) {
+            lock (posLock) {
+                stream.Seek(offset, SeekOrigin.Begin);
+                return (Slice)stream.ReadBytes((int)length);
+            }
+        }
+
+        internal BlockReader LoadBlock(long offset, long length) {
+            var block = new TabletBlock(PRead(offset, length));
 
             if (opts.VerifyChecksums) {
-                if (blockData.Info.Checksum != 0 && blockData.Info.Checksum != blockData.Checksum) {
+                if (!block.IsChecksumValid) {
                     throw new TabletValidationException("bad block checksum");
                 }
             }
 
-            return new BlockReader((Slice)blockData.Data);
+            return new BlockReader(block.KvData);
         }
 
         internal List<TabletIndexRecord> LoadIndex(long offset, long length, UInt32 magic) {
-            stream.Seek(offset, SeekOrigin.Begin);
-            return reader.ReadIndex(stream, length, magic);
+            var slice = PRead(offset, length);
+            return reader.ParseIndex(slice, magic);
         }
 
         internal TabletFooter LoadFooter() {
-            stream.Seek(-40, SeekOrigin.End);
-            return reader.ParseFooter((Slice)(stream.ReadBytes(40)));
+            var slice = PRead(stream.Length - Constants.TabletFooterLength, Constants.TabletFooterLength);
+            return reader.ParseFooter(slice);
         }
 
         internal class TabletIndexRecordDataComparer : IComparer<TabletIndexRecord> {
@@ -127,96 +133,75 @@ namespace TheFactory.Datastore {
     }
 
     internal struct TabletHeader {
-        public byte[] Raw { get; private set; }
-        private MemoryStream s;
+        public UInt32 Magic { get; private set; }
+        public UInt32 Version { get; private set; }
 
-        private Stream RawStream {
-            get {
-                if (s == null) {
-                    s = new MemoryStream(Raw);
-                }
-                return s;
-            }
-        }
-
-        public UInt32 Magic {
-            get {
-                RawStream.Seek(0, SeekOrigin.Begin);
-                return RawStream.ReadInt();
-            }
-        }
-
-        public UInt32 Version {
-            get {
-                RawStream.Seek(4, SeekOrigin.Begin);
-                var bytes = RawStream.ReadBytes(1);
-                return bytes[0];
-            }
-        }
-
-        public TabletHeader(byte[] raw) : this() {
-            Raw = raw;
+        public TabletHeader(Slice data) : this() {
+            Magic = Utils.ToUInt32(data);
+            Version = data[4];
         }
     }
 
-    internal struct TabletBlockInfo {
-        private byte type;
-
+    internal struct TabletBlock {
         public UInt32 Checksum { get; private set; }
-        public int Length { get; private set; }
-        public byte[] Raw { get; private set; }
+        public bool IsChecksumValid {
+            get {
+                // Checksum == 0 is considered valid for historical reasons.
+                return Checksum == 0 ||
+                    Checksum == Crc32.ChecksumIeee(rawData.Array, rawData.Offset, rawData.Length);
+            }
+        }
 
-        //
-        // Hide the bitfield representing type.
-        // 0b000000TC
-        // C: block compression: 0 = None, 1 = Snappy
-        // T: block type: 0 = Data block, 1 = Metadata block
-        //
-
+        private byte flags;
         public BlockType Type {
             get {
-                return ((int)type & (1 << 1)) == 0 ? BlockType.Data : BlockType.Meta;
+                return (flags & 0x2) == 0 ? BlockType.Data : BlockType.Meta;
             }
         }
 
-        public bool IsCompressed {
-            get {
-                return ((int)type & 1) == 1;
-            }
-        }
+        public bool IsCompressed { get { return (flags & 0x1) != 0; } }
 
-        public TabletBlockInfo(UInt32 checksum, byte type, int length, byte[] raw) : this() {
-            Checksum = checksum;
-            this.type = type;
-            Length = length;
-            Raw = raw;
-        }
-    }
+        // rawData stores the possibly compressed subslice of the block that
+        // contains its data; kvData is lazily loaded and contains the
+        // iterable key-value pairs.
+        private Slice rawData;
+        private Slice kvData;
 
-    internal struct TabletBlockData {
-        public TabletBlockInfo Info { get; private set; }
-        public byte[] Raw { get; private set; }
-        public byte[] Data {
+        public Slice KvData {
             get {
-                if (Info.IsCompressed) {
+                if (kvData == null) {
                     var decompressor = new SnappyDecompressor();
-                    return decompressor.Decompress(Raw, 0, Raw.Length);
+                    lock (rawData) {
+                        kvData = (Slice)decompressor.Decompress(rawData.Array, rawData.Offset, rawData.Length);
+                    }
                 }
-                return Raw;
+
+                return kvData;
             }
         }
 
-        // Computed checksum (not necessarily the same as Info.Checksum).
-        private UInt32 checksum;
-        public UInt32 Checksum {
-            get {
-                return Crc32.ChecksumIeee(Raw);
-            }
-        }
+        public TabletBlock(Slice block): this() {
+            int kvOffset, kvLength;
+            using (var stream = block.ToStream()) {
+                Checksum = Unpacking.UnpackObject(stream).AsUInt32();
+                flags = (byte)Unpacking.UnpackObject(stream).AsInt32();
 
-        public TabletBlockData(TabletBlockInfo info, byte[] raw) : this() {
-            Info = info;
-            Raw = raw;
+                kvLength = Unpacking.UnpackObject(stream).AsInt32();
+                kvOffset = (int)stream.Position;
+            }
+
+            // Verify that this slice is the correct length.
+            if (kvOffset + kvLength != block.Length) {
+                throw new TabletValidationException("block data doesn't match its header length");
+            }
+
+            if (IsCompressed) {
+                // kvData will be loaded lazily from this
+                rawData = block.Subslice(kvOffset, kvLength);
+                kvData = null;
+            } else {
+                rawData = kvData = block.Subslice(kvOffset, kvLength);
+            }
         }
     }
 

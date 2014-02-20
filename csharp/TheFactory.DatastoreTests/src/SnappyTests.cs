@@ -79,6 +79,29 @@ namespace TheFactory.DatastoreTests
 
             Assert.True(((byte[])block.Buffer).CompareBytes(0, decompressed, 0, decompressed.Length));
 		}
+
+        [Test]
+        public void TestNonzeroOffset() {
+            // Test decompression of some previously bad data. The last four bytes
+            // after decompression should be 0x00000001 (broken decode had 0x00000000).
+            var comp = (Slice)new byte[] {
+                0xce, 0xbc, 0xe2, 0x97, 0x65, 0x01, 0x1f,
+                0x20, 0x60, 0x00, 0xb4, 0x79, 0x65, 0x73, 0x74, 0x65, 0x72, 0x64, 0x61,
+                0x79, 0x2c, 0x09, 0x74, 0x68, 0x65, 0x09, 0x66, 0x6c, 0x6f, 0x6f, 0x72,
+                0xa1, 0x31, 0x00, 0x09, 0x01, 0x00, 0x01
+            };
+
+            Func<Slice, byte[]> decomp = (Slice s) => {
+                var d = new Snappy.Sharp.SnappyDecompressor();
+                return d.Decompress(s.Array, s.Offset, s.Length);
+            };
+
+            var expected = decomp(comp.Subslice(7).Detach());
+            var result = decomp(comp.Subslice(7));
+
+            Assert.True(((Slice)result).CompareTo((Slice)expected) == 0);
+            Assert.True(result[result.Length - 1] == 1);
+        }
 	}
 }
 
