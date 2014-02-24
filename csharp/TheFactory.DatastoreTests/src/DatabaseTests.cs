@@ -438,5 +438,22 @@ namespace TheFactory.DatastoreTests {
                 // do nothing: rely on the internal consistency checks in r
             }
         }
+
+        [Test]
+        public void TestDatabaseMemCompact() {
+            var value = (Slice)new byte[10000];
+
+            for (int i = 0; i < 10000; i++) {
+                var key = String.Format("{0:D8}", i);
+                db.Put((Slice)Encoding.UTF8.GetBytes(key), value);
+            }
+
+            int count = 0;
+            foreach (var kv in db.Find()) {
+                count++;
+            }
+
+            Assert.True(count == 10000);
+        }
     }
 }

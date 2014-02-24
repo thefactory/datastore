@@ -8,19 +8,23 @@ namespace TheFactory.Datastore {
         private OurSortedDictionary<Slice, Slice> backing;
         private object backingLock;
 
+        public int ApproxSize { get; private set; }
+
         public string Filename {
             get {
                 return null;
             }
         }
 
-        // Deleted key marker -- consumers of Get() and Find() enumerator
-        // should check against this reference and take appropriate action.
+        // Deleted key marker -- Get() and the Find() enumerator
+        // should check against this reference and set KV.IsDeleted
+        // when appropriate.
         public static Slice Tombstone = (Slice)(new byte[] {0x74, 0x6f, 0x6d, 0x62});
 
         public MemoryTablet() {
             backing = new OurSortedDictionary<Slice, Slice>(new KeyComparer());
             backingLock = new ReaderWriterLockSlim();
+            ApproxSize = 0;
         }
 
         public void Apply(Batch batch) {
@@ -31,8 +35,10 @@ namespace TheFactory.Datastore {
             foreach (IKeyValuePair kv in batch.Pairs()) {
                 if (kv.IsDeleted) {
                     Delete(kv.Key.Detach());
+                    ApproxSize += kv.Key.Length;
                 } else {
                     Set(kv.Key.Detach(), kv.Value.Detach());
+                    ApproxSize += kv.Key.Length + kv.Value.Length;
                 }
             }
         }

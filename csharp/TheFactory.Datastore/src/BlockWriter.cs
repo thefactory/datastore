@@ -11,17 +11,29 @@ namespace TheFactory.Datastore {
         private Slice previousKey, firstKey;
         private int keyRestartInterval, keyRestartCount;
 
+        Slice tombstone;
+
         public BlockWriter(int keyRestartInterval) {
             body = new MemoryStream();
             packer = Packer.Create(body);
             footer = new MemoryStream();
             this.keyRestartInterval = keyRestartInterval;
             keyRestartCount = 0;
+
+            tombstone = (Slice)(new byte[1]{MiniMsgpackCode.NilValue});
         }
 
         public UInt32 Size {
             get {
                 return (UInt32)(body.Length + footer.Length + 4);
+            }
+        }
+
+        public void Append(IKeyValuePair kv) {
+            if (kv.IsDeleted) {
+                Append(kv.Key, tombstone);
+            } else {
+                Append(kv.Key, kv.Value);
             }
         }
 

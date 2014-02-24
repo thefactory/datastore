@@ -115,6 +115,7 @@
     <Compile Include="src\BenchmarkTests.cs" />
     <Compile Include="src\MiniMsgpackTests.cs" />
     <Compile Include="src\Stats.cs" />
+    <Compile Include="src\ScaleTests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

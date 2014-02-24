@@ -6,17 +6,25 @@ using System.Linq;
 using TheFactory.Datastore.Helpers;
 using System.Collections;
 using System.Text;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace TheFactory.Datastore {
     public class Options {
         public bool CreateIfMissing { get; set; }
         public IFileSystem FileSystem { get; set; }
         public bool VerifyChecksums { get; set; }
+        public int MaxMemoryTabletSize { get; set; }
+        public TabletReaderOptions ReaderOptions { get; set; }
+        public TabletWriterOptions WriterOptions { get; set; }
 
         public Options() {
             CreateIfMissing = true;
             FileSystem = new FileSystem();
             VerifyChecksums = false;
+            MaxMemoryTabletSize = 1024 * 1024 * 4; /* 4MB default */
+            ReaderOptions = new TabletReaderOptions();
+            WriterOptions = new TabletWriterOptions();
         }
     }
 
@@ -34,9 +42,15 @@ namespace TheFactory.Datastore {
         //   in case of duplicate keys, the most recently written tablet wins
         //
         // Changes to any of these references are protected with tabLock.
-        private MemoryTablet mem = new MemoryTablet();
+        private MemoryTablet mem = null;
         private MemoryTablet mem2 = null;
         private List<ITablet> tablets = new List<ITablet>();
+
+        private ManualResetEventSlim canCompact = new ManualResetEventSlim(true);
+
+        // memLock protects access to the mutable memory tablet. tabLock protects
+        // access to the tablets list.
+        private object memLock = new object();
         private object tabLock = new object();
 
         private FileManager fileManager;
@@ -71,26 +85,46 @@ namespace TheFactory.Datastore {
 
             fsLock = fs.Lock(fileManager.GetLockFile());
 
-            var transLog = fileManager.GetTransactionLog();
-            if (fs.Exists(transLog)) {
-                ReplayTransactions(transLog);
-            }
-
-            writeLog = new TransactionLogWriter(fs.Append(transLog));
+            LoadMemoryTablets();
 
             var tabletStack = fileManager.GetTabletStack();
             if (fs.Exists(tabletStack)) {
-                var reader = new StreamReader(fs.Open(tabletStack));
-                while (!reader.EndOfStream) {
-                    PushTablet(reader.ReadLine());
+                using (var file = fs.Open(tabletStack)) {
+                    var reader = new StreamReader(file);
+                    while (!reader.EndOfStream) {
+                        tablets.Add(new FileTablet(reader.ReadLine(), opts.ReaderOptions));
+                    }
                 }
             }
         }
 
-        void ReplayTransactions(string path) {
+        void LoadMemoryTablets() {
+            var transLog = fileManager.GetTransactionLog();
+            var immTransLog = fileManager.GetImmutableTransactionLog();
+
+            mem = new MemoryTablet();
+            if (fs.Exists(transLog)) {
+                ReplayTransactions(mem, transLog);
+            }
+
+            // If we crashed while freezing a memory tablet, freeze it again. Block
+            // database loading until it completes.
+            if (fs.Exists(immTransLog)) {
+                var tab = new MemoryTablet();
+                ReplayTransactions(tab, immTransLog);
+
+                // Block until the immutable memory tablet has been frozen.
+                Compact(tab);
+                fs.Remove(immTransLog);
+            }
+
+            writeLog = new TransactionLogWriter(fs.Append(transLog));
+        }
+
+        void ReplayTransactions(MemoryTablet tablet, string path) {
             using (var log = new TransactionLogReader(fs.Open(path))) {
                 foreach (var transaction in log.Transactions()) {
-                    mem.Apply(new Batch(transaction));
+                    tablet.Apply(new Batch(transaction));
                 }
             }
         }
@@ -100,6 +134,9 @@ namespace TheFactory.Datastore {
                 writeLog.Dispose();
                 writeLog = null;
             }
+
+            // Wait until any compaction is finished.
+            canCompact.Wait();
 
             if (fsLock != null) {
                 fsLock.Dispose();
@@ -187,20 +224,88 @@ namespace TheFactory.Datastore {
 
         public void PushTablet(string filename) {
             lock (tabLock) {
-                tablets.Add(new FileTablet(filename, new TabletReaderOptions()));
+                tablets.Add(new FileTablet(filename, opts.ReaderOptions));
                 WriteLevel0List();
             }
         }
 
         void WriteLevel0List() {
+            // tabLock must be held to call WriteLevel0List
             using (var stream = fs.Create(fileManager.GetTabletStack())) {
                 var writer = new StreamWriter(stream);
                 foreach (var t in tablets) {
-                    if (t.Filename != null) {
-                        writer.WriteLine(t.Filename.Trim());
+                    writer.WriteLine(t.Filename);
+                }
+                writer.Close();
+            }
+        }
+
+        void MaybeCompactMem() {
+            // This method locks the tablets briefly to determine whether mem is due for compaction.
+            //
+            // If mem is not due for compaction, it returns after that.
+            // If it is due and no compaction is running, it fires off a background compaction task.
+            // If a compaction is running, it blocks until that completes and checks again.
+            //
+            // Use the "canCompact" ManualResetEventSlim as a condition variable to accomplish the above.
+
+            Func<bool> memFull = () => (mem.ApproxSize > opts.MaxMemoryTabletSize);
+
+            bool shouldCompact;
+            lock (tabLock) {
+                shouldCompact = memFull();
+            }
+
+            if (shouldCompact) {
+                canCompact.Wait();
+
+                lock(tabLock) {
+                    if (memFull()) {
+                        canCompact.Reset();
+                        CompactMem();
                     }
                 }
             }
+        }
+
+        void CompactMem() {
+            var transLog = fileManager.GetTransactionLog();
+            var immTransLog = fileManager.GetImmutableTransactionLog();
+
+            // Move the current writable memory tablet to mem2.
+            lock (tabLock) {
+                mem2 = mem;
+                mem = new MemoryTablet();
+
+                writeLog.Dispose();
+                fs.Rename(transLog, immTransLog);
+                writeLog = new TransactionLogWriter(fs.Append(transLog));
+
+                Task.Run(() => {
+                    try {
+                        Compact(mem2);
+                        fs.Remove(immTransLog);
+                        mem2 = null;
+                    } catch (Exception e) {
+                        Console.WriteLine("Exception in tablet compaction: {0}", e);
+                    } finally {
+                        // Set canCompact to avoid deadlock, but at this point we'll
+                        // try and fail to compact mem2 on every database write.
+                        canCompact.Set();
+                    }
+                });
+            }
+        }
+
+        void Compact(MemoryTablet tab) {
+            var tabfile = fileManager.DbFilename(String.Format("{0}.tab", System.Guid.NewGuid().ToString()));
+            var writer = new TabletWriter();
+
+            using (var output = new BinaryWriter(fs.Create(tabfile))) {
+                writer.WriteTablet(output, tab.Find(), opts.WriterOptions);
+            }
+
+            PushTablet(tabfile);
         }
 
         ITablet[] CurrentTablets() {
@@ -251,9 +356,10 @@ namespace TheFactory.Datastore {
         }
 
         internal void Apply(Batch batch) {
-            lock (batchLock) {
+            lock (memLock) {
                 writeLog.EmitTransaction(batch.ToSlice());
                 mem.Apply(batch);
+                MaybeCompactMem();
             }
         }
 
@@ -332,6 +438,7 @@ namespace TheFactory.Datastore {
                     iter.Dispose();
                 }
             }
+
             // from IEnumerator: it's ok not to support this
             public void Reset() {
                 throw new NotSupportedException();

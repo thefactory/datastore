@@ -21,10 +21,10 @@ namespace TheFactory.Datastore {
     }
 
     internal class TabletWriter {
-        private SnappyCompressor compressor;
+        // Use a static SnappyCompressor to minimize log chatter.
+        static SnappyCompressor compressor = new SnappyCompressor();
 
         public TabletWriter() {
-            compressor = new SnappyCompressor();
         }
 
         internal void WriteTabletHeader(BinaryWriter writer) {
@@ -42,6 +42,13 @@ namespace TheFactory.Datastore {
         private void FlushBlock(BinaryWriter writer, BlockWriter blockWriter, Packer indexPacker, byte type, bool compression) {
             var offset = writer.BaseStream.Position;
             var output = blockWriter.Finish();
+            if (output.FirstKey == null) {
+                // Flushing an empty block: don't bother with the rest, but reset blockWriter
+                // to ensure a clean slate.
+                blockWriter.Reset();
+                return;
+            }
+
             var buf = output.Buffer;
 
             if (compression) {
@@ -81,7 +88,7 @@ namespace TheFactory.Datastore {
             var blockWriter = new BlockWriter(opts.KeyRestartInterval);
 
             foreach (var p in kvs) {
-                blockWriter.Append(p.Key, p.Value);
+                blockWriter.Append(p);
                 if (blockWriter.Size >= opts.BlockSize) {
                     FlushBlock(writer, blockWriter, indexPacker, type, opts.BlockCompression);
                 }

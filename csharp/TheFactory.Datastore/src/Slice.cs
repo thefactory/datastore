@@ -37,7 +37,7 @@ namespace TheFactory.Datastore {
 
         public byte this[int i] {
             get { return array[offset+i]; }
-            set { array[offset+i] = 1; }
+            set { array[offset+i] = value; }
         }
 
         public Slice Subslice(int skip) {

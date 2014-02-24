@@ -127,6 +127,7 @@ namespace TheFactory.Datastore {
  
         const string LockFile = "access.lock";
         const string TabletWriteLog = "write.log";
+        const string ImmutableWriteLog = "write_imm.log";
         const string TabletStackFilename = "stack.txt";
 
         public FileManager(string dir) {
@@ -143,6 +144,10 @@ namespace TheFactory.Datastore {
 
         public string GetTransactionLog() {
             return DbFilename(TabletWriteLog);
+        }
+
+        public string GetImmutableTransactionLog() {
+            return DbFilename(ImmutableWriteLog);
         }
 
         public string GetTabletStack() {
