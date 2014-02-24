@@ -33,7 +33,9 @@ namespace TheFactory.DatastoreTests {
 
         void TestRoundTrip(Options opts, int numWriters, IEnumerable<IKeyValuePair> goldenKVs) {
             var dbPath = Path.Combine(Path.GetTempPath(), "db");
-            Directory.Delete(dbPath, true);
+            if (Directory.Exists(dbPath)) {
+                Directory.Delete(dbPath, true);
+            }
 
             var taskOptions = new ParallelOptions();
             taskOptions.MaxDegreeOfParallelism = numWriters;

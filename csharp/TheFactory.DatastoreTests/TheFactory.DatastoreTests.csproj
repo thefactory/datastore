@@ -129,9 +129,6 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <BundleResource Include="..\..\test-data\half.tab">
-      <Link>Resources\test-data\half.tab</Link>
-    </BundleResource>
     <BundleResource Include="..\..\test-data\ngrams1\README">
       <Link>Resources\test-data\ngrams1\README</Link>
     </BundleResource>
