@@ -13,6 +13,7 @@ public class FileManager {
 
     public static final String LOCK_FILE = "access.lock";
     public static final String TABLET_WRITE_LOG_FILE = "write.log";
+    public static final String IMMUTABLE_TABLET_WRITE_LOG_FILE = "write_imm.log";
     public static final String TABLET_META_FILE = "stack.txt";
 
     private final FileSystem fs;
@@ -38,6 +39,10 @@ public class FileManager {
 
     public String getTransactionLog() {
         return dbFilename(TABLET_WRITE_LOG_FILE);
+    }
+
+    public String getSecondaryTransactionLog() {
+        return dbFilename(IMMUTABLE_TABLET_WRITE_LOG_FILE);
     }
 
     public String getTabletMetaFile() {

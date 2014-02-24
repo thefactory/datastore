@@ -16,6 +16,8 @@ import java.util.zip.CRC32;
 public class TabletWriter {
     TabletWriterOptions opts;
 
+    private static byte[] tombstone = new byte[]{(byte) Msgpack.NIL_VALUE}; 
+
     public TabletWriter(TabletWriterOptions opts) {
         this.opts = opts;
     }
@@ -66,7 +68,11 @@ public class TabletWriter {
 
         while (kvs.hasNext()) {
             KV kv = kvs.next();
-            bw.append(kv.getKeyBytes(), kv.getValueBytes());
+            if(kv.isDeleted()) {
+                bw.append(kv.getKeyBytes(), tombstone);
+            } else {
+                bw.append(kv.getKeyBytes(), kv.getValueBytes());
+            }
 
             if (bw.size() > opts.blockSize) {
                 index.add(flushBlock(out, pos, bw, opts));

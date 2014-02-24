@@ -185,6 +185,24 @@ public class DatabaseTest extends TestCase {
         assertEquals(db.get(key), value);
     }
 
+    public void testPutOneFindManyAndGet() throws Exception {
+        Database db = setupDatabase(new DiskFileSystem(), new String[]{});
+
+        Iterator<KV> kvs = db.find();
+        assertFalse(kvs.hasNext());
+
+        Slice key = new Slice("A special key that is not random".getBytes());
+        Slice value = new Slice("A special value for our key".getBytes());
+        db.put(key, value);
+        // Add many keys (+4MBytes) to ensure that we trigger flushing our memory tablet to disk ...
+        for(int i = 0; i < 40000; i++){
+            db.put(nextPrefixedRandomSlice(1000), nextRandomSlice(1000));
+            db.find(nextPrefixedRandomSlice(100));
+            db.get(key);
+        }
+        assertEquals(db.get(key), value);
+    }
+
     public void testDatabaseOneFileTabletFindAll() throws Exception {
         Database db = setupDatabase(new DiskFileSystem(), 
                                     new String[] 
@@ -458,7 +476,6 @@ public class DatabaseTest extends TestCase {
         assertEquals(count, 100);
     }
 
-
     private Slice nextRandomSlice(int maxSize) {
         if(maxSize >= MAX_SLICE_SIZE) {
             throw new IllegalArgumentException("slice size exceeds max size of " + MAX_SLICE_SIZE);
@@ -466,6 +483,16 @@ public class DatabaseTest extends TestCase {
 
         int len = random.nextInt(maxSize);
         Slice r = new Slice(randomBytes, MAX_SLICE_SIZE - len, len);
+        return r;
+    }
+
+    private Slice nextPrefixedRandomSlice(int maxSize) {
+        if(maxSize >= MAX_SLICE_SIZE) {
+            throw new IllegalArgumentException("slice size exceeds max size of " + MAX_SLICE_SIZE);
+        }
+
+        int len = random.nextInt(maxSize);
+        Slice r = new Slice(randomBytes, 0, len);
         return r;
     }
 

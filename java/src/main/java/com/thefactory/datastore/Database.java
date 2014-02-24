@@ -9,6 +9,7 @@ import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.NoSuchElementException;
 import java.util.Iterator;
 import java.util.TreeSet;
@@ -60,7 +61,7 @@ public class Database implements Closeable {
     }
 
     private class Tablets {
-        public final Deque<String> stack = new ArrayDeque<String>();
+        public final Deque<String> stack = new LinkedBlockingDeque<String>();
         public final Map<String, FileTablet> file = new ConcurrentHashMap<String, FileTablet>();        
 
         public MemoryTablet mutable = new MemoryTablet();
@@ -259,21 +260,38 @@ public class Database implements Closeable {
         lock = options.fileSystem.lock(fileManager.getLockFile());
 
         String transactionLogPath = fileManager.getTransactionLog();
-        if(fileManager.exists(transactionLogPath)) {
-            TransactionLog.Reader reader = new TransactionLog(options.fileSystem).getReader(transactionLogPath);
-            Iterator<Slice> iterator = reader.transactions();
-            while(iterator.hasNext()){
-                tablets.mutable.apply(Batch.wrap(iterator.next()));
-            }
-            transactionLogWriter = new TransactionLog(options.fileSystem).getWriter(transactionLogPath, true);
-        } else {
-            transactionLogWriter = new TransactionLog(options.fileSystem).getWriter(transactionLogPath, false);
-        }
+        transactionLogWriter = new TransactionLog(options.fileSystem).getWriter(transactionLogPath, 
+            fileManager.exists(transactionLogPath));
+        
+        tablets.mutable = fromLogOrElse(transactionLogPath, new MemoryTablet());
+        tablets.saving = fromLogOrElse(fileManager.getSecondaryTransactionLog(), null);
 
         Collection<String> fileTablets = fileManager.loadTabletFilenames();
         for(String fileTablet : fileTablets) {
             pushTablet(fileTablet);
         }
+    }
+
+    private MemoryTablet fromLogOrElse(final String transactionLogPath, final MemoryTablet tablet) {
+        MemoryTablet ret = tablet;
+        if(!fileManager.exists(transactionLogPath)) {
+            return ret;
+        }
+
+        if(ret == null) {
+            ret = new MemoryTablet();
+        }
+
+        TransactionLog.Reader reader = new TransactionLog(options.fileSystem).getReader(transactionLogPath);
+        Iterator<Slice> iterator = reader.transactions();
+        while(iterator.hasNext()){
+            ret.apply(Batch.wrap(iterator.next()));            
+        }       
+        return ret; 
+    }
+
+    private TransactionLog.Writer mkTransactionLogWriter(String transactionLogPath) {
+        return new TransactionLog(options.fileSystem).getWriter(transactionLogPath, fileManager.exists(transactionLogPath));
     }
 
     private void apply(Batch batch) throws IOException {
@@ -285,7 +303,11 @@ public class Database implements Closeable {
             }
 
             tablets.saving = tablets.mutable;
-            tablets.mutable = new MemoryTablet();        
+            tablets.mutable = new MemoryTablet();
+
+            transactionLogWriter.close();
+            options.fileSystem.rename(fileManager.getTransactionLog(), fileManager.getSecondaryTransactionLog());
+            transactionLogWriter = new TransactionLog(options.fileSystem).getWriter(fileManager.getTransactionLog(), false);        
 
             new Thread() {
                 public void run() {
@@ -294,6 +316,7 @@ public class Database implements Closeable {
                         save(name);
                         pushTablet(name); 
                         tablets.saving = null;
+                        options.fileSystem.remove(fileManager.getSecondaryTransactionLog());
                         log.debug(String.format("Successfully flushed tablet (%s)", name));
                     } catch (IOException e) {
                         log.error(String.format("Flushing tablet failed with %s", e));
