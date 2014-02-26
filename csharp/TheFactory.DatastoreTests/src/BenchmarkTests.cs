@@ -315,7 +315,7 @@ namespace TheFactory.DatastoreTests {
                 try {
                     var val = db.Get(key);
                     stats.AddBytes(val.Length);
-                } catch (KeyNotFoundException e) {
+                } catch (KeyNotFoundException) {
                 }
                 stats.FinishedSingleOp();
             }

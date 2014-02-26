@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using NUnit.Framework;
-using Snappy.Sharp;
 using TheFactory.Datastore;
 using MonoTouch.Foundation;
+using TheFactory.Snappy;
 
 namespace TheFactory.DatastoreTests {
     public class Helpers {
@@ -198,16 +198,12 @@ namespace TheFactory.DatastoreTests {
     [TestFixture]
     public class FileTabletTests {
         private byte[] SnappyCompressedBlock(byte[] data) {
-            var c = new SnappyCompressor();
+            var buf = SnappyEncoder.Encode(data);
 
-            int maxLen = c.MaxCompressedLength(data.Length);
-            var buf = new byte[maxLen];
-            var len = c.Compress(data, 0, data.Length, buf);
-
-            var header = new byte[] {0, 1, (byte)len};
-            var ret = new byte[header.Length + len];
+            var header = new byte[] {0, 1, (byte)buf.Length};
+            var ret = new byte[header.Length + buf.Length];
             Buffer.BlockCopy(header, 0, ret, 0, header.Length);
-            Buffer.BlockCopy(buf, 0, ret, header.Length, len);
+            Buffer.BlockCopy(buf, 0, ret, header.Length, buf.Length);
 
             return ret;
         }

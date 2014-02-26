@@ -1,5 +1,5 @@
 using System;
-using Snappy.Sharp;
+using TheFactory.Snappy;
 using System.IO;
 using MsgPack;
 using System.Collections.Generic;
@@ -13,25 +13,28 @@ namespace TheFactory.Datastore {
         public bool BlockCompression { get; set; }
         public int KeyRestartInterval { get; set; }
 
+        // Temporary flag while we test TheFactory.Snappy: this ensures that all
+        // compressed blocks can be round-tripped through Snappy.
+        public bool VerifyBlockCompression { get; set; }
+
         public TabletWriterOptions() {
             BlockSize = 32768;
             BlockCompression = true;
             KeyRestartInterval = 128;
+            VerifyBlockCompression = true;
         }
 
-        public string ToString() {
+        public override string ToString() {
             return String.Format(
                 "BlockSize = {0}\n" +
                 "BlockCompression = {1}\n" +
-                "KeyRestartInterval = {2}",
-                BlockSize, BlockCompression, KeyRestartInterval);
+                "KeyRestartInterval = {2}\n" +
+                "VerifyBlockCompression = {3}",
+                BlockSize, BlockCompression, KeyRestartInterval, VerifyBlockCompression);
         }
     }
 
     internal class TabletWriter {
-        // Use a static SnappyCompressor to minimize log chatter.
-        static SnappyCompressor compressor = new SnappyCompressor();
-
         public TabletWriter() {
         }
 
@@ -47,7 +50,7 @@ namespace TheFactory.Datastore {
             writer.Write(buf);
         }
 
-        private void FlushBlock(BinaryWriter writer, BlockWriter blockWriter, Packer indexPacker, byte type, bool compression) {
+        private void FlushBlock(BinaryWriter writer, BlockWriter blockWriter, Packer indexPacker, byte type, TabletWriterOptions opts) {
             var offset = writer.BaseStream.Position;
             var output = blockWriter.Finish();
             if (output.FirstKey == null) {
@@ -59,14 +62,27 @@ namespace TheFactory.Datastore {
 
             var buf = output.Buffer;
 
-            if (compression) {
-                int maxLen = compressor.MaxCompressedLength(buf.Length);
-                var compressed = new byte[maxLen];
-                var len = compressor.Compress(buf.Array, buf.Offset, buf.Length, compressed);
+            if (opts.BlockCompression) {
+                var comp = SnappyEncoder.Encode(buf.ToArray());
+                var valid = true;
 
-                if (len < buf.Length) {
+                // This VerifyBlockCompression block is temporary while we test TheFactory.Snappy.
+                if (opts.VerifyBlockCompression) {
+                    try {
+                        var decomp = SnappyDecoder.Decode(comp);
+                        if (decomp.CompareKey(buf.ToArray()) != 0) {
+                            Console.WriteLine("Block compression roundtrip failure: {0}", buf);
+                            valid = false;
+                        }
+                    } catch (Exception e) {
+                        Console.WriteLine("Block compression roundtrip failure: {0} {1}", e, buf);
+                        valid = false;
+                    }
+                }
+
+                if (valid && comp.Length < buf.Length) {
                     // Only compress if there's an advantage.
-                    buf = new Slice(compressed, 0, len);
+                    buf = (Slice)comp;
                     type |= 1;  // Set compressed field.
                 }
             }
@@ -98,12 +114,12 @@ namespace TheFactory.Datastore {
             foreach (var p in kvs) {
                 blockWriter.Append(p);
                 if (blockWriter.Size >= opts.BlockSize) {
-                    FlushBlock(writer, blockWriter, indexPacker, type, opts.BlockCompression);
+                    FlushBlock(writer, blockWriter, indexPacker, type, opts);
                 }
             }
 
             // Flush the rest.
-            FlushBlock(writer, blockWriter, indexPacker, type, opts.BlockCompression);
+            FlushBlock(writer, blockWriter, indexPacker, type, opts);
 
             return indexStream.GetBuffer().Take((int)indexStream.Length).ToArray();
         }

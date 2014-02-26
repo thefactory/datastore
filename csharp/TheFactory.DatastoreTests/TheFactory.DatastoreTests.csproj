@@ -106,7 +106,6 @@
     <Compile Include="src\TabletTests.cs" />
     <Compile Include="src\DatabaseTests.cs" />
     <Compile Include="src\Crc32Tests.cs" />
-    <Compile Include="src\SnappyTests.cs" />
     <Compile Include="src\TransactionLogTests.cs" />
     <Compile Include="src\FileManagerTests.cs" />
     <Compile Include="src\SliceTests.cs" />
@@ -123,9 +122,9 @@
       <Project>{7B0B8E22-7BA3-4882-A445-BB8F96B6578E}</Project>
       <Name>TheFactory.Datastore</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\Snappy.Sharp\Snappy.Sharp.iOS\Snappy.Sharp.iOS.csproj">
-      <Project>{379A46BA-1EBB-4BD0-BEB5-B850F174E0D8}</Project>
-      <Name>Snappy.Sharp.iOS</Name>
+    <ProjectReference Include="..\..\..\TheFactory.Snappy\TheFactory.Snappy\TheFactory.Snappy.csproj">
+      <Project>{8C2CA69C-CFF2-4781-8800-2F08F5056893}</Project>
+      <Name>TheFactory.Snappy</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

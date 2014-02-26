@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using MsgPack;
-using Snappy.Sharp;
+using TheFactory.Snappy;
 using TheFactory.Datastore.Helpers;
 
 namespace TheFactory.Datastore {
@@ -170,9 +170,10 @@ namespace TheFactory.Datastore {
         public Slice KvData {
             get {
                 if (kvData == null) {
-                    var decompressor = new SnappyDecompressor();
                     lock (rawData) {
-                        kvData = (Slice)decompressor.Decompress(rawData.Array, rawData.Offset, rawData.Length);
+                        // To be fixed: this is an unnecessary copy of rawData. Needs
+                        // new SnappyDecoder API.
+                        kvData = (Slice)SnappyDecoder.Decode(rawData.ToArray());
                     }
                 }
 

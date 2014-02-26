@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using TheFactory.Datastore;
-using Snappy.Sharp;
 
 namespace TheFactory.DatastoreTests
 {

@@ -27,7 +27,7 @@ namespace TheFactory.Datastore {
             WriterOptions = new TabletWriterOptions();
         }
 
-        public string ToString() {
+        public override string ToString() {
             return String.Format(
                 "VerifyChecksums = {0}\n" +
                 "MaxMemoryTabletSize = {1}\n" +
@@ -67,7 +67,6 @@ namespace TheFactory.Datastore {
         private TransactionLogWriter writeLog;
 
         IDisposable fsLock;
-        private object batchLock = new object();
 
         internal Database(string path, Options opts) {
             this.fileManager = new FileManager(path);

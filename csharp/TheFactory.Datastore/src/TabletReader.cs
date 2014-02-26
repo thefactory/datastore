@@ -13,7 +13,7 @@ namespace TheFactory.Datastore {
             VerifyChecksums = false;
         }
 
-        public string ToString() {
+        public override string ToString() {
             return String.Format("VerifyChecksums = {0}", VerifyChecksums);
         }
     }
