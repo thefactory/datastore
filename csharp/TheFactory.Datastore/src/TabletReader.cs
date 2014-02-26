@@ -12,6 +12,10 @@ namespace TheFactory.Datastore {
         public TabletReaderOptions() {
             VerifyChecksums = false;
         }
+
+        public string ToString() {
+            return String.Format("VerifyChecksums = {0}", VerifyChecksums);
+        }
     }
 
     internal class TabletReader {

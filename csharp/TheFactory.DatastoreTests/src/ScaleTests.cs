@@ -7,6 +7,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Collections;
+using System.Diagnostics;
+using System.Text;
 
 namespace TheFactory.DatastoreTests {
 
@@ -20,7 +22,10 @@ namespace TheFactory.DatastoreTests {
     // the default test runner.
     [TestFixture, Explicit]
     public class ScaleTests {
+        // bulkData is totally random data (hardly compressible).
+        // textData is text (quite compressible).
         Slice bulkData;
+        Slice textData;
 
         public ScaleTests () {
             // Initialize bulkData with 10MB of random but constantly seeded data.
@@ -29,9 +34,16 @@ namespace TheFactory.DatastoreTests {
             byte[] bulk = new byte[10 * Size.MB];
             rand.NextBytes(bulk);
             bulkData = (Slice)bulk;
+
+            using (var r = new StreamReader(Helpers.TestFile("pg11.txt"))) {
+                textData = (Slice)Encoding.UTF8.GetBytes(r.ReadToEnd());
+            }
         }
 
         void TestRoundTrip(Options opts, int numWriters, IEnumerable<IKeyValuePair> goldenKVs) {
+            Console.WriteLine("Round trip: numWriters = {0}", numWriters);
+            Console.WriteLine("Options:\n{0}", opts.ToString());
+
             var dbPath = Path.Combine(Path.GetTempPath(), "db");
             if (Directory.Exists(dbPath)) {
                 Directory.Delete(dbPath, true);
@@ -40,18 +52,28 @@ namespace TheFactory.DatastoreTests {
             var taskOptions = new ParallelOptions();
             taskOptions.MaxDegreeOfParallelism = numWriters;
 
+            int byteCount = 0;
+
             using (var db = Database.Open(dbPath, opts)) {
                 // Write the golden KVs into the open database.
+                var watch = Stopwatch.StartNew();
+
                 Parallel.ForEach<IKeyValuePair>(goldenKVs, taskOptions, (kv) => {
                     if (kv.IsDeleted) {
                         db.Delete(kv.Key);
+                        byteCount += kv.Key.Length;
                     } else {
                         db.Put(kv.Key, kv.Value);
+                        byteCount += kv.Key.Length + kv.Value.Length;
                     }
                 });
 
+                LogRate("Wrote", byteCount, watch.ElapsedMilliseconds);
+
                 // Check the values while the database is still open.
+                watch = Stopwatch.StartNew();
                 AssertEquals(db.Find().GetEnumerator(), goldenKVs.GetEnumerator());
+                LogRate("Verified", byteCount, watch.ElapsedMilliseconds);
 
                 // Close the database so we can check after opening it again.
                 db.Close();
@@ -60,6 +82,13 @@ namespace TheFactory.DatastoreTests {
             using (var db = Database.Open(dbPath, opts)) {
                 AssertEquals(db.Find().GetEnumerator(), goldenKVs.GetEnumerator());
             }
+        }
+
+        void LogRate(string prefix, long byteCount, long millis) {
+            double secs = (double)millis / 1000;
+            double rate = byteCount / secs / Size.MB;
+
+            Console.WriteLine("{0} {1} bytes in {2:F2}s: {3:F2} MB/sec", prefix, byteCount, secs, rate);
         }
 
         void AssertEquals(IEnumerator<IKeyValuePair> kvs, IEnumerator<IKeyValuePair> expected) {
@@ -111,6 +140,19 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void OneWriter100MB() {
             TestRoundTrip(new Options(), 1, new TestData(bulkData, 100 * Size.MB, 100, 10000));
+        }
+
+        [Test]
+        public void OneWriterText50MB() {
+            TestRoundTrip(new Options(), 1, new TestData(textData, 50 * Size.MB, 100, 10000));
+        }
+
+        [Test]
+        public void OneWriterTextUncomp50MB() {
+            var opts = new Options();
+            opts.WriterOptions.BlockCompression = false;
+
+            TestRoundTrip(opts, 1, new TestData(textData, 50 * Size.MB, 100, 10000));
         }
 
         [Test]

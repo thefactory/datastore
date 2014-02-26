@@ -18,6 +18,14 @@ namespace TheFactory.Datastore {
             BlockCompression = true;
             KeyRestartInterval = 128;
         }
+
+        public string ToString() {
+            return String.Format(
+                "BlockSize = {0}\n" +
+                "BlockCompression = {1}\n" +
+                "KeyRestartInterval = {2}",
+                BlockSize, BlockCompression, KeyRestartInterval);
+        }
     }
 
     internal class TabletWriter {

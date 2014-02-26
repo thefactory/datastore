@@ -26,6 +26,16 @@ namespace TheFactory.Datastore {
             ReaderOptions = new TabletReaderOptions();
             WriterOptions = new TabletWriterOptions();
         }
+
+        public string ToString() {
+            return String.Format(
+                "VerifyChecksums = {0}\n" +
+                "MaxMemoryTabletSize = {1}\n" +
+                "ReaderOptions:\n{2}\n" +
+                "WriterOptions:\n{3}\n",
+                VerifyChecksums, MaxMemoryTabletSize,
+                ReaderOptions.ToString(), WriterOptions.ToString());
+        }
     }
 
     public class Database: IDatabase {
