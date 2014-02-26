@@ -159,6 +159,37 @@ namespace TheFactory.DatastoreTests {
         public void TenWriters100MB() {
             TestRoundTrip(new Options(), 10, new TestData(bulkData, 100 * Size.MB, 100, 10000));
         }
+
+        [Test]
+        public void OneWriterWithGets10MB() {
+            var opts = new Options();
+
+            var dbPath = Path.Combine(Path.GetTempPath(), "db");
+            if (Directory.Exists(dbPath)) {
+                Directory.Delete(dbPath, true);
+            }
+
+            Slice key1 = (Slice)Encoding.ASCII.GetBytes("key1");
+            Slice val1 = (Slice)Encoding.ASCII.GetBytes("value1");
+            Slice key2 = null;
+            Slice val2 = null;
+
+            using (var db = Database.Open(dbPath, opts)) {
+                db.Put(key1, val1);
+
+                foreach (var kv in new TestData(bulkData, 10 * Size.MB, 100, 10000)) {
+                    db.Put(kv.Key, kv.Value);
+
+                    Assert.IsTrue(db.Get(key1).CompareTo(val1) == 0);
+                    if (key2 != null) {
+                        Assert.IsTrue(db.Get(key2).CompareTo(val2) == 0);
+                    }
+
+                    key2 = kv.Key;
+                    val2 = kv.Value;
+                }
+            }
+        }
     }
 
     public class TestData: IEnumerable, IEnumerable<IKeyValuePair> {
