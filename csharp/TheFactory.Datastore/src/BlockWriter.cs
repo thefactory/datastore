@@ -53,7 +53,12 @@ namespace TheFactory.Datastore {
             //
             MiniMsgpack.PackUInt(body, (ulong)prefix);
             MiniMsgpack.PackRaw(body, key.Subslice(prefix));
-            MiniMsgpack.PackRaw(body, val);
+
+            if (Object.ReferenceEquals(val, tombstone)) {
+                body.WriteByte(MiniMsgpackCode.NilValue);
+            } else {
+                MiniMsgpack.PackRaw(body, val);
+            }
 
             previousKey = key.Detach();
             keyRestartCount = (keyRestartCount + 1) % keyRestartInterval;
