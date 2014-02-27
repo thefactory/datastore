@@ -64,10 +64,6 @@
     <Compile Include="src\TabletReader.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\msgpack-cli\MsgPack.mono.iOS\MsgPack.mono.iOS.csproj">
-      <Project>{88644B60-C039-40EC-8D58-67AD2454ED57}</Project>
-      <Name>MsgPack.mono.iOS</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\..\TheFactory.Snappy\TheFactory.Snappy\TheFactory.Snappy.csproj">
       <Project>{8C2CA69C-CFF2-4781-8800-2F08F5056893}</Project>
       <Name>TheFactory.Snappy</Name>

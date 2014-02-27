@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
-using MsgPack;
 using TheFactory.Datastore.Helpers;
 
 namespace TheFactory.Datastore {

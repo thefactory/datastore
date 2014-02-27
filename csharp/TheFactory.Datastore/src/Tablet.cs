@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using MsgPack;
 using TheFactory.Snappy;
 using TheFactory.Datastore.Helpers;
 
@@ -184,10 +183,10 @@ namespace TheFactory.Datastore {
         public TabletBlock(Slice block): this() {
             int kvOffset, kvLength;
             using (var stream = block.ToStream()) {
-                Checksum = Unpacking.UnpackObject(stream).AsUInt32();
-                flags = (byte)Unpacking.UnpackObject(stream).AsInt32();
+                Checksum = MiniMsgpack.UnpackUInt32(stream);
+                flags = (byte)MiniMsgpack.UnpackUInt32(stream);
 
-                kvLength = Unpacking.UnpackObject(stream).AsInt32();
+                kvLength = (int)MiniMsgpack.UnpackUInt32(stream);
                 kvOffset = (int)stream.Position;
             }
 

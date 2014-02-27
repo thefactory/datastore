@@ -1,7 +1,6 @@
 using System;
 using TheFactory.Snappy;
 using System.IO;
-using MsgPack;
 using System.Collections.Generic;
 using TheFactory.Datastore.Helpers;
 using System.Linq;
@@ -50,7 +49,7 @@ namespace TheFactory.Datastore {
             writer.Write(buf);
         }
 
-        private void FlushBlock(BinaryWriter writer, BlockWriter blockWriter, Packer indexPacker, byte type, TabletWriterOptions opts) {
+        private void FlushBlock(BinaryWriter writer, BlockWriter blockWriter, Stream index, byte type, TabletWriterOptions opts) {
             var offset = writer.BaseStream.Position;
             var output = blockWriter.Finish();
             if (output.FirstKey == null) {
@@ -89,37 +88,34 @@ namespace TheFactory.Datastore {
 
             // Write block packing info.
             var checksum = Crc32.ChecksumIeee(buf.Array, buf.Offset, buf.Length);
-            var packer = Packer.Create(writer.BaseStream, false);
-            packer.Pack((uint)checksum);
-            packer.Pack((uint)type);
-            packer.Pack((uint)buf.Length);
+            MiniMsgpack.PackUInt(writer.BaseStream, checksum);
+            MiniMsgpack.PackUInt(writer.BaseStream, type);
+            MiniMsgpack.PackUInt(writer.BaseStream, (ulong)buf.Length);
 
             // Write block.
             writer.Write(buf.Array, buf.Offset, buf.Length);
 
             var length = writer.BaseStream.Position - offset;
-            indexPacker.Pack((UInt64)offset);
-            indexPacker.Pack((UInt32)length);
-            indexPacker.PackRaw((byte[])output.FirstKey);
+            MiniMsgpack.PackUInt(index, (ulong)offset);
+            MiniMsgpack.PackUInt(index, (ulong)length);
+            MiniMsgpack.PackRaw(index, output.FirstKey);
 
             blockWriter.Reset();
         }
 
         private byte[] WriteBlocks(BinaryWriter writer, IEnumerable<IKeyValuePair> kvs, byte type, TabletWriterOptions opts) {
             var indexStream = new MemoryStream();
-            var indexPacker = Packer.Create(indexStream);
-
             var blockWriter = new BlockWriter(opts.KeyRestartInterval);
 
             foreach (var p in kvs) {
                 blockWriter.Append(p);
                 if (blockWriter.Size >= opts.BlockSize) {
-                    FlushBlock(writer, blockWriter, indexPacker, type, opts);
+                    FlushBlock(writer, blockWriter, indexStream, type, opts);
                 }
             }
 
             // Flush the rest.
-            FlushBlock(writer, blockWriter, indexPacker, type, opts);
+            FlushBlock(writer, blockWriter, indexStream, type, opts);
 
             return indexStream.GetBuffer().Take((int)indexStream.Length).ToArray();
         }

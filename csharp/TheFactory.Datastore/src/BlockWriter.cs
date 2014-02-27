@@ -1,13 +1,11 @@
 using System;
 using System.IO;
-using MsgPack;
 using TheFactory.Datastore.Helpers;
 
 namespace TheFactory.Datastore {
 
     internal class BlockWriter {
         private MemoryStream body, footer;
-        private Packer packer;
         private Slice previousKey, firstKey;
         private int keyRestartInterval, keyRestartCount;
 
@@ -15,7 +13,6 @@ namespace TheFactory.Datastore {
 
         public BlockWriter(int keyRestartInterval) {
             body = new MemoryStream();
-            packer = Packer.Create(body);
             footer = new MemoryStream();
             this.keyRestartInterval = keyRestartInterval;
             keyRestartCount = 0;
@@ -54,9 +51,9 @@ namespace TheFactory.Datastore {
             // [ rest of the key (msgpack raw)    ]
             // [ value (msgpack raw)              ]
             //
-            packer.Pack(prefix);
-            packer.PackRaw((byte[])key.Subslice(prefix));
-            packer.PackRaw((byte[])val);
+            MiniMsgpack.PackUInt(body, (ulong)prefix);
+            MiniMsgpack.PackRaw(body, key.Subslice(prefix));
+            MiniMsgpack.PackRaw(body, val);
 
             previousKey = key.Detach();
             keyRestartCount = (keyRestartCount + 1) % keyRestartInterval;

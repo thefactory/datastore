@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
-using MsgPack;
 using TheFactory.Datastore.Helpers;
 
 namespace TheFactory.Datastore {
@@ -41,14 +40,14 @@ namespace TheFactory.Datastore {
             return header;
         }
 
-        internal int ReadBlockHeaderLength(Stream stream) {
+        internal uint ReadBlockHeaderLength(Stream stream) {
             // Read a block header long enough to get its length; the caller
             // will maintain the stream position. This is a little hackish
             // but is necessary for our current stream API.
 
-            Unpacking.UnpackObject(stream).AsUInt32();       // checksum
-            Unpacking.UnpackObject(stream).AsInt32();        // flags
-            return Unpacking.UnpackObject(stream).AsInt32(); // length
+            MiniMsgpack.UnpackUInt32(stream); // checksum
+            MiniMsgpack.UnpackUInt32(stream); // flags
+            return MiniMsgpack.UnpackUInt32(stream); // length
         }
 
         private TabletIndexRecord ReadIndexRecord(Stream stream) {
@@ -59,9 +58,9 @@ namespace TheFactory.Datastore {
             //   [ first-key/name (msgpack raw)            ]
             //
             var i = new TabletIndexRecord();
-            i.Offset = Unpacking.UnpackObject(stream).AsInt64();
-            i.Length = Unpacking.UnpackObject(stream).AsInt32();
-            var dataLen = (int)Unpacking.UnpackByteStream(stream).Length;
+            i.Offset = (long)MiniMsgpack.UnpackUInt64(stream);
+            i.Length = (int)MiniMsgpack.UnpackUInt32(stream);
+            var dataLen = MiniMsgpack.UnpackRawLength(stream.ReadByte(), stream);
             i.Data = (Slice)stream.ReadBytes(dataLen);
             return i;
         }
@@ -116,10 +115,10 @@ namespace TheFactory.Datastore {
             var stream = buf.ToStream();
 
             var footer = new TabletFooter();
-            footer.MetaIndexOffset = Unpacking.UnpackObject(stream).AsInt64();
-            footer.MetaIndexLength = Unpacking.UnpackObject(stream).AsInt64();
-            footer.DataIndexOffset = Unpacking.UnpackObject(stream).AsInt64();
-            footer.DataIndexLength = Unpacking.UnpackObject(stream).AsInt64();
+            footer.MetaIndexOffset = (long)MiniMsgpack.UnpackUInt64(stream);
+            footer.MetaIndexLength = (long)MiniMsgpack.UnpackUInt64(stream);
+            footer.DataIndexOffset = (long)MiniMsgpack.UnpackUInt64(stream);
+            footer.DataIndexLength = (long)MiniMsgpack.UnpackUInt64(stream);
             return footer;
         }
     }
