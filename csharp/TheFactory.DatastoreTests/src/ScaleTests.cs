@@ -151,16 +151,16 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
-        public void OneWriterText50MB() {
-            TestRoundTrip(new Options(), 1, new TestData(textData, 50 * Size.MB, 100, 10000));
+        public void OneWriterText100MB() {
+            TestRoundTrip(new Options(), 1, new TestData(textData, 100 * Size.MB, 100, 10000));
         }
 
         [Test]
-        public void OneWriterTextUncomp50MB() {
+        public void OneWriterTextUncomp100MB() {
             var opts = new Options();
             opts.WriterOptions.BlockCompression = false;
 
-            TestRoundTrip(opts, 1, new TestData(textData, 50 * Size.MB, 100, 10000));
+            TestRoundTrip(opts, 1, new TestData(textData, 100 * Size.MB, 100, 10000));
         }
 
         [Test]

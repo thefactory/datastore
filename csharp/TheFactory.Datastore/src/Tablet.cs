@@ -172,9 +172,7 @@ namespace TheFactory.Datastore {
             get {
                 if (kvData == null) {
                     lock (rawData) {
-                        // To be fixed: this is an unnecessary copy of rawData. Needs
-                        // new SnappyDecoder API.
-                        kvData = (Slice)SnappyDecoder.Decode(rawData.ToArray());
+                        kvData = (Slice)SnappyDecoder.Decode(rawData.Array, rawData.Offset, rawData.Length);
                     }
                 }
 

@@ -63,7 +63,7 @@ namespace TheFactory.Datastore {
             var buf = output.Buffer;
 
             if (opts.BlockCompression) {
-                var comp = SnappyEncoder.Encode(buf.ToArray());
+                var comp = SnappyEncoder.Encode(buf.Array, buf.Offset, buf.Length);
                 var valid = true;
 
                 // This VerifyBlockCompression block is temporary while we test TheFactory.Snappy.
