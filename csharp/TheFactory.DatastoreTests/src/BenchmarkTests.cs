@@ -6,7 +6,6 @@ using System.Text;
 using System.Collections.Generic;
 using Splat;
 using TheFactory.FileSystem;
-using TheFactory.FileSystem.IOS;
 
 namespace TheFactory.DatastoreTests {
     public class BenchmarkArgs {
@@ -32,7 +31,6 @@ namespace TheFactory.DatastoreTests {
 
         [SetUp]
         public void setUp() {
-            Locator.CurrentMutable.RegisterConstant(new IOSFileSystem(), typeof(IFileSystem));
             tmpDir = Path.Combine(Path.GetTempPath(), "benchmark" + Utils.RandomString(4));
             Directory.CreateDirectory(tmpDir);
         }

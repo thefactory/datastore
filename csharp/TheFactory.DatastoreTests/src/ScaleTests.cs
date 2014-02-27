@@ -10,7 +10,6 @@ using System.Collections;
 using System.Diagnostics;
 using System.Text;
 using Splat;
-using TheFactory.FileSystem.IOS;
 using TheFactory.FileSystem;
 
 namespace TheFactory.DatastoreTests {
@@ -41,11 +40,6 @@ namespace TheFactory.DatastoreTests {
             using (var r = new StreamReader(Helpers.TestFile("pg11.txt"))) {
                 textData = (Slice)Encoding.UTF8.GetBytes(r.ReadToEnd());
             }
-        }
-
-        [SetUp]
-        public void SetUp() {
-            Locator.CurrentMutable.RegisterConstant(new IOSFileSystem(), typeof(IFileSystem));
         }
 
         void TestRoundTrip(Options opts, int numWriters, IEnumerable<IKeyValuePair> goldenKVs) {
@@ -166,6 +160,11 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TenWriters100MB() {
             TestRoundTrip(new Options(), 10, new TestData(bulkData, 100 * Size.MB, 100, 10000));
+        }
+
+        [Test]
+        public void TenWriters1GB() {
+            TestRoundTrip(new Options(), 1, new TestData(bulkData, 1 * Size.GB, 100, 10000));
         }
 
         [Test]

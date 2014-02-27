@@ -7,7 +7,6 @@ using TheFactory.Datastore;
 using System.Threading;
 using Splat;
 using TheFactory.FileSystem;
-using TheFactory.FileSystem.IOS;
 
 namespace TheFactory.DatastoreTests {
     [TestFixture]
@@ -16,8 +15,6 @@ namespace TheFactory.DatastoreTests {
 
         [SetUp]
         public void SetUp() {
-            Locator.CurrentMutable.RegisterConstant(new IOSFileSystem(), typeof(IFileSystem));
-
             var opts = new Options();
 
             db = Database.Open("datastore", opts) as Database;
@@ -336,8 +333,6 @@ namespace TheFactory.DatastoreTests {
 
         [SetUp]
         public void SetUp() {
-            Locator.CurrentMutable.RegisterConstant(new IOSFileSystem(), typeof(IFileSystem));
-
             path = Path.Combine(Path.GetTempPath(), "test");
 
             Directory.CreateDirectory(path);
