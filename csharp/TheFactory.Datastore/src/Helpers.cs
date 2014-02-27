@@ -83,7 +83,7 @@ namespace TheFactory.Datastore.Helpers {
         public static string StringifyKey(this byte[] key) {
             var raw = BitConverter.ToString(key);
             try {
-                var str = Encoding.UTF8.GetString(key);
+                var str = Encoding.UTF8.GetString(key, 0, key.Length);
                 return String.Format("{0} ({1})", raw, str);
             } catch (ArgumentException) {
                 return raw;

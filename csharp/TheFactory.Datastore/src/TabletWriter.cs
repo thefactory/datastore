@@ -4,6 +4,7 @@ using System.IO;
 using System.Collections.Generic;
 using TheFactory.Datastore.Helpers;
 using System.Linq;
+using Splat;
 
 namespace TheFactory.Datastore {
 
@@ -33,7 +34,7 @@ namespace TheFactory.Datastore {
         }
     }
 
-    internal class TabletWriter {
+    internal class TabletWriter : IEnableLogger {
         public TabletWriter() {
         }
 
@@ -70,11 +71,11 @@ namespace TheFactory.Datastore {
                     try {
                         var decomp = SnappyDecoder.Decode(comp);
                         if (decomp.CompareKey(buf.ToArray()) != 0) {
-                            Console.WriteLine("Block compression roundtrip failure: {0}", buf);
+                            this.Log().Error("Block compression roundtrip failure: {0}", buf);
                             valid = false;
                         }
                     } catch (Exception e) {
-                        Console.WriteLine("Block compression roundtrip failure: {0} {1}", e, buf);
+                        this.Log().ErrorException(String.Format("Block compression roundtrip failure: {0}", buf), e);
                         valid = false;
                     }
                 }
@@ -117,7 +118,7 @@ namespace TheFactory.Datastore {
             // Flush the rest.
             FlushBlock(writer, blockWriter, indexStream, type, opts);
 
-            return indexStream.GetBuffer().Take((int)indexStream.Length).ToArray();
+            return indexStream.ToArray();
         }
 
         public void WriteTablet(BinaryWriter writer, IEnumerable<IKeyValuePair> kvs, TabletWriterOptions opts) {

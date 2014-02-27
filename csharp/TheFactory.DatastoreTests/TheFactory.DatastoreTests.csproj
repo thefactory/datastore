@@ -89,6 +89,9 @@
     <Reference Include="System.Core" />
     <Reference Include="monotouch" />
     <Reference Include="MonoTouch.NUnitLite" />
+    <Reference Include="Splat">
+      <HintPath>..\contrib\Splat.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Resources\" />
@@ -125,6 +128,14 @@
     <ProjectReference Include="..\..\..\TheFactory.Snappy\TheFactory.Snappy\TheFactory.Snappy.csproj">
       <Project>{8C2CA69C-CFF2-4781-8800-2F08F5056893}</Project>
       <Name>TheFactory.Snappy</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\TheFactory.FileSystem\TheFactory.FileSystem\TheFactory.FileSystem.csproj">
+      <Project>{FDFDFB2D-254D-4A04-828F-D5292A495F4A}</Project>
+      <Name>TheFactory.FileSystem</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\TheFactory.FileSystem\TheFactory.FileSystem.IOS\TheFactory.FileSystem.IOS.csproj">
+      <Project>{68B4B74A-69AB-45DD-BAEF-975FAD88B445}</Project>
+      <Name>TheFactory.FileSystem.IOS</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

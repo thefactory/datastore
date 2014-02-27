@@ -5,6 +5,9 @@ using System.Text;
 using NUnit.Framework;
 using TheFactory.Datastore;
 using System.Threading;
+using Splat;
+using TheFactory.FileSystem;
+using TheFactory.FileSystem.IOS;
 
 namespace TheFactory.DatastoreTests {
     [TestFixture]
@@ -13,15 +16,17 @@ namespace TheFactory.DatastoreTests {
 
         [SetUp]
         public void SetUp() {
-            var opts = new Options();
-            opts.FileSystem = new MemFileSystem();
+            Locator.CurrentMutable.RegisterConstant(new IOSFileSystem(), typeof(IFileSystem));
 
-            db = Database.Open("/datastore", opts) as Database;
+            var opts = new Options();
+
+            db = Database.Open("datastore", opts) as Database;
         }
 
         [TearDown]
         public void TearDown() {
             db.Close();
+            Directory.Delete("datastore", true);
         }
 
         [Test]
@@ -31,7 +36,7 @@ namespace TheFactory.DatastoreTests {
 
             var path = Path.Combine(Path.GetTempPath(), "does-not-exist");
 
-            Assert.Throws(typeof(DirectoryNotFoundException),
+            Assert.Throws(typeof(InvalidOperationException),
                           delegate { Database.Open(path, opts); });
         }
 
@@ -55,7 +60,6 @@ namespace TheFactory.DatastoreTests {
         public void TestMemoryLock() {
             var path = Path.Combine(Path.GetTempPath(), "testdb" + Utils.RandomString(8));
             var opts = new Options();
-            opts.FileSystem = new MemFileSystem();
 
             using (var db1 = Database.Open(path, opts)) {
                 // attempt to reopen the database
@@ -332,6 +336,8 @@ namespace TheFactory.DatastoreTests {
 
         [SetUp]
         public void SetUp() {
+            Locator.CurrentMutable.RegisterConstant(new IOSFileSystem(), typeof(IFileSystem));
+
             path = Path.Combine(Path.GetTempPath(), "test");
 
             Directory.CreateDirectory(path);
@@ -347,7 +353,7 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestDatabasePushTabletStream() {
             var filename = Helpers.TestFile("ngrams1/ngrams1-Nblock-compressed.tab");
-            using (var fs = new FileStream(filename, FileMode.Open, FileAccess.Read)) {
+            using (var fs = new FileStream(filename, System.IO.FileMode.Open, System.IO.FileAccess.Read)) {
                 db.PushTabletStream(fs, "streamed-tablet", null);
             }
 
@@ -366,8 +372,8 @@ namespace TheFactory.DatastoreTests {
             }
 
             // Check that the emitted file matches the original.
-            using (var fs1 = new FileStream(filename, FileMode.Open, FileAccess.Read))
-            using (var fs2 = new FileStream(Path.Combine(path, "streamed-tablet"), FileMode.Open, FileAccess.Read)) {
+            using (var fs1 = new FileStream(filename, System.IO.FileMode.Open, System.IO.FileAccess.Read))
+            using (var fs2 = new FileStream(Path.Combine(path, "streamed-tablet"), System.IO.FileMode.Open, System.IO.FileAccess.Read)) {
                 Assert.True(fs1.Length == fs2.Length);
                 var count = 0;
                 for (count = 0; count < fs1.Length; count++) {

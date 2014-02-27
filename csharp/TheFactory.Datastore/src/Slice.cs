@@ -139,7 +139,7 @@ namespace TheFactory.Datastore {
             // safely stringify the slice data
             var raw = BitConverter.ToString((byte[])this);
             try {
-                var str = Encoding.UTF8.GetString((byte[])this);
+                var str = Encoding.UTF8.GetString((byte[])this, this.Offset, this.Length);
                 return String.Format("{0} ({1})", raw, str);
             } catch (ArgumentException) {
                 return raw;

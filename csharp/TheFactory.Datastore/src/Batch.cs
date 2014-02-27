@@ -27,11 +27,7 @@ namespace TheFactory.Datastore {
         }
 
         public Batch(Slice buffer) {
-            // Initialize a readable Batch from existing data.
-            // Create stream with a publically visible, read-only buffer so
-            // we don't copy when iterating in Pairs(). Use the full five-argument
-            // constructor, since that's documented as usable with GetBuffer().
-            stream = new MemoryStream(buffer.Array, buffer.Offset, buffer.Length, false, true);
+            stream = new MemoryStream(buffer.Array, buffer.Offset, buffer.Length, false);
         }
 
         public void Put(Slice key, Slice val) {
@@ -54,7 +50,7 @@ namespace TheFactory.Datastore {
         }
 
         public Slice ToSlice() {
-            return new Slice(stream.GetBuffer(), 0, (int)stream.Length);
+            return new Slice(stream.ToArray(), 0, (int)stream.Length);
         }
 
         private void WriteRaw(Slice raw) {
@@ -76,7 +72,7 @@ namespace TheFactory.Datastore {
         public IEnumerable<IKeyValuePair> Pairs() {
             // get the underlying buffer and create a new reader, so we can return
             // slices from the existing data rather than copying
-            byte[] buf = stream.GetBuffer();
+            byte[] buf = stream.ToArray();
             Stream reader = new MemoryStream(buf, 0, (int)stream.Length);
 
             var pair = new Pair();

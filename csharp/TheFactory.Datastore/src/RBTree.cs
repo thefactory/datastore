@@ -34,7 +34,6 @@ using System.Collections.Generic;
 
 namespace TheFactory.Datastore
 {
-	[Serializable]
 	internal class RBTree : IEnumerable, IEnumerable<RBTree.Node> {
 		public interface INodeHelper<T> {
 			int Compare (T key, Node node);
@@ -204,7 +203,7 @@ namespace TheFactory.Datastore
 						current = current.right;
 					}
 				}
-				throw new SystemException ("Internal Error: index calculation");
+                throw new Exception ("Internal Error: index calculation");
 			}
 		}
 
@@ -289,7 +288,7 @@ namespace TheFactory.Datastore
 				rebalance_insert (path);
 
 			if (!root.IsBlack)
-				throw new SystemException ("Internal error: root is not black");
+                throw new Exception ("Internal error: root is not black");
 
 			++version;
 			return current;
@@ -318,7 +317,7 @@ namespace TheFactory.Datastore
 			current = path [curpos];
 
 			if (current.Size != 1)
-				throw new SystemException ("Internal Error: red-black violation somewhere");
+                throw new Exception ("Internal Error: red-black violation somewhere");
 
 			// remove it from our data structures
 			path [curpos] = null;
@@ -334,7 +333,7 @@ namespace TheFactory.Datastore
 			}
 
 			if (root != null && !root.IsBlack)
-				throw new SystemException ("Internal Error: root is not black");
+                throw new Exception ("Internal Error: root is not black");
 
 			++version;
 			return current;
@@ -516,7 +515,7 @@ namespace TheFactory.Datastore
 		void node_reparent (Node orig_parent, Node orig, uint orig_size, Node updated)
 		{
 			if (updated != null && updated.FixSize () != orig_size)
-				throw new SystemException ("Internal error: rotation");
+                throw new Exception ("Internal error: rotation");
 
 			if (orig == root)
 				root = updated;
@@ -525,7 +524,7 @@ namespace TheFactory.Datastore
 			else if (orig == orig_parent.right)
 				orig_parent.right = updated;
 			else
-				throw new SystemException ("Internal error: path error");
+                throw new Exception ("Internal error: path error");
 		}
 
 		// Pre-condition: current != null
@@ -541,7 +540,6 @@ namespace TheFactory.Datastore
 			}
 		}
 
-		[Serializable]
 		public struct NodeEnumerator : IEnumerator, IEnumerator<Node> {
 			RBTree tree;
 			uint version;

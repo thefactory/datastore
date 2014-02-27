@@ -8,11 +8,12 @@ using System.Collections;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+using Splat;
+using TheFactory.FileSystem;
 
 namespace TheFactory.Datastore {
     public class Options {
         public bool CreateIfMissing { get; set; }
-        public IFileSystem FileSystem { get; set; }
         public bool VerifyChecksums { get; set; }
         public int MaxMemoryTabletSize { get; set; }
         public TabletReaderOptions ReaderOptions { get; set; }
@@ -20,7 +21,6 @@ namespace TheFactory.Datastore {
 
         public Options() {
             CreateIfMissing = true;
-            FileSystem = new FileSystem();
             VerifyChecksums = false;
             MaxMemoryTabletSize = 1024 * 1024 * 4; /* 4MB default */
             ReaderOptions = new TabletReaderOptions();
@@ -38,7 +38,7 @@ namespace TheFactory.Datastore {
         }
     }
 
-    public class Database: IDatabase {
+    public class Database: IDatabase, IEnableLogger {
         private Options opts;
         private IFileSystem fs;
 
@@ -71,7 +71,7 @@ namespace TheFactory.Datastore {
         internal Database(string path, Options opts) {
             this.fileManager = new FileManager(path);
             this.opts = opts;
-            this.fs = opts.FileSystem;
+            this.fs = Locator.Current.GetService<IFileSystem>();
         }
 
         public static IDatabase Open(string path) {
@@ -87,18 +87,18 @@ namespace TheFactory.Datastore {
         private void Open() {
             if (!fs.Exists(fileManager.Dir)) {
                 if (!opts.CreateIfMissing) {
-                    throw new DirectoryNotFoundException();
+                    throw new InvalidOperationException(String.Format("Directory `{0}` must exist", fileManager.Dir));
                 }
-                fs.Mkdirs(fileManager.Dir);
+                fs.CreateDirectory(fileManager.Dir);
             }
 
-            fsLock = fs.Lock(fileManager.GetLockFile());
+            fsLock = fs.FileLock(fileManager.GetLockFile());
 
             LoadMemoryTablets();
 
             var tabletStack = fileManager.GetTabletStack();
             if (fs.Exists(tabletStack)) {
-                using (var file = fs.Open(tabletStack)) {
+                using (var file = fs.GetStream(tabletStack, FileMode.Open, FileAccess.Read)) {
                     var reader = new StreamReader(file);
                     while (!reader.EndOfStream) {
                         tablets.Add(new FileTablet(reader.ReadLine(), opts.ReaderOptions));
@@ -127,11 +127,11 @@ namespace TheFactory.Datastore {
                 fs.Remove(immTransLog);
             }
 
-            writeLog = new TransactionLogWriter(fs.Append(transLog));
+            writeLog = new TransactionLogWriter(fs.GetStream(transLog, FileMode.Append, FileAccess.Write, FileShare.None));
         }
 
         void ReplayTransactions(MemoryTablet tablet, string path) {
-            using (var log = new TransactionLogReader(fs.Open(path))) {
+            using (var log = new TransactionLogReader(fs.GetStream(path, FileMode.Open, FileAccess.Read))) {
                 foreach (var transaction in log.Transactions()) {
                     tablet.Apply(new Batch(transaction));
                 }
@@ -183,9 +183,9 @@ namespace TheFactory.Datastore {
             }
 
             var filepath = Path.Combine(fileManager.Dir, filename);
-            var fs = new FileStream(filepath, FileMode.Create, FileAccess.Write);
 
-            using (var writer = new BinaryWriter(fs)) {
+            using (var s = fs.GetStream(filepath, FileMode.Create, FileAccess.Write))
+            using (var writer = new BinaryWriter(s)) {
                 writer.Write(headerData.Array, headerData.Offset, headerData.Length);
 
                 while (!EndOfBlocks(stream) && stream.Position < stream.Length) {
@@ -240,12 +240,12 @@ namespace TheFactory.Datastore {
 
         void WriteLevel0List() {
             // tabLock must be held to call WriteLevel0List
-            using (var stream = fs.Create(fileManager.GetTabletStack())) {
+            using (var stream = fs.GetStream(fileManager.GetTabletStack(), FileMode.Create, FileAccess.Write, FileShare.None)) {
                 var writer = new StreamWriter(stream);
                 foreach (var t in tablets) {
                     writer.WriteLine(t.Filename);
                 }
-                writer.Close();
+                writer.Dispose();
             }
         }
 
@@ -287,8 +287,8 @@ namespace TheFactory.Datastore {
                 mem = new MemoryTablet();
 
                 writeLog.Dispose();
-                fs.Rename(transLog, immTransLog);
-                writeLog = new TransactionLogWriter(fs.Append(transLog));
+                fs.Move(transLog, immTransLog);
+                writeLog = new TransactionLogWriter(fs.GetStream(transLog, FileMode.Append, FileAccess.Write));
 
                 Task.Run(() => {
                     try {
@@ -296,7 +296,7 @@ namespace TheFactory.Datastore {
                         fs.Remove(immTransLog);
                         mem2 = null;
                     } catch (Exception e) {
-                        Console.WriteLine("Exception in tablet compaction: {0}", e);
+                        this.Log().ErrorException("Exception in tablet compaction", e);
                     } finally {
                         // Set canCompact to avoid deadlock, but at this point we'll
                         // try and fail to compact mem2 on every database write.
@@ -310,7 +310,8 @@ namespace TheFactory.Datastore {
             var tabfile = fileManager.DbFilename(String.Format("{0}.tab", System.Guid.NewGuid().ToString()));
             var writer = new TabletWriter();
 
-            using (var output = new BinaryWriter(fs.Create(tabfile))) {
+            using (var stream = fs.GetStream(tabfile, FileMode.Create, FileAccess.Write))
+            using (var output = new BinaryWriter(stream)) {
                 writer.WriteTablet(output, tab.Find(), opts.WriterOptions);
             }
 

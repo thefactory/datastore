@@ -36,14 +36,13 @@ using System;
 using System.Collections;
 using System.Diagnostics;
 using System.Runtime.Serialization;
-using System.Security.Permissions;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace TheFactory.Datastore
 {
-	[Serializable]
 	[DebuggerDisplay ("Count={Count}")]
-	internal class OurSortedDictionary<TKey,TValue> : IDictionary<TKey,TValue>, ICollection<KeyValuePair<TKey,TValue>>, IEnumerable<KeyValuePair<TKey,TValue>>, IDictionary, ICollection, IEnumerable, ISerializable
+	internal class OurSortedDictionary<TKey,TValue> : IDictionary<TKey,TValue>, ICollection<KeyValuePair<TKey,TValue>>, IEnumerable<KeyValuePair<TKey,TValue>>, IDictionary, ICollection, IEnumerable
 	{
 		class Node : RBTree.Node {
 			public TKey key;
@@ -78,7 +77,6 @@ namespace TheFactory.Datastore
 			}
 		}
 
-		[Serializable]
 		class NodeHelper : RBTree.INodeHelper<TKey> {
 			public IComparer<TKey> cmp;
 
@@ -130,16 +128,6 @@ namespace TheFactory.Datastore
 			
 			foreach (KeyValuePair<TKey, TValue> entry in dictionary)
 				Add (entry.Key, entry.Value);
-		}
-
-		protected OurSortedDictionary (SerializationInfo info, StreamingContext context)
-		{
-			hlp = (NodeHelper)info.GetValue("Helper", typeof(NodeHelper));
-			tree = new RBTree (hlp);
-
-			KeyValuePair<TKey, TValue> [] data = (KeyValuePair<TKey, TValue>[])info.GetValue("KeyValuePairs", typeof(KeyValuePair<TKey, TValue>[]));
-			foreach (KeyValuePair<TKey, TValue> entry in data)
-				Add(entry.Key, entry.Value);
 		}
 
 		#endregion
@@ -241,18 +229,6 @@ namespace TheFactory.Datastore
 			return n != null;
 		}
 
-		[SecurityPermission (SecurityAction.LinkDemand, Flags=SecurityPermissionFlag.SerializationFormatter)]
-		public virtual void GetObjectData (SerializationInfo info, StreamingContext context)
-		{
-			if (info == null)
-				throw new ArgumentNullException ("info");
-
-			KeyValuePair<TKey, TValue> [] data = new KeyValuePair<TKey,TValue> [Count];
-			CopyTo (data, 0);
-			info.AddValue ("KeyValuePairs", data);
-			info.AddValue ("Helper", hlp);
-		}
-
 		#endregion
 
 		#region PrivateMethod
@@ -267,7 +243,7 @@ namespace TheFactory.Datastore
 
 		TValue ToValue (object value)
 		{
-			if (!(value is TValue) && (value != null || typeof (TValue).IsValueType))
+            if (!(value is TValue) && (value != null || typeof (TValue).GetTypeInfo().IsValueType))
 				throw new ArgumentException (String.Format ("Value \"{0}\" cannot be converted to the value type {1}.", value, typeof (TValue)));
 			return (TValue) value;
 		}
@@ -409,7 +385,6 @@ namespace TheFactory.Datastore
 			return new Enumerator(this, key);
 		}
 
-		[Serializable]
 		[DebuggerDisplay ("Count={Count}")]
 		public sealed class ValueCollection : ICollection<TValue>,
 			IEnumerable<TValue>, ICollection, IEnumerable
@@ -549,7 +524,6 @@ namespace TheFactory.Datastore
 			}
 		}
 
-		[Serializable]
 		[DebuggerDisplay ("Count={Count}")]
 		public sealed class KeyCollection : ICollection<TKey>,
 			IEnumerable<TKey>, ICollection, IEnumerable

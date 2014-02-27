@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using TheFactory.Datastore.Helpers;
 using System.Collections.Generic;
+using Splat;
+using TheFactory.FileSystem;
 
 namespace TheFactory.Datastore {
     internal class TransactionLog {
@@ -27,7 +29,7 @@ namespace TheFactory.Datastore {
         private Stream stream;
 
         public TransactionLogReader(string path) {
-            stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Read);
+            stream = Locator.Current.GetService<IFileSystem>().GetStream(path, FileMode.OpenOrCreate, FileAccess.Read);
         }
 
         internal TransactionLogReader(Stream stream) {
@@ -82,7 +84,7 @@ namespace TheFactory.Datastore {
                 buffer.Write(record.Value, 0, record.Value.Length);
             }
 
-            return new Slice(buffer.GetBuffer(), 0, (int)buffer.Length);
+            return new Slice(buffer.ToArray(), 0, (int)buffer.Length);
         }
 
         public IEnumerable<Slice> Transactions() {
@@ -113,7 +115,7 @@ namespace TheFactory.Datastore {
         }
 
         public TransactionLogWriter(string path) : this() {
-            output = new FileStream(path, FileMode.Append, FileAccess.Write);
+            output = Locator.Current.GetService<IFileSystem>().GetStream(path, FileMode.Append, FileAccess.Write);
         }
 
         public void Dispose() {
@@ -145,7 +147,7 @@ namespace TheFactory.Datastore {
 
             buf.Write(rec.Array, rec.Offset, rec.Length);
 
-            output.Write(buf.GetBuffer(), 0, (int)buf.Length);
+            output.Write(buf.ToArray(), 0, (int)buf.Length);
         }
 
         public void EmitTransaction(Slice data) {

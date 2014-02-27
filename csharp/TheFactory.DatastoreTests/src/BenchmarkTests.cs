@@ -4,6 +4,9 @@ using NUnit.Framework;
 using TheFactory.Datastore;
 using System.Text;
 using System.Collections.Generic;
+using Splat;
+using TheFactory.FileSystem;
+using TheFactory.FileSystem.IOS;
 
 namespace TheFactory.DatastoreTests {
     public class BenchmarkArgs {
@@ -29,6 +32,7 @@ namespace TheFactory.DatastoreTests {
 
         [SetUp]
         public void setUp() {
+            Locator.CurrentMutable.RegisterConstant(new IOSFileSystem(), typeof(IFileSystem));
             tmpDir = Path.Combine(Path.GetTempPath(), "benchmark" + Utils.RandomString(4));
             Directory.CreateDirectory(tmpDir);
         }
@@ -228,7 +232,8 @@ namespace TheFactory.DatastoreTests {
             var stats = new Stats();
 
             stats.Start();
-            using (var log = new TransactionLogReader(options.FileSystem.Open(path))) {
+            using (var stream = Locator.Current.GetService<IFileSystem>().GetStream(path, TheFactory.FileSystem.FileMode.Open, TheFactory.FileSystem.FileAccess.Read))
+            using (var log = new TransactionLogReader(stream)) {
                 foreach (var transaction in log.Transactions()) {
                     tablet.Apply(new Batch(transaction));
                     stats.AddBytes(transaction.Length);

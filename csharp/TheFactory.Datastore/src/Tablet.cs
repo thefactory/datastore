@@ -5,6 +5,8 @@ using System.Linq;
 using System.Threading;
 using TheFactory.Snappy;
 using TheFactory.Datastore.Helpers;
+using Splat;
+using TheFactory.FileSystem;
 
 namespace TheFactory.Datastore {
 
@@ -25,7 +27,7 @@ namespace TheFactory.Datastore {
 
         public string Filename { get; private set; }
 
-        public FileTablet(string filename, TabletReaderOptions opts) : this(new FileStream(filename, FileMode.Open, FileAccess.Read), opts) {
+        public FileTablet(string filename, TabletReaderOptions opts) : this(Locator.Current.GetService<IFileSystem>().GetStream(filename, FileMode.Open, FileAccess.Read), opts) {
             Filename = filename;
         }
 
@@ -39,7 +41,7 @@ namespace TheFactory.Datastore {
         }
 
         public void Close() {
-            stream.Close();
+            stream.Dispose();
         }
 
         public IEnumerable<IKeyValuePair> Find() {

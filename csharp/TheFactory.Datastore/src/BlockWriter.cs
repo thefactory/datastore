@@ -63,7 +63,7 @@ namespace TheFactory.Datastore {
             var numRestarts = footer.Length / 4;
             footer.WriteTo(body);
             body.WriteInt((UInt32)numRestarts);
-            return new BlockWriterOutput(firstKey, new Slice(body.GetBuffer(), 0, (int)body.Length));
+            return new BlockWriterOutput(firstKey, new Slice(body.ToArray(), 0, (int)body.Length));
         }
 
         public void Reset() {
