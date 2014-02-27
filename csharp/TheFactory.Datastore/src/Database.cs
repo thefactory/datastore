@@ -101,7 +101,8 @@ namespace TheFactory.Datastore {
                 using (var file = fs.GetStream(tabletStack, FileMode.Open, FileAccess.Read)) {
                     var reader = new StreamReader(file);
                     while (!reader.EndOfStream) {
-                        tablets.Add(new FileTablet(reader.ReadLine(), opts.ReaderOptions));
+                        var filename = fileManager.DbFilename(reader.ReadLine());
+                        tablets.Add(new FileTablet(filename, opts.ReaderOptions));
                     }
                 }
             }
@@ -243,7 +244,7 @@ namespace TheFactory.Datastore {
             using (var stream = fs.GetStream(fileManager.GetTabletStack(), FileMode.Create, FileAccess.Write, FileShare.None)) {
                 var writer = new StreamWriter(stream);
                 foreach (var t in tablets) {
-                    writer.WriteLine(t.Filename);
+                    writer.WriteLine(Path.GetFileName(t.Filename));
                 }
                 writer.Dispose();
             }
