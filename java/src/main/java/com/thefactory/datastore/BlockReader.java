@@ -99,7 +99,7 @@ public class BlockReader {
             }
 
             public boolean hasNext() {
-                return (startKey != null) || (reader.getPos() < kvs.getLength());
+                return (startKey != null) || (reader.getPos() < reader.getLength());
             }
 
             public KV next() {
@@ -113,13 +113,22 @@ public class BlockReader {
                     }
                     return ret;
                 } catch (IOException e) {
-                    throw new NoSuchElementException(e.getMessage());
+                    java.io.StringWriter sw = new java.io.StringWriter();
+                    e.printStackTrace(new java.io.PrintWriter(sw));
+                    throw new NoSuchElementException(String.format("%s\n%s", toString(), sw.toString()));
                 }
             }
 
             public void remove() {
                 throw new UnsupportedOperationException();
             }
+
+            @Override
+            public String toString() {
+                return String.format("BlockReader.pairs()(Iterator<KV>): numRestarts: %d, startKey: %s, sliceReaderPos: %d, kvs.len: %d", 
+                        numRestarts, startKey, reader.getPos(), kvs.getLength());
+            }
+
         };
     }
 
@@ -135,8 +144,12 @@ public class BlockReader {
             this.slice = slice;
         }
 
-        public int getPos(){
+        public int getPos() {
             return pos;
+        }
+
+        public int getLength() {
+            return slice.getLength();
         }
 
         public KV readOne() throws IOException {
@@ -229,7 +242,7 @@ public class BlockReader {
 
     private int restartValue(int n) {
         // decode the n'th restart to its position in the kv data
-        return (int) Utils.toUInt32(block.subslice(restartPosition(n)));
+        return (int) Utils.toUInt32(kvs.subslice(restartPosition(n)));
     }
 
     private int restartPosition(int n) {
