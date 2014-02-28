@@ -93,7 +93,7 @@ public class BlockReader {
                             startKey = null;
                         }
                     } catch (IOException e) {
-                        throw new IllegalArgumentException("corrupt block");
+                        throw new IllegalArgumentException("corrupt block", e);
                     }
                 }
             }
@@ -173,6 +173,9 @@ public class BlockReader {
             pos += 1;
             if (flag <= Msgpack.MAXIMUM_FIXED_POS) {
                 return flag;
+            } else if (flag == Msgpack.MSG_UINT_8) {
+               num = stream.readUnsignedByte();                
+               pos += 1;
             } else if (flag == Msgpack.MSG_UINT_16) {
                 for (int i = 0; i < 2; i++) {
                     num = (num << 8) | stream.readUnsignedByte();
@@ -182,7 +185,7 @@ public class BlockReader {
                 for (int i = 0; i < 4; i++) {
                     num = (num << 8) | stream.readUnsignedByte();
                 }
-                pos += 3;
+                pos += 4;
             }
 
             return num;
@@ -207,7 +210,7 @@ public class BlockReader {
                 for (int i = 0; i < 4; i++) {
                     length = (length << 8) | stream.readUnsignedByte();
                 }
-                pos += 3;
+                pos += 4;
             } else {
                 throw new IOException("Unexpected message pack raw flag byte: " + flag);
             }

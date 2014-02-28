@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.nio.ByteBuffer;
 import java.io.IOException;
 import java.util.Random;
+import java.util.Date;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.BufferedReader;
@@ -22,7 +23,6 @@ public class DatabaseTest extends TestCase {
     {
         random.nextBytes(randomBytes);
     }
-
 
     @Override
     protected void tearDown() throws Exception {
@@ -185,20 +185,40 @@ public class DatabaseTest extends TestCase {
         assertEquals(db.get(key), value);
     }
 
-    public void testPutOneFindManyAndGet() throws Exception {
+    public void testPutOneGet2WithPrefixedKeys() throws Exception {
         Database db = setupDatabase(new DiskFileSystem(), new String[]{});
-
-        Iterator<KV> kvs = db.find();
-        assertFalse(kvs.hasNext());
-
+        assertFalse(db.find().hasNext());
+    
         Slice key = new Slice("A special key that is not random".getBytes());
         Slice value = new Slice("A special value for our key".getBytes());
+
         db.put(key, value);
-        // Add many keys (+4MBytes) to ensure that we trigger flushing our memory tablet to disk ...
-        for(int i = 0; i < 40000; i++){
-            db.put(nextPrefixedRandomSlice(1000), nextRandomSlice(1000));
-            db.find(nextPrefixedRandomSlice(100));
-            db.get(key);
+        // Add many keys (+4MBytes) to ensure that we trigger flushing our memory tablets to disk ...
+        for(int i = 0; i < 10000; i++){
+            Slice krand = nextPrefixedRandomSlice(1000);
+            Slice vrand = nextRandomSlice(10000);
+            db.put(krand, vrand);
+            assertEquals(db.get(key), value);
+            assertEquals(db.get(krand), vrand);
+        }
+        assertEquals(db.get(key), value);
+    }
+
+    public void testPutOneGet2WithRandomKeys() throws Exception {
+        Database db = setupDatabase(new DiskFileSystem(), new String[]{});
+        assertFalse(db.find().hasNext());
+    
+        Slice key = new Slice("A special key that is not random".getBytes());
+        Slice value = new Slice("A special value for our key".getBytes());
+
+        db.put(key, value);
+        // Add many keys (+4MBytes) to ensure that we trigger flushing our memory tablets to disk ...
+        for(int i = 0; i < 10000; i++){
+            Slice krand = nextRandomSlice(1000);
+            Slice vrand = nextRandomSlice(10000);
+            db.put(krand, vrand);
+            assertEquals(db.get(key), value);
+            assertEquals(db.get(krand), vrand);
         }
         assertEquals(db.get(key), value);
     }

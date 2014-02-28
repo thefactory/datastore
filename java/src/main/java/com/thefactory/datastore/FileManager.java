@@ -50,7 +50,7 @@ public class FileManager {
     }
 
     public Collection<String> loadTabletFilenames() throws IOException {
-        if (fs.exists(TABLET_META_FILE)) {
+        if (fs.exists(dbFilename(TABLET_META_FILE))) {
             return fs.loadList(getTabletMetaFile());
         }
 
@@ -61,8 +61,21 @@ public class FileManager {
         fs.storeList(filenames, getTabletMetaFile());
     }
 
-    public boolean exists(String filename) {
-        return fs.exists(filename);
+    public boolean exists(String filename, int maxAttempts) {
+        int attempts = maxAttempts;
+        while(attempts > 0) {
+            if(fs.exists(dbFilename(filename))) {
+                return true;
+            }
+            try{
+                java.lang.Thread.sleep(100 * attempts);
+            } catch (InterruptedException e) {
+                ;
+            }
+            attempts --;
+        }
+
+        return false;
     }
 }
 

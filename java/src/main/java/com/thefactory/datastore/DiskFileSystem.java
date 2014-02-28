@@ -52,16 +52,15 @@ public class DiskFileSystem implements FileSystem {
 
     @Override
     public void remove(String name) {
-        if(!new File(name).delete()) {
-            throw new IllegalArgumentException("Failed to delete file: " + name);
-        }
+        new File(name).delete();
     }
 
     @Override
     public void rename(String oldName, String newName) {
-        if(!new File(oldName).renameTo(new File(newName))) {
-            throw new IllegalArgumentException("Failed to rename file: " + oldName + " to " + newName);
+        if(new File(oldName).renameTo(new File(newName))) {
+            return;
         }
+        throw new IllegalArgumentException("Failed to rename file: " + oldName + " to " + newName);
     }
 
     @Override
@@ -161,6 +160,7 @@ public class DiskFileSystem implements FileSystem {
 
         @Override
         public void close() throws IOException {
+            channel.force(true);
             channel.close();
         }
 

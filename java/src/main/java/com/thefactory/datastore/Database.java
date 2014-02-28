@@ -5,10 +5,7 @@ import java.io.IOException;
 import java.io.Closeable;
 import java.util.Iterator;
 import java.util.Deque;
-import java.util.ArrayDeque;
 import java.util.Collection;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.NoSuchElementException;
 import java.util.Iterator;
@@ -62,8 +59,7 @@ public class Database implements Closeable {
 
     private class Tablets {
         public final Deque<String> stack = new LinkedBlockingDeque<String>();
-        public final Map<String, FileTablet> file = new ConcurrentHashMap<String, FileTablet>();        
-
+        public final Deque<FileTablet> file = new LinkedBlockingDeque<FileTablet>();        
         public MemoryTablet mutable = new MemoryTablet();
         public MemoryTablet saving = null;
     }
@@ -84,9 +80,12 @@ public class Database implements Closeable {
     }
 
     public void pushTablet(String name) throws IOException {
-        DatastoreChannel tabletChannel = options.fileSystem.open(fileManager.dbFilename(name));
-        tablets.file.put(name, new FileTablet(tabletChannel, new TabletReaderOptions()));
-        tablets.stack.addLast(name);
+        synchronized(tablets){
+            DatastoreChannel tabletChannel = options.fileSystem.open(fileManager.dbFilename(name));
+            tablets.file.addLast(new FileTablet(tabletChannel, new TabletReaderOptions()));
+            tablets.stack.addLast(name);
+        }    
+
         fileManager.writeTabletFilenames(tablets.stack);
     }
 
@@ -174,23 +173,16 @@ public class Database implements Closeable {
             private KV current = null;
 
             {
-                Iterator<String> tabletIterator = tablets.stack.iterator();
-                Iterator<KV> kvIterator;
-                QueueItem item;
                 int priority = 0;
-                while(tabletIterator.hasNext()){
-                    String name = tabletIterator.next();
-                    kvIterator = tablets.file.get(name).find(term);
-                    if (kvIterator.hasNext()) {
-                        enqueueNextItem(kvIterator, priority++);
-                    }                    
+                Iterator<FileTablet> it = tablets.file.iterator();
+                while(it.hasNext()){
+                    enqueueNextItem(it.next().find(term), priority++);
                 }
-                kvIterator = tablets.mutable.find(term);
-                enqueueNextItem(kvIterator, priority++);
                 if(tablets.saving != null) {
-                    kvIterator = tablets.saving.find(term);
-                    enqueueNextItem(kvIterator, priority);                    
+                    enqueueNextItem(tablets.saving.find(term), priority++);                    
                 }
+                enqueueNextItem(tablets.mutable.find(term), priority);
+
                 current = pop();
             }
 
@@ -261,7 +253,7 @@ public class Database implements Closeable {
 
         String transactionLogPath = fileManager.getTransactionLog();
         transactionLogWriter = new TransactionLog(options.fileSystem).getWriter(transactionLogPath, 
-            fileManager.exists(transactionLogPath));
+            options.fileSystem.exists(transactionLogPath));
         
         tablets.mutable = fromLogOrElse(transactionLogPath, new MemoryTablet());
         tablets.saving = fromLogOrElse(fileManager.getSecondaryTransactionLog(), null);
@@ -274,7 +266,7 @@ public class Database implements Closeable {
 
     private MemoryTablet fromLogOrElse(final String transactionLogPath, final MemoryTablet tablet) {
         MemoryTablet ret = tablet;
-        if(!fileManager.exists(transactionLogPath)) {
+        if(!options.fileSystem.exists(transactionLogPath)) {
             return ret;
         }
 
@@ -290,49 +282,85 @@ public class Database implements Closeable {
         return ret; 
     }
 
-    private TransactionLog.Writer mkTransactionLogWriter(String transactionLogPath) {
-        return new TransactionLog(options.fileSystem).getWriter(transactionLogPath, fileManager.exists(transactionLogPath));
-    }
+    private synchronized void apply(Batch batch) throws IOException {
+        transactionLogWriter.writeTransaction(batch.asSlice());
+        tablets.mutable.apply(batch);    
 
-    private void apply(Batch batch) throws IOException {
-        synchronized(this) {
-            transactionLogWriter.writeTransaction(batch.asSlice());
-            tablets.mutable.apply(batch);
-            if((tablets.saving != null) || (tablets.mutable.size() < options.maxMutableTabletSize)){
-                return;
-            }
-
-            tablets.saving = tablets.mutable;
-            tablets.mutable = new MemoryTablet();
-
-            transactionLogWriter.close();
-            options.fileSystem.rename(fileManager.getTransactionLog(), fileManager.getSecondaryTransactionLog());
-            transactionLogWriter = new TransactionLog(options.fileSystem).getWriter(fileManager.getTransactionLog(), false);        
-
-            new Thread() {
-                public void run() {
-                    try {
-                        String name = UUID.randomUUID().toString();
-                        save(name);
-                        pushTablet(name); 
-                        tablets.saving = null;
-                        options.fileSystem.remove(fileManager.getSecondaryTransactionLog());
-                        log.debug(String.format("Successfully flushed tablet (%s)", name));
-                    } catch (IOException e) {
-                        log.error(String.format("Flushing tablet failed with %s", e));
-                    }
-                }
-            }.start();
+        if(shouldSave() && canSave()){
+            save();
         }
     }
 
-    private void save(String name) throws IOException {
-        if(tablets.saving == null) {
+    private Boolean canSaveFlag = Boolean.TRUE;
+    
+    public boolean canSave() {
+        synchronized (canSaveFlag) {
+            while (canSaveFlag.booleanValue() == false) {
+                try {
+                    canSaveFlag.wait();
+                } catch (InterruptedException e) {
+                    return false;
+                } 
+            }
+        }
+        return true;
+    }
+
+    public void signalSaveComplete() {
+        synchronized (canSaveFlag) {
+            canSaveFlag = Boolean.TRUE;
+            canSaveFlag.notifyAll();
+        }
+    }
+
+    private boolean shouldSave() {
+        synchronized(tablets) {
+            return (tablets.saving == null) && (tablets.mutable.size() > options.maxMutableTabletSize);
+        }
+    }
+
+    private void save() throws IOException {
+        if(canSave() && !shouldSave()) {
             return;
         }
-        Iterator<KV> kvs = tablets.saving.find();
+
+        transactionLogWriter.close();
+        options.fileSystem.rename(fileManager.getTransactionLog(), fileManager.getSecondaryTransactionLog());
+        transactionLogWriter = new TransactionLog(options.fileSystem).getWriter(fileManager.getTransactionLog(), false);        
+
+        synchronized(tablets){
+            tablets.saving = tablets.mutable;
+            tablets.mutable = new MemoryTablet();
+        }
+
+        new Thread() {
+            public void run() {
+                String name = UUID.randomUUID().toString();
+                try {
+                    writeTablet(name);
+                    if(fileManager.exists(name, 10)) {
+                        pushTablet(name);
+                        synchronized(tablets) {
+                            tablets.saving = null;     
+                        }                            
+                        options.fileSystem.remove(fileManager.getSecondaryTransactionLog());
+                    } else {
+                        log.error(String.format("Failed to save tablet: %s", name));                        
+                    }
+                } catch (IOException e) {
+                    log.error(String.format("Flushing tablet failed with %s", e));
+                } finally {
+                   signalSaveComplete(); 
+                }            
+                log.debug(String.format("Successfully flushed tablet (%s)", name));
+            }
+        }.start();
+    }
+
+    private void writeTablet(String name) throws IOException {
         TabletWriter writer = new TabletWriter(new TabletWriterOptions());
         DatastoreChannel channel = options.fileSystem.create(fileManager.dbFilename(name));
-        writer.writeTablet(channel, kvs);
+        writer.writeTablet(channel, tablets.saving.find());
     }
 }
+

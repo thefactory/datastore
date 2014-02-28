@@ -7,6 +7,7 @@ import java.io.ByteArrayOutputStream;
 import java.nio.channels.Channels;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Iterator;
 
 import static org.junit.Assert.assertArrayEquals;
 
@@ -84,4 +85,39 @@ public class TabletWriterTest extends TestCase {
                 39 // length
         });
     }
+
+    public void testFullCircle() throws Exception {
+        MemoryTablet mem = new MemoryTablet();
+
+        for(int i = 0; i < 1000; i++) {
+            Slice k = new Slice(String.format("key04%d", i).getBytes());
+            Slice v = new Slice("val".getBytes());
+            Batch batch = new Batch();
+            batch.put(k, v);
+            mem.apply(batch);
+        }
+
+        Iterator<KV> kvs = mem.find();
+        TabletWriter writer = new TabletWriter(new TabletWriterOptions());
+        FileSystem fs = new MemFileSystem();
+        FileManager fmgr = new FileManager("db", fs, true);
+        DatastoreChannel channel = fs.create(fmgr.dbFilename("saving"));
+        writer.writeTablet(channel, kvs);
+        channel.close();
+
+        DatastoreChannel tabletChannel = fs.open(fmgr.dbFilename("saving"));
+        FileTablet ft = new FileTablet(tabletChannel, new TabletReaderOptions());
+
+        int count = 0;
+        Iterator<KV> it = ft.find();
+        while(it.hasNext()) {
+            KV kv = it.next();
+            assertEquals(kv.getValue(), new Slice("val".getBytes()));
+            count ++;
+        }
+
+        assertEquals(count, 1000);
+    }
+
+
 }
