@@ -86,6 +86,58 @@ namespace TheFactory.DatastoreTests {
             }
         }
 
+        void TestRoundTripWithDeletes(Options opts, int numWriters, IEnumerable<IKeyValuePair> goldenKVs) {
+            Console.WriteLine("Round trip: numWriters = {0}", numWriters);
+            Console.WriteLine("Options:\n{0}", opts.ToString());
+
+            var dbPath = Path.Combine(Path.GetTempPath(), "db");
+            if (Directory.Exists(dbPath)) {
+                Directory.Delete(dbPath, true);
+            }
+
+            var taskOptions = new ParallelOptions();
+            taskOptions.MaxDegreeOfParallelism = numWriters;
+
+            long byteCount = 0;
+
+            // Delete on average every 16th key, but since key[0:4] is a counter, run them through
+            // a hash function to randomize the occurrence.
+            Func<Slice, bool> shouldDelete = (Slice key) => {
+                uint val = TheFactory.Datastore.Utils.ToUInt32(key);
+                uint h = (val*0x1e35a7bd) & 0xf;
+                return h == 0;
+            };
+
+            using (var db = Database.Open(dbPath, opts)) {
+                // Write the golden KVs into the open database.
+                var watch = Stopwatch.StartNew();
+
+                Parallel.ForEach<IKeyValuePair>(goldenKVs, taskOptions, (kv) => {
+                    db.Put(kv.Key, kv.Value);
+                    byteCount += kv.Key.Length + kv.Value.Length;
+
+                    if (shouldDelete(kv.Key)) {
+                        db.Delete(kv.Key);
+                        byteCount += kv.Key.Length;
+                    }
+                });
+
+                LogRate("Wrote", byteCount, watch.ElapsedMilliseconds);
+
+                // Check the values while the database is still open.
+                watch = Stopwatch.StartNew();
+                AssertEquals(db.Find().GetEnumerator(), goldenKVs.GetEnumerator(), shouldDelete);
+                LogRate("Verified", byteCount, watch.ElapsedMilliseconds);
+
+                // Close the database so we can check after opening it again.
+                db.Close();
+            }
+
+            using (var db = Database.Open(dbPath, opts)) {
+                AssertEquals(db.Find().GetEnumerator(), goldenKVs.GetEnumerator(), shouldDelete);
+            }
+        }
+
         void LogRate(string prefix, long byteCount, long millis) {
             double secs = (double)millis / 1000;
             double rate = byteCount / secs / Size.MB;
@@ -94,6 +146,10 @@ namespace TheFactory.DatastoreTests {
         }
 
         void AssertEquals(IEnumerator<IKeyValuePair> kvs, IEnumerator<IKeyValuePair> expected) {
+            AssertEquals(kvs, expected, (key) => false);
+        }
+
+        void AssertEquals(IEnumerator<IKeyValuePair> kvs, IEnumerator<IKeyValuePair> expected, Func<Slice, bool> deleted) {
             int index = -1;
             while (true) {
                 index++;
@@ -101,11 +157,23 @@ namespace TheFactory.DatastoreTests {
                 var kvsNext = kvs.MoveNext();
                 var expNext = expected.MoveNext();
 
+                // Advance expected until it yields a non-deleted key.
+                if (expNext && deleted(expected.Current.Key)) {
+                    do {
+                        expNext = expected.MoveNext();
+                    } while (expNext && deleted(expected.Current.Key));
+                }
+
                 if (kvsNext && expNext) {
                     Assert.True(kvs.Current.Key.CompareTo(expected.Current.Key) == 0,
                         "[{0}] Unequal keys: {1} != {2}", index, kvs.Current.Key, expected.Current.Key);
-                    Assert.True(kvs.Current.Value.CompareTo(expected.Current.Value) == 0,
-                        "[{0}] Unequal values: {1} != {2}", index, kvs.Current.Value, expected.Current.Value);
+
+                    if (deleted(expected.Current.Key)) {
+                        Assert.True(kvs.Current.IsDeleted);
+                    } else {
+                        Assert.True(kvs.Current.Value.CompareTo(expected.Current.Value) == 0,
+                            "[{0}] Unequal values: {1} != {2}", index, kvs.Current.Value, expected.Current.Value);
+                    }
 
                     continue;
                 }
@@ -160,6 +228,16 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TenWriters100MB() {
             TestRoundTrip(new Options(), 10, new TestData(bulkData, 100 * Size.MB, 100, 10000));
+        }
+
+        [Test]
+        public void TenWriters10MBWithDeletes() {
+            TestRoundTripWithDeletes(new Options(), 10, new TestData(bulkData, 10 * Size.MB, 100, 10000));
+        }
+
+        [Test]
+        public void OneWriter10KBWithDeletes() {
+            TestRoundTripWithDeletes(new Options(), 1, new TestData(bulkData, 40, 8, 8));
         }
 
         [Test]
@@ -250,7 +328,7 @@ namespace TheFactory.DatastoreTests {
             //
             // Keys must be monotonically increasing; otherwise this can't be used to verify
             // data after it's sorted by the database.
-            UInt32 numKeys = 0;
+            uint numKeys = 0;
             long count = 0;
             int pos = 0;
             while (count < totalBytes) {

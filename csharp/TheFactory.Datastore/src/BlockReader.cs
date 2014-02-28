@@ -104,7 +104,7 @@ namespace TheFactory.Datastore {
 
         int RestartValue(int n) {
             // decode the n'th restart to its position in the kv data
-            return (int)Utils.ToUInt32(block.Subslice(RestartPosition(n)));
+            return (int)Utils.ToUInt32(kvs.Subslice(RestartPosition(n)));
         }
 
         int RestartPosition(int n) {
