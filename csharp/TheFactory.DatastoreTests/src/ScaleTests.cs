@@ -54,7 +54,7 @@ namespace TheFactory.DatastoreTests {
             var taskOptions = new ParallelOptions();
             taskOptions.MaxDegreeOfParallelism = numWriters;
 
-            int byteCount = 0;
+            long byteCount = 0;
 
             using (var db = Database.Open(dbPath, opts)) {
                 // Write the golden KVs into the open database.
@@ -164,7 +164,18 @@ namespace TheFactory.DatastoreTests {
 
         [Test]
         public void TenWriters1GB() {
-            TestRoundTrip(new Options(), 1, new TestData(bulkData, 1 * Size.GB, 100, 10000));
+            var opts = new Options();
+            opts.MaxMemoryTabletSize = 100 * Size.MB;
+
+            TestRoundTrip(opts, 10, new TestData(bulkData, 1 * Size.GB, 100, 10000));
+        }
+
+        [Test]
+        public void TenWriters10GB() {
+            var opts = new Options();
+            opts.MaxMemoryTabletSize = 100 * Size.MB;
+
+            TestRoundTrip(opts, 10, new TestData(bulkData, 10 * (long)Size.GB, 100, 10000));
         }
 
         [Test]
@@ -201,11 +212,11 @@ namespace TheFactory.DatastoreTests {
 
     public class TestData: IEnumerable, IEnumerable<IKeyValuePair> {
         Slice bulkData;
-        int totalBytes;
+        long totalBytes;
         int avgKeyLength;
         int avgValueLength;
 
-        public TestData(Slice bulkData, int totalBytes, int avgKeyLength, int avgValueLength) {
+        public TestData(Slice bulkData, long totalBytes, int avgKeyLength, int avgValueLength) {
             this.bulkData = bulkData;
             this.totalBytes = totalBytes;
             this.avgKeyLength = avgKeyLength;
@@ -240,7 +251,7 @@ namespace TheFactory.DatastoreTests {
             // Keys must be monotonically increasing; otherwise this can't be used to verify
             // data after it's sorted by the database.
             UInt32 numKeys = 0;
-            int count = 0;
+            long count = 0;
             int pos = 0;
             while (count < totalBytes) {
                 var pair = new Pair();
