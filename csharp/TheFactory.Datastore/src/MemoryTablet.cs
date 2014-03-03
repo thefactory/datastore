@@ -19,24 +19,25 @@ namespace TheFactory.Datastore {
         object rwLock = new object();
         Random rand = new Random();
 
-        public int ApproxSize { get { return kvData.Count + nodeData.Count; } }
+        public int ApproxSize { get { return kvDataCount + nodeDataCount; } }
         public string Filename { get { return null; } }
 
-        int height;
-        List<byte> kvData;
-        List<int> nodeData;
+        int height = 1;
+
+        byte[] kvData;
+        int kvDataCount;
+        int[] nodeData;
+        int nodeDataCount;
 
         public static Slice Tombstone = (Slice)(new byte[] {0x74, 0x6f, 0x6d, 0x62});
 
         public MemoryTablet() {
             height = 1;
-            kvData = new List<byte>(4096);
-            nodeData = new List<int>(256);
+            kvData = new byte[4096];
+            nodeData = new int[256];
 
-            // Create the root node.
-            for (int i = 0; i < maxHeight; i++) {
-                nodeData.Add(0);
-            }
+            kvDataCount = 0;
+            nodeDataCount = maxHeight;
         }
 
         public void Apply(Batch batch) {
@@ -47,9 +48,9 @@ namespace TheFactory.Datastore {
             lock(rwLock) {
                 foreach (IKeyValuePair kv in batch.Pairs()) {
                     if (kv.IsDeleted) {
-                        Delete(kv.Key.Detach());
+                        Delete(kv.Key);
                     } else {
-                        Set(kv.Key.Detach(), kv.Value.Detach());
+                        Set(kv.Key, kv.Value);
                     }
                 }
             }
@@ -61,21 +62,31 @@ namespace TheFactory.Datastore {
             }
 
             int len = kvData[kvOffset + 0] << 24 | kvData[kvOffset + 1] << 16 | kvData[kvOffset + 2] << 8 | kvData[kvOffset + 3];
-            return (Slice)kvData.GetRange(kvOffset + 4, len).ToArray();
+            return new Slice(kvData, kvOffset + 4, len);
         }
 
         int Save(Slice data) {
-            int kvOffset = kvData.Count;
+            int kvOffset = kvDataCount;
             int len = data.Length;
 
-            kvData.Add((byte)(len >> 24));
-            kvData.Add((byte)(len >> 16));
-            kvData.Add((byte)(len >> 8));
-            kvData.Add((byte)(len));
+            ensureCapacity(ref kvData, kvDataCount, 4 + data.Length);
+            kvData[kvDataCount++] = (byte)(len >> 24);
+            kvData[kvDataCount++] = (byte)(len >> 16);
+            kvData[kvDataCount++] = (byte)(len >> 8);
+            kvData[kvDataCount++] = (byte)(len);
 
-            kvData.AddRange(data.ToArray());
-
+            Array.Copy(data.Array, data.Offset, kvData, kvDataCount, data.Length);
+            kvDataCount += data.Length;
             return kvOffset;
+        }
+
+        void ensureCapacity<T>(ref T[] array, int pos, int newLength) {
+            if (newLength < array.Length - pos) {
+                return;
+            }
+
+            int newCapacity = 2 * (pos + newLength);
+            Array.Resize(ref array, newCapacity);
         }
 
         internal void Set(Slice key, Slice value) {
@@ -101,19 +112,21 @@ namespace TheFactory.Datastore {
                 height = h;
             }
 
+            ensureCapacity(ref nodeData, nodeDataCount, fNxt + h);
+
             // Insert the new node
-            int offset = nodeData.Count;
-            nodeData.Add(Save(key));
+            int offset = nodeDataCount;
+            nodeData[nodeDataCount++] = Save(key);
 
             if (ReferenceEquals(value, Tombstone)) {
-                nodeData.Add(kvOffsetDeletedNode);
+                nodeData[nodeDataCount++] = kvOffsetDeletedNode;
             } else {
-                nodeData.Add(Save(value));
+                nodeData[nodeDataCount++] = Save(value);
             }
 
             for (int i = 0; i < h; i++) {
                 int j = prev[i] + fNxt + i;
-                nodeData.Add(nodeData[j]);
+                nodeData[nodeDataCount++] = nodeData[j];
                 nodeData[j] = offset;
             }
         }
@@ -123,8 +136,8 @@ namespace TheFactory.Datastore {
         }
 
         public void Close() {
-            nodeData = null;
             kvData = null;
+            nodeData = null;
         }
 
         Tuple<int, bool> FindNode(Slice key, int[] prev) {
@@ -158,18 +171,6 @@ namespace TheFactory.Datastore {
             }
 
             return new Tuple<int, bool>(n, exact);
-        }
-
-        Slice Get(Slice key) {
-            lock(rwLock) {
-                var found = FindNode(key, null);
-                if (!found.Item2) {
-                    // Didn't find the exact key;
-                    return null;
-                }
-
-                return Load(found.Item1);
-            }
         }
 
         public IEnumerable<IKeyValuePair> Find() {

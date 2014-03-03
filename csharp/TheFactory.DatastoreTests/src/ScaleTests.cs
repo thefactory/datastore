@@ -286,6 +286,52 @@ namespace TheFactory.DatastoreTests {
                 }
             }
         }
+
+        [Test]
+        public void NewMemTablet20MB() {
+            var mem = new MemoryTablet();
+
+            var watch = Stopwatch.StartNew();
+            var byteCount = 0;
+
+            foreach (var kv in new TestData(bulkData, 50 * Size.MB, 100, 10000)) {
+                var batch = new Batch();
+                batch.Put(kv.Key, kv.Value);
+                mem.Apply(batch);
+                byteCount += kv.Key.Length + kv.Value.Length;
+            }
+            LogRate("Wrote", byteCount, watch.ElapsedMilliseconds);
+
+            watch = Stopwatch.StartNew();
+            byteCount = 0;
+            foreach (var kv in mem.Find()) {
+                byteCount += kv.Key.Length + kv.Value.Length;
+            }
+            LogRate("Read", byteCount, watch.ElapsedMilliseconds);
+        }
+
+        [Test]
+        public void OldMemTablet20MB() {
+            var mem = new MemoryTablet2();
+
+            var watch = Stopwatch.StartNew();
+            var byteCount = 0;
+
+            foreach (var kv in new TestData(bulkData, 50 * Size.MB, 100, 10000)) {
+                var batch = new Batch();
+                batch.Put(kv.Key, kv.Value);
+                mem.Apply(batch);
+                byteCount += kv.Key.Length + kv.Value.Length;
+            }
+            LogRate("Wrote", byteCount, watch.ElapsedMilliseconds);
+
+            watch = Stopwatch.StartNew();
+            byteCount = 0;
+            foreach (var kv in mem.Find()) {
+                byteCount += kv.Key.Length + kv.Value.Length;
+            }
+            LogRate("Read", byteCount, watch.ElapsedMilliseconds);
+        }
     }
 
     public class TestData: IEnumerable, IEnumerable<IKeyValuePair> {
