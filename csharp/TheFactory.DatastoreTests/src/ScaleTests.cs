@@ -22,7 +22,7 @@ namespace TheFactory.DatastoreTests {
 
     // These scale tests are marked Explicit so they won't be run in
     // the default test runner.
-    [TestFixture, Explicit]
+    [TestFixture]
     public class ScaleTests {
         // bulkData is totally random data (hardly compressible).
         // textData is text (quite compressible).
@@ -207,17 +207,17 @@ namespace TheFactory.DatastoreTests {
             TestRoundTrip(new Options(), 1, new TestData(bulkData, 5 * Size.MB, 100, 10000));
         }
 
-        [Test]
+        [Test, Explicit]
         public void OneWriter100MB() {
             TestRoundTrip(new Options(), 1, new TestData(bulkData, 100 * Size.MB, 100, 10000));
         }
 
-        [Test]
+        [Test, Explicit]
         public void OneWriterText100MB() {
             TestRoundTrip(new Options(), 1, new TestData(textData, 100 * Size.MB, 100, 10000));
         }
 
-        [Test]
+        [Test, Explicit]
         public void OneWriterTextUncomp100MB() {
             var opts = new Options();
             opts.WriterOptions.BlockCompression = false;
@@ -225,7 +225,7 @@ namespace TheFactory.DatastoreTests {
             TestRoundTrip(opts, 1, new TestData(textData, 100 * Size.MB, 100, 10000));
         }
 
-        [Test]
+        [Test, Explicit]
         public void TenWriters100MB() {
             TestRoundTrip(new Options(), 10, new TestData(bulkData, 100 * Size.MB, 100, 10000));
         }
@@ -240,7 +240,7 @@ namespace TheFactory.DatastoreTests {
             TestRoundTripWithDeletes(new Options(), 1, new TestData(bulkData, 40, 8, 8));
         }
 
-        [Test]
+        [Test, Explicit]
         public void TenWriters1GB() {
             var opts = new Options();
             opts.MaxMemoryTabletSize = 100 * Size.MB;
@@ -248,7 +248,7 @@ namespace TheFactory.DatastoreTests {
             TestRoundTrip(opts, 10, new TestData(bulkData, 1 * Size.GB, 100, 10000));
         }
 
-        [Test]
+        [Test, Explicit]
         public void TenWriters10GB() {
             var opts = new Options();
             opts.MaxMemoryTabletSize = 100 * Size.MB;

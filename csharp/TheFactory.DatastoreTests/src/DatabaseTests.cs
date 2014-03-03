@@ -17,13 +17,17 @@ namespace TheFactory.DatastoreTests {
         public void SetUp() {
             var opts = new Options();
 
-            db = Database.Open("datastore", opts) as Database;
+            var dbPath = Path.Combine(Path.GetTempPath(), "db");
+            if (Directory.Exists(dbPath)) {
+                Directory.Delete(dbPath, true);
+            }
+
+            db = Database.Open(dbPath, opts) as Database;
         }
 
         [TearDown]
         public void TearDown() {
             db.Close();
-            Directory.Delete("datastore", true);
         }
 
         [Test]
