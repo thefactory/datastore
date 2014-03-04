@@ -74,7 +74,7 @@ namespace TheFactory.DatastoreTests {
 
                 // Check the values while the database is still open.
                 watch = Stopwatch.StartNew();
-                AssertEquals(db.Find().GetEnumerator(), goldenKVs.GetEnumerator());
+                AssertEquals(db.Find(Slice.Empty).GetEnumerator(), goldenKVs.GetEnumerator());
                 LogRate("Verified", byteCount, watch.ElapsedMilliseconds);
 
                 // Close the database so we can check after opening it again.
@@ -82,7 +82,7 @@ namespace TheFactory.DatastoreTests {
             }
 
             using (var db = Database.Open(dbPath, opts)) {
-                AssertEquals(db.Find().GetEnumerator(), goldenKVs.GetEnumerator());
+                AssertEquals(db.Find(Slice.Empty).GetEnumerator(), goldenKVs.GetEnumerator());
             }
         }
 
@@ -126,7 +126,7 @@ namespace TheFactory.DatastoreTests {
 
                 // Check the values while the database is still open.
                 watch = Stopwatch.StartNew();
-                AssertEquals(db.Find().GetEnumerator(), goldenKVs.GetEnumerator(), shouldDelete);
+                AssertEquals(db.Find(Slice.Empty).GetEnumerator(), goldenKVs.GetEnumerator(), shouldDelete);
                 LogRate("Verified", byteCount, watch.ElapsedMilliseconds);
 
                 // Close the database so we can check after opening it again.
@@ -134,7 +134,7 @@ namespace TheFactory.DatastoreTests {
             }
 
             using (var db = Database.Open(dbPath, opts)) {
-                AssertEquals(db.Find().GetEnumerator(), goldenKVs.GetEnumerator(), shouldDelete);
+                AssertEquals(db.Find(Slice.Empty).GetEnumerator(), goldenKVs.GetEnumerator(), shouldDelete);
             }
         }
 

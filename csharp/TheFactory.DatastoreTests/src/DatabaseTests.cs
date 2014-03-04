@@ -75,7 +75,7 @@ namespace TheFactory.DatastoreTests {
             var enc = new UTF8Encoding();
             db.PushTablet("test-data/ngrams1/ngrams1-Nblock-compressed.tab");
             using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
-                foreach (var p in db.Find()) {
+                foreach (var p in db.Find(Slice.Empty)) {
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
                     var v = enc.GetBytes(kv[1]);
@@ -92,7 +92,7 @@ namespace TheFactory.DatastoreTests {
             db.PushTablet("test-data/ngrams2/ngrams.tab.0");
             db.PushTablet("test-data/ngrams2/ngrams.tab.1");
             using (var data = new StreamReader("test-data/ngrams2/ngrams2.txt")) {
-                foreach (var p in db.Find()) {
+                foreach (var p in db.Find(Slice.Empty)) {
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
                     var v = enc.GetBytes(kv[1]);
@@ -197,7 +197,7 @@ namespace TheFactory.DatastoreTests {
                     var k = enc.GetBytes(kv[0]);
                     db.Put((Slice)k, (Slice)v);
                 }
-                foreach (var p in db.Find()) {
+                foreach (var p in db.Find(Slice.Empty)) {
                     Assert.True(p.Value.Equals((Slice)v));
                 }
             }
@@ -224,7 +224,7 @@ namespace TheFactory.DatastoreTests {
             using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                 var ov = Encoding.UTF8.GetBytes("overwritten value");
                 var count = 0;
-                foreach (var p in db.Find()) {
+                foreach (var p in db.Find(Slice.Empty)) {
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
                     var v = enc.GetBytes(kv[1]);
@@ -252,7 +252,7 @@ namespace TheFactory.DatastoreTests {
                     db.Delete((Slice)k);
                 }
                 var count = 0;
-                foreach (var p in db.Find()) {
+                foreach (var p in db.Find(Slice.Empty)) {
                     count += 1;
                 }
                 Assert.True(count == 0);
@@ -278,7 +278,7 @@ namespace TheFactory.DatastoreTests {
             }
             using (var data = new StreamReader("test-data/ngrams1/ngrams1.txt")) {
                 var count = 0;
-                foreach (var p in db.Find()) {
+                foreach (var p in db.Find(Slice.Empty)) {
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
                     var v = enc.GetBytes(kv[1]);
@@ -359,7 +359,7 @@ namespace TheFactory.DatastoreTests {
             // Check that db contains all keys from the streamed tablet.
             var enc = new UTF8Encoding();
             using (var data = new StreamReader(Helpers.TestFile("ngrams1/ngrams1.txt"))) {
-                foreach (var p in db.Find()) {
+                foreach (var p in db.Find(Slice.Empty)) {
                     var kv = data.ReadLine().Split(new char[] {' '});
                     var k = enc.GetBytes(kv[0]);
                     var v = enc.GetBytes(kv[1]);
@@ -454,7 +454,7 @@ namespace TheFactory.DatastoreTests {
             }
 
             int count = 0;
-            foreach (var kv in db.Find()) {
+            foreach (var kv in db.Find(Slice.Empty)) {
                 count++;
             }
 

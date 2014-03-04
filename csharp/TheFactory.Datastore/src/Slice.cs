@@ -105,6 +105,9 @@ namespace TheFactory.Datastore {
             return x.length - y.length;
         }
 
+        // This is useful enough in practice to be made a global instance.
+        public static Slice Empty = new Slice(new byte[0], 0, 0);
+
         public static bool IsPrefix(Slice slice, Slice prefix) {
             if (slice.Length < prefix.Length) {
                 return false;

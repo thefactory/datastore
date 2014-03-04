@@ -75,7 +75,7 @@ namespace TheFactory.DatastoreTests {
         [Test]
         public void TestMemoryTabletEnumerateEmpty() {
             var count = 0;
-            foreach (var p in tablet.Find()) {
+            foreach (var p in tablet.Find(Slice.Empty)) {
                 count += 1;
             }
             Assert.True(count == 0);
@@ -101,7 +101,7 @@ namespace TheFactory.DatastoreTests {
             }
 
             var j = 0;
-            foreach (var p in tablet.Find()) {
+            foreach (var p in tablet.Find(Slice.Empty)) {
                 Assert.True(p.Key.Equals(pairs[j]));
                 Assert.True(p.Value.Equals(pairs[j + 1]));
                 j += 2;
@@ -225,7 +225,7 @@ namespace TheFactory.DatastoreTests {
             var reader = new BlockReader(block.KvData);
 
             var count = 0;
-            foreach (var p in reader.Find()) {
+            foreach (var p in reader.Find(Slice.Empty)) {
                 Assert.True(p.Key.Equals((Slice)(new byte[] {1, 2, 3})));
                 Assert.True(p.Value.Equals((Slice)(new byte[] {4, 5, 6})));
                 count += 1;
@@ -252,7 +252,7 @@ namespace TheFactory.DatastoreTests {
             var reader = new BlockReader(block.KvData);
 
             var count = 0;
-            foreach (var p in reader.Find()) {
+            foreach (var p in reader.Find(Slice.Empty)) {
                 Assert.True(p.Key.Equals((Slice)(new byte[] {1, 2, 3})));
                 Assert.True(p.Value.Equals((Slice)(new byte[] {4, 5, 6})));
                 count += 1;
@@ -389,7 +389,7 @@ namespace TheFactory.DatastoreTests {
             using (var stream = new FileStream(Helpers.TestFile("ngrams1/ngrams1-1block-uncompressed.tab"), FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream, new TabletReaderOptions());
                 using (var data = new StreamReader(Helpers.TestFile("ngrams1/ngrams1.txt"))) {
-                    foreach (var p in tablet.Find()) {
+                    foreach (var p in tablet.Find(Slice.Empty)) {
                         var kv = data.ReadLine().Split(new char[] {' '});
                         var k = enc.GetBytes(kv[0]);
                         var v = enc.GetBytes(kv[1]);
@@ -461,7 +461,7 @@ namespace TheFactory.DatastoreTests {
             using (var stream = new FileStream(Helpers.TestFile("ngrams1/ngrams1-1block-compressed.tab"), FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream, new TabletReaderOptions());
                 using (var data = new StreamReader(Helpers.TestFile("ngrams1/ngrams1.txt"))) {
-                    foreach (var p in tablet.Find()) {
+                    foreach (var p in tablet.Find(Slice.Empty)) {
                         var kv = data.ReadLine().Split(new char[] {' '});
                         var k = enc.GetBytes(kv[0]);
                         var v = enc.GetBytes(kv[1]);
@@ -479,7 +479,7 @@ namespace TheFactory.DatastoreTests {
             using (var stream = new FileStream(Helpers.TestFile("ngrams1/ngrams1-Nblock-compressed.tab"), FileMode.Open, FileAccess.Read)) {
                 var tablet = new FileTablet(stream, new TabletReaderOptions());
                 using (var data = new StreamReader(Helpers.TestFile("ngrams1/ngrams1.txt"))) {
-                    foreach (var p in tablet.Find()) {
+                    foreach (var p in tablet.Find(Slice.Empty)) {
                         var kv = data.ReadLine().Split(new char[] {' '});
                         var k = enc.GetBytes(kv[0]);
                         var v = enc.GetBytes(kv[1]);
@@ -572,10 +572,10 @@ namespace TheFactory.DatastoreTests {
                     BlockCompression = false,
                     KeyRestartInterval = 10
                 };
-                writer.WriteTablet(binaryWriter, tablet.Find(), opts);
+                writer.WriteTablet(binaryWriter, tablet.Find(Slice.Empty), opts);
                 var tablet2 = new FileTablet(writeStream, new TabletReaderOptions());
-                var it1 = tablet.Find().GetEnumerator();
-                var it2 = tablet2.Find().GetEnumerator();
+                var it1 = tablet.Find(Slice.Empty).GetEnumerator();
+                var it2 = tablet2.Find(Slice.Empty).GetEnumerator();
                 while (it1.MoveNext() && it2.MoveNext()) {
                     Assert.True(it1.Current.Key.Equals(it2.Current.Key));
                     Assert.True(it1.Current.Value.Equals(it2.Current.Value));
@@ -597,10 +597,10 @@ namespace TheFactory.DatastoreTests {
                     BlockCompression = true,
                     KeyRestartInterval = 10
                 };
-                writer.WriteTablet(binaryWriter, tablet.Find(), opts);
+                writer.WriteTablet(binaryWriter, tablet.Find(Slice.Empty), opts);
                 var tablet2 = new FileTablet(writeStream, new TabletReaderOptions());
-                var it1 = tablet.Find().GetEnumerator();
-                var it2 = tablet2.Find().GetEnumerator();
+                var it1 = tablet.Find(Slice.Empty).GetEnumerator();
+                var it2 = tablet2.Find(Slice.Empty).GetEnumerator();
                 while (it1.MoveNext() && it2.MoveNext()) {
                     Assert.True(it1.Current.Key.Equals(it2.Current.Key));
                     Assert.True(it1.Current.Value.Equals(it2.Current.Value));

@@ -178,7 +178,7 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 0};    // no restart indexes.
             var block = new BlockReader((Slice)bytes);
             var count = 0;
-            foreach (var p in block.Find()) {
+            foreach (var p in block.Find(Slice.Empty)) {
                 Assert.True(p.Key.Equals((Slice)new byte[] { 1, 2, 3 }));
                 Assert.True(p.Value.Equals((Slice)new byte[] { 4, 5, 6 }));
                 count += 1;
@@ -199,7 +199,7 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 0};    // no restart indexes.
             var block = new BlockReader((Slice)bytes);
             var count = 0;
-            foreach (var p in block.Find()) {
+            foreach (var p in block.Find(Slice.Empty)) {
                 Assert.True(p.Key.Equals((Slice)(new byte[] { 1, 2, 3 })));
                 Assert.True(p.Value.Equals((Slice)(new byte[] { 4, 5, 6 })));
                 count += 1;
@@ -226,7 +226,7 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 0};    // no restart indexes.
             var block = new BlockReader((Slice)bytes);
             var count = 0;
-            foreach (var p in block.Find()) {
+            foreach (var p in block.Find(Slice.Empty)) {
                 Assert.True(p.Key.Equals((Slice)new byte[] { 1, 2, 3 }));
                 Assert.True(p.Value.Equals((Slice)new byte[] { 4, 5, 6 }));
                 count += 1;
@@ -249,7 +249,7 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 2};    // 2 restart indexes.
             var block = new BlockReader((Slice)bytes);
             var count = 0;
-            foreach (var p in block.Find()) {
+            foreach (var p in block.Find(Slice.Empty)) {
                 Assert.True(p.Key.Equals((Slice)new byte[] { 1, 2, 3 }));
                 Assert.True(p.Value.Equals((Slice)new byte[] { 4, 5, 6 }));
                 count += 1;
@@ -275,7 +275,7 @@ namespace TheFactory.DatastoreTests {
                                     0, 0, 0, 0};    // no restart indexes.
             var block = new BlockReader(new Slice(bytes, 13, 13));  // read the middle block.
             var count = 0;
-            foreach (var p in block.Find()) {
+            foreach (var p in block.Find(Slice.Empty)) {
                 Assert.True(p.Key.Equals((Slice)new byte[] { 1, 2, 3 }));
                 Assert.True(p.Value.Equals((Slice)new byte[] { 4, 5, 6 }));
                 count += 1;

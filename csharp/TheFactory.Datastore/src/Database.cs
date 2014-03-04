@@ -38,6 +38,14 @@ namespace TheFactory.Datastore {
         }
     }
 
+    public class KeyValueChangedEventArgs: EventArgs {
+        public IKeyValuePair Pair { get; private set; }
+
+        public KeyValueChangedEventArgs(IKeyValuePair kv) {
+            Pair = kv;
+        }
+    }
+
     public class Database: IDatabase, IEnableLogger {
         private Options opts;
         private IFileSystem fs;
@@ -67,6 +75,8 @@ namespace TheFactory.Datastore {
         private TransactionLogWriter writeLog;
 
         IDisposable fsLock;
+
+        public event EventHandler<KeyValueChangedEventArgs> KeyValueChangedEvent;
 
         internal Database(string path, Options opts) {
             this.fileManager = new FileManager(path);
@@ -216,7 +226,7 @@ namespace TheFactory.Datastore {
 
                     var blockReader = new BlockReader(block.KvData);
                     if (callback != null) {
-                        callback(blockReader.Find());
+                        callback(blockReader.Find(Slice.Empty));
                     }
                 }
 
@@ -313,7 +323,7 @@ namespace TheFactory.Datastore {
 
             using (var stream = fs.GetStream(tabfile, FileMode.Create, FileAccess.Write))
             using (var output = new BinaryWriter(stream)) {
-                writer.WriteTablet(output, tab.Find(), opts.WriterOptions);
+                writer.WriteTablet(output, tab.Find(Slice.Empty), opts.WriterOptions);
             }
 
             PushTablet(tabfile);
@@ -371,6 +381,12 @@ namespace TheFactory.Datastore {
                 writeLog.EmitTransaction(batch.ToSlice());
                 mem.Apply(batch);
                 MaybeCompactMem();
+            }
+
+            if (KeyValueChangedEvent != null) {
+                foreach (var kv in batch.Pairs()) {
+                    KeyValueChangedEvent(this, new KeyValueChangedEventArgs(kv));
+                }
             }
         }
 

@@ -13,10 +13,6 @@ namespace TheFactory.DatastoreTests {
         public void Close() {
         }
 
-        public IEnumerable<IKeyValuePair> Find() {
-            yield break;
-        }
-
         public IEnumerable<IKeyValuePair> Find(Slice term) {
             yield break;
         }

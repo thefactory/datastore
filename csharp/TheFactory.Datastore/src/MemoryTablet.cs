@@ -57,10 +57,6 @@ namespace TheFactory.Datastore {
             backing.Clear();
         }
 
-        public IEnumerable<IKeyValuePair> Find() {
-            return Find((Slice)null);
-        }
-
         public IEnumerable<IKeyValuePair> Find(Slice term) {
             if (backing.Count == 0) {
                 yield break;

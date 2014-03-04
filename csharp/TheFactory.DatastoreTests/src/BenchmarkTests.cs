@@ -87,7 +87,7 @@ namespace TheFactory.DatastoreTests {
 
             var stats = new Stats();
             stats.Start();
-            foreach (var kv in db.Find()) {
+            foreach (var kv in db.Find(Slice.Empty)) {
                 stats.AddBytes(kv.Key.Length + kv.Value.Length);
                 stats.FinishedSingleOp();
             }
@@ -163,7 +163,7 @@ namespace TheFactory.DatastoreTests {
 
             var stats = new Stats();
             stats.Start();
-            foreach (var kv in StatsWrapper(reader.Find(), stats)) {
+            foreach (var kv in StatsWrapper(reader.Find(Slice.Empty), stats)) {
                 // nop: StatsWrapper is tracking our work
             }
             stats.Finish();

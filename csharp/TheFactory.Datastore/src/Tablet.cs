@@ -44,10 +44,6 @@ namespace TheFactory.Datastore {
             stream.Dispose();
         }
 
-        public IEnumerable<IKeyValuePair> Find() {
-            return Find(null);
-        }
-
         public IEnumerable<IKeyValuePair> Find(Slice term) {
             int blockIndex = 0;
 

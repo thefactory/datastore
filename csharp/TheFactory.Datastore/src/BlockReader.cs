@@ -68,10 +68,6 @@ namespace TheFactory.Datastore {
             yield break;
         }
 
-        public IEnumerable<IKeyValuePair> Find() {
-            return Find(null);
-        }
-
         public IEnumerable<IKeyValuePair> Find(Slice term) {
             if (term == null || term.Length == 0 || numRestarts <= 1) {
                 return Pairs(kvs, term);

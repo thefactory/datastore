@@ -15,13 +15,13 @@ namespace TheFactory.Datastore {
         void Put(Slice key, Slice val);
         void Delete(Slice key);
 
+        event EventHandler<KeyValueChangedEventArgs> KeyValueChangedEvent;
+
         void Close();
     }
 
     internal interface ITablet {
         void Close();
-
-        IEnumerable<IKeyValuePair> Find();
 
         IEnumerable<IKeyValuePair> Find(Slice term);
 
@@ -29,9 +29,6 @@ namespace TheFactory.Datastore {
     }
 
     public static class IDatabaseExtensions {
-        public static IEnumerable<IKeyValuePair> Find(this IDatabase db) {
-            return db.Find(null);
-        }
 
         public static IEnumerable<IKeyValuePair> FindByPrefix(this IDatabase db, Slice term) {
             foreach (var kv in db.Find(term)) {
