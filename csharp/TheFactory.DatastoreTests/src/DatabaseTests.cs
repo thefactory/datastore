@@ -350,43 +350,6 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
-        public void TestDatabasePushTabletStream() {
-            var filename = Helpers.TestFile("ngrams1/ngrams1-Nblock-compressed.tab");
-            using (var fs = new FileStream(filename, System.IO.FileMode.Open, System.IO.FileAccess.Read)) {
-                db.PushTabletStream(fs, "streamed-tablet", null);
-            }
-
-            // Check that db contains all keys from the streamed tablet.
-            var enc = new UTF8Encoding();
-            using (var data = new StreamReader(Helpers.TestFile("ngrams1/ngrams1.txt"))) {
-                foreach (var p in db.Find(Slice.Empty)) {
-                    var kv = data.ReadLine().Split(new char[] {' '});
-                    var k = enc.GetBytes(kv[0]);
-                    var v = enc.GetBytes(kv[1]);
-
-                    Assert.True(p.Key.Equals((Slice)k));
-                    Assert.True(p.Value.Equals((Slice)v));
-                }
-                Assert.True(data.ReadLine() == null);
-            }
-
-            // Check that the emitted file matches the original.
-            using (var fs1 = new FileStream(filename, System.IO.FileMode.Open, System.IO.FileAccess.Read))
-            using (var fs2 = new FileStream(Path.Combine(path, "streamed-tablet"), System.IO.FileMode.Open, System.IO.FileAccess.Read)) {
-                Assert.True(fs1.Length == fs2.Length);
-                var count = 0;
-                for (count = 0; count < fs1.Length; count++) {
-                    if (fs1.ReadByte() != fs2.ReadByte()) {
-                        break;
-                    }
-                }
-                Assert.True(count == fs1.Length);
-            }
-
-            File.Delete(Path.Combine(path, "streamed-tablet"));
-        }
-
-        [Test]
         public void TestDatabaseReplay() {
             db.Put(Utils.Slice("key1"), Utils.Slice("val1"));
             db.Put(Utils.Slice("key2"), Utils.Slice("val2"));

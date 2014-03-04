@@ -8,9 +8,6 @@ namespace TheFactory.Datastore {
     public interface IDatabase : IDisposable {
         IEnumerable<IKeyValuePair> Find(Slice term);
 
-        void PushTablet(string filename);
-        void PushTabletStream(Stream stream, Action<IEnumerable<IKeyValuePair>> callback);
-
         Slice Get(Slice key);
         void Put(Slice key, Slice val);
         void Delete(Slice key);
