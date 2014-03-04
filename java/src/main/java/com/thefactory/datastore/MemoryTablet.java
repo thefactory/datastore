@@ -42,9 +42,6 @@ public class MemoryTablet {
     }
 
     public Iterator<KV> find(final Slice term) {
-        if (backing.size() == 0) {
-            return empty();
-        }
         return new Iterator<KV>() {
             Iterator<Map.Entry<Slice, Slice>> itemIterator;
             {
@@ -95,21 +92,5 @@ public class MemoryTablet {
 
     public long size() {
         return size;
-    }
-
-    private Iterator<KV> empty() {
-        return new Iterator<KV>() {
-            public boolean hasNext() {
-                return false;
-            }
-            
-            public KV next() {
-                throw new NoSuchElementException();
-            }
-                
-            public void remove() {
-                throw new UnsupportedOperationException();
-            }
-        };
     }
 }
