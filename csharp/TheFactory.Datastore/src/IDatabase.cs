@@ -46,13 +46,12 @@ namespace TheFactory.Datastore {
         }
 
         public static string GetString(this IDatabase This, string key) {
-            try {
-                var slice = This.Get((Slice)Encoding.UTF8.GetBytes(key));
-
-                return Encoding.UTF8.GetString(slice.Array, slice.Offset, slice.Length);
-            } catch (KeyNotFoundException) {
+            var slice = This.Get((Slice)Encoding.UTF8.GetBytes(key));
+            if (slice == null) {
                 return null;
             }
+
+            return Encoding.UTF8.GetString(slice.Array, slice.Offset, slice.Length);
         }
 
         public static void Put(this IDatabase db, string key, Slice val) {

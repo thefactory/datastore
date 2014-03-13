@@ -147,14 +147,12 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
-        [ExpectedException(typeof(KeyNotFoundException))]
         public void TestDatabaseMultiFileTabletGetMiss() {
             db.PushTablet("test-data/ngrams2/ngrams.tab.0");
             db.PushTablet("test-data/ngrams2/ngrams.tab.1");
             var keyString = "Key which does not exist";
             var k = Encoding.UTF8.GetBytes(keyString);
-            db.Get((Slice)k);
-            Assert.True(false);
+            Assert.True(db.Get((Slice)k) == null);
         }
 
         [Test]
@@ -177,12 +175,10 @@ namespace TheFactory.DatastoreTests {
         }
 
         [Test]
-        [ExpectedException(typeof(KeyNotFoundException))]
         public void TestDatabaseMemoryOnlyDelete() {
             var k = Encoding.UTF8.GetBytes("key");
             db.Delete((Slice)k);
-            db.Get((Slice)k);
-            Assert.True(false);
+            Assert.True(db.Get((Slice)k) == null);
         }
 
         [Test]
@@ -325,8 +321,7 @@ namespace TheFactory.DatastoreTests {
                 db.Delete("deleteme");
             }
 
-            Assert.Throws(typeof(KeyNotFoundException),
-                delegate { db.Get("deleteme"); });
+            Assert.True(db.Get("deleteme") == null);
         }
     }
 
@@ -368,8 +363,7 @@ namespace TheFactory.DatastoreTests {
             Assert.True(db.Get(Utils.Slice("key2")).Equals(Utils.Slice("val2")));
             Assert.True(db.Get(Utils.Slice("key3")).Equals(Utils.Slice("val3")));
 
-            Assert.Throws(typeof(KeyNotFoundException),
-                delegate { db.Get(Utils.Slice("key4")); });
+            Assert.True(db.Get(Utils.Slice("key4")) == null);
         }
 
         [Test]

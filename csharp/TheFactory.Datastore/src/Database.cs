@@ -306,7 +306,7 @@ namespace TheFactory.Datastore {
                 }
             }
 
-            throw new KeyNotFoundException(key.ToUTF8String());
+            return null;
         }
 
         internal void Apply(Batch batch) {
