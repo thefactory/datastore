@@ -2,7 +2,7 @@ name := "datastore"
 
 organization := "com.thefactory"
 
-version := "1.0.6-SNAPSHOT"
+version := "1.0.7-SNAPSHOT"
 
 scalaVersion := "2.10.2"
 

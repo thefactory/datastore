@@ -191,7 +191,7 @@ public class Slice implements Comparable<Slice> {
 
     public String toUTF8String() {
         try {
-            return new String(detach().array, "UTF-8");
+            return new String(array, offset, length, "UTF-8");
         } catch (UnsupportedEncodingException e) {
             return toString();
         }

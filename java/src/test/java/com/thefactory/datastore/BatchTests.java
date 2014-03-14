@@ -56,11 +56,11 @@ public class BatchTests extends TestCase {
         while(kvs.hasNext()) {
           KV kv = kvs.next();
           if(pairs[i + 1] == null) {
-              assertEquals(kv.getKey().toUTF8String(), pairs[i].toUTF8String());
+              assertEquals(kv.getKey(), pairs[i]);
               assertTrue(kv.isDeleted());
           } else {
-              assertEquals(kv.getKey().toUTF8String(), pairs[i].toUTF8String());
-              assertEquals(kv.getValue().toUTF8String(), pairs[i + 1].toUTF8String());
+              assertEquals(kv.getKey(), pairs[i]);
+              assertEquals(kv.getValue(), pairs[i + 1]);
               assertFalse(kv.isDeleted());
           }
           i += 2;
