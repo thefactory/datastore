@@ -3,6 +3,8 @@ package com.thefactory.datastore;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Closeable;
+import java.io.File;
+import java.nio.file.Files;
 import java.util.Iterator;
 import java.util.Deque;
 import java.util.Collection;
@@ -27,14 +29,17 @@ public class Database implements Closeable {
     private Log log = LogFactory.getLog(Database.class);
 
     public static class Options {
-        public final boolean createIfMissing;
-        public final boolean verifyChecksums;
         public final FileSystem fileSystem;
         public final long maxMutableTabletSize;
+
+        public boolean deleteOnClose;
+        public boolean createIfMissing;
+        public boolean verifyChecksums;
 
         public Options() {
             createIfMissing = true;
             verifyChecksums = false;
+            deleteOnClose = false;
             fileSystem = new DiskFileSystem();
             maxMutableTabletSize = 1024 * 1024 * 4;
         }
@@ -42,18 +47,18 @@ public class Database implements Closeable {
         public Options(final FileSystem fileSystem) {
             createIfMissing = true;
             verifyChecksums = false;
+            deleteOnClose = false;
             this.fileSystem = fileSystem;
             maxMutableTabletSize = 1024 * 1024 * 4;
         }
 
         public Options(final FileSystem fileSystem,
-                       final boolean createIfMissing, 
-                       final boolean verifyChecksums, 
                        final long maxMutableTabletSize) {
-            this.createIfMissing = createIfMissing;
-            this.verifyChecksums = verifyChecksums;
             this.fileSystem = fileSystem;
             this.maxMutableTabletSize = maxMutableTabletSize;
+            this.createIfMissing = true;
+            this.verifyChecksums = false;
+            this.deleteOnClose = false;
         }
     }
 
@@ -77,6 +82,12 @@ public class Database implements Closeable {
 
     public static Database open(final String path) throws IOException {
         return open(path, new Options());
+    }
+
+    public static Database openTmp() throws IOException {
+        Options options = new Options();
+        options.deleteOnClose = true;
+        return open(Files.createTempDirectory("db-").toString(), options);
     }
 
     public void pushTablet(String name) throws IOException {
@@ -136,6 +147,10 @@ public class Database implements Closeable {
         if (lock != null) {
             lock.close();
             lock = null;
+        }
+
+        if(options.deleteOnClose) {
+            Utils.deletePathRecursive(new File(fileManager.dir));
         }
     }
 

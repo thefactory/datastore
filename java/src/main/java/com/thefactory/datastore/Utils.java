@@ -1,5 +1,7 @@
 package com.thefactory.datastore;
 
+import java.io.File;
+
 public class Utils {
 
     public static long toUInt32(Slice slice) {
@@ -20,4 +22,14 @@ public class Utils {
 
         return count;
     }
+
+    public static boolean deletePathRecursive(File path) {
+        if (path.isDirectory()) {
+            for (File file : path.listFiles()) {
+                if (!deletePathRecursive(file))
+                    return false;
+            } 
+        }
+        return path.delete();
+    }    
 }

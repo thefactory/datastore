@@ -38,7 +38,9 @@ public class DatabaseTest extends TestCase {
         assertFalse(fs.exists(new File(DB_PATH, FileManager.TABLET_META_FILE).getPath())); 
 
         try {
-            db = Database.open("db", new Database.Options(new MemFileSystem(), false, false, 1024 * 1024 * 4));
+            Database.Options options = new Database.Options(new MemFileSystem());
+            options.createIfMissing = false;
+            db = Database.open("db", options);
             assertTrue(false);
         } catch (IllegalArgumentException e) {
             assertTrue(true);
@@ -54,7 +56,9 @@ public class DatabaseTest extends TestCase {
         
         rmDBDir();
         try {
-            db = Database.open("db", new Database.Options(new DiskFileSystem(), false, false, 1024 * 1024 * 4));
+            Database.Options options = new Database.Options(new DiskFileSystem());
+            options.createIfMissing = false;
+            db = Database.open("db", options);
             assertTrue(false);
         } catch (IllegalArgumentException e) {
             assertTrue(true);
