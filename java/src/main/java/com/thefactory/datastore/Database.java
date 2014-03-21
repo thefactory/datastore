@@ -4,7 +4,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.Closeable;
 import java.io.File;
-import java.nio.file.Files;
 import java.util.Iterator;
 import java.util.Deque;
 import java.util.Collection;
@@ -87,7 +86,7 @@ public class Database implements Closeable {
     public static Database openTmp() throws IOException {
         Options options = new Options();
         options.deleteOnClose = true;
-        return open(Files.createTempDirectory("db-").toString(), options);
+        return open(Utils.createTempDirectory("db-").toString(), options);
     }
 
     public void pushTablet(String name) throws IOException {
