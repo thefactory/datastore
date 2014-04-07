@@ -61,6 +61,10 @@ public class Database implements Closeable {
         }
     }
 
+    public interface KVPredicate {
+        boolean evaluate(final KV kv);
+    }
+
     private class Tablets {
         public final Deque<String> stack = new LinkedBlockingDeque<String>();
         public final Deque<FileTablet> file = new LinkedBlockingDeque<FileTablet>();        
@@ -157,7 +161,23 @@ public class Database implements Closeable {
         return find(null);
     }
 
+    public Iterator<KV> findByPrefix(final Slice term) throws IOException {
+        return findWhile(term, new KVPredicate() {
+            public boolean evaluate(final KV kv) {
+                return Slice.isPrefix(kv.getKey(), term);
+            }
+        });
+    }
+
     public Iterator<KV> find(final Slice term) throws IOException {
+        return findWhile(term, new KVPredicate() {
+            public boolean evaluate(final KV kv) {
+                return true;
+            }
+        });
+    }
+
+    public Iterator<KV> findWhile(final Slice term, final KVPredicate predicate) throws IOException {
 
         return new Iterator<KV>() {
             class QueueItem {
@@ -212,6 +232,10 @@ public class Database implements Closeable {
                 }
                 KV ret = current;
                 current = pop();
+                if((current != null) && (!predicate.evaluate(current))) {
+                    current = null;
+                }
+
                 return ret;
             }
 

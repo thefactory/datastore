@@ -149,6 +149,28 @@ public class DatabaseTest extends TestCase {
         assertFalse(kvs.hasNext());
     }
 
+    public void testFindByPrefix() throws Exception {
+        Database db = setupDatabase(new DiskFileSystem(), new String[]{});
+
+        Iterator<KV> kvs = db.find();
+        assertFalse(kvs.hasNext());
+
+        db.put(new Slice("aaa".getBytes()), new Slice("val".getBytes()));
+        db.put(new Slice("aab".getBytes()), new Slice("val".getBytes()));
+        db.put(new Slice("abb".getBytes()), new Slice("val".getBytes()));
+        db.put(new Slice("bbb".getBytes()), new Slice("val".getBytes()));
+
+        kvs = db.findByPrefix(new Slice("a".getBytes()));
+        assertTrue(kvs.hasNext());
+        int count = 0;
+        while(kvs.hasNext()) {
+            KV kv = kvs.next();
+            assertTrue(kv.getKey().toUTF8String().startsWith("a"));
+            count++;
+        }
+        assertEquals(3, count);
+    }
+
     public void testDeleteWithGet() throws Exception {
         Database db = setupDatabase(new DiskFileSystem(), new String[]{});
 
