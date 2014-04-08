@@ -218,6 +218,9 @@ public class Database implements Closeable {
                 enqueueNextItem(tablets.mutable.find(term), priority);
 
                 current = pop();
+                if((current != null) && (!predicate.evaluate(current))) {
+                    current = null;
+                }
             }
 
             @Override
