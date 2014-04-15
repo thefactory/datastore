@@ -160,7 +160,6 @@ public class DiskFileSystem implements FileSystem {
 
         @Override
         public void close() throws IOException {
-            channel.force(true);
             channel.close();
         }
 
