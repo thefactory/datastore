@@ -17,11 +17,14 @@ namespace TheFactory.Datastore {
         // compressed blocks can be round-tripped through Snappy.
         public bool VerifyBlockCompression { get; set; }
 
+        public bool CheckKeyOrder { get; set; }
+
         public TabletWriterOptions() {
             BlockSize = 32768;
             BlockCompression = true;
             KeyRestartInterval = 128;
             VerifyBlockCompression = true;
+            CheckKeyOrder = true;
         }
 
         public override string ToString() {
@@ -29,8 +32,9 @@ namespace TheFactory.Datastore {
                 "BlockSize = {0}\n" +
                 "BlockCompression = {1}\n" +
                 "KeyRestartInterval = {2}\n" +
-                "VerifyBlockCompression = {3}",
-                BlockSize, BlockCompression, KeyRestartInterval, VerifyBlockCompression);
+                "VerifyBlockCompression = {3}\n" +
+                "CheckKeyOrder = {4}",
+                BlockSize, BlockCompression, KeyRestartInterval, VerifyBlockCompression, CheckKeyOrder);
         }
     }
 
@@ -108,7 +112,16 @@ namespace TheFactory.Datastore {
             var indexStream = new MemoryStream();
             var blockWriter = new BlockWriter(opts.KeyRestartInterval);
 
+            Slice prevKey = null;
             foreach (var p in kvs) {
+                if (opts.CheckKeyOrder) {
+                    Slice cur = p.Key;
+                    if (cur.CompareTo(prevKey) <= 0) {
+                        throw new ArgumentException(String.Format("non-ascending keys: %s -> %s", prevKey, cur));
+                    }
+                    prevKey = cur.Detach();
+                }
+
                 blockWriter.Append(p);
                 if (blockWriter.Size >= opts.BlockSize) {
                     FlushBlock(writer, blockWriter, indexStream, type, opts);

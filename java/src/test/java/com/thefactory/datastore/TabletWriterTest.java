@@ -4,10 +4,12 @@ import junit.framework.TestCase;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.channels.Channels;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Iterator;
 
 import static org.junit.Assert.assertArrayEquals;
 
@@ -119,5 +121,48 @@ public class TabletWriterTest extends TestCase {
         assertEquals(count, 1000);
     }
 
+    public void testVerifyKeyOrder() {
+        TabletWriterOptions opts = new TabletWriterOptions();
+        opts.checkKeyOrder = true;
 
+        final TabletWriter tw = new TabletWriter(opts);
+        final List<KV> items = new ArrayList<KV>();
+
+        Runnable closure = new Runnable() {
+            public void run() {
+                try {
+                    tw.writeTablet(Channels.newChannel(new ByteArrayOutputStream()), items.iterator());
+                } catch (IOException e) {
+                    // Checked exceptions mean we need to explicitly handle IOException here.
+                }
+            }
+        };
+
+        Slice foo = new Slice("foo".getBytes());
+        Slice bar = new Slice("bar".getBytes());
+
+        // Check a descending key pair.
+        items.clear();
+        items.add(new KV(foo, foo));
+        items.add(new KV(bar, bar));
+        assertThrows(IllegalArgumentException.class, closure);
+
+        // Check a duplicate key pair.
+        items.clear();
+        items.add(new KV(foo, foo));
+        items.add(new KV(foo, foo));
+        assertThrows(IllegalArgumentException.class, closure);
+    }
+
+    void assertThrows(Class cls, Runnable closure) {
+        boolean thrown = false;
+
+        try {
+            closure.run();
+        } catch (Exception e) {
+            thrown = cls.equals(e.getClass());
+        } finally {
+            assertTrue("Missing expected IllegalArgumentException", thrown);
+        }
+    }
 }

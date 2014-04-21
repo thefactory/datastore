@@ -609,5 +609,38 @@ namespace TheFactory.DatastoreTests {
                 Assert.True(it2.MoveNext() == false);
             }
         }
+
+        [Test]
+        public void TestVerifyKeyOrder() {
+            TabletWriterOptions opts = new TabletWriterOptions();
+            opts.CheckKeyOrder = true;
+            TabletWriter tw = new TabletWriter();
+
+            List<Pair> items = new List<Pair>();
+            Pair foo = Utils.Pair(Utils.Slice("foo"), Utils.Slice("foo"));
+            Pair bar = Utils.Pair(Utils.Slice("bar"), Utils.Slice("bar"));
+
+            // Check a descending key pair.
+            items.Clear();
+            items.Add(foo);
+            items.Add(bar);
+
+            using (var os = new BinaryWriter(new MemoryStream())) {
+                Assert.Throws(typeof(ArgumentException), delegate {
+                    tw.WriteTablet(os, items, opts);
+                }, "Missing expected ArgumentException");
+            }
+
+            // Check a duplicate key pair.
+            items.Clear();
+            items.Add(foo);
+            items.Add(foo);
+
+            using (var os = new BinaryWriter(new MemoryStream())) {
+                Assert.Throws(typeof(ArgumentException), delegate {
+                    tw.WriteTablet(os, items, opts);
+                }, "Missing expected ArgumentException");
+            }
+        }
     }
 }

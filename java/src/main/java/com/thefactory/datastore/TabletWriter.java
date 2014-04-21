@@ -66,8 +66,18 @@ public class TabletWriter {
         Deque<IndexRecord> index = new LinkedList<IndexRecord>();
         BlockWriter bw = new BlockWriter(opts);
 
+        Slice prevKey = null;
         while (kvs.hasNext()) {
             KV kv = kvs.next();
+
+            if (opts.checkKeyOrder) {
+                Slice cur = kv.getKey();
+                if (cur.compareTo(prevKey) <= 0) {
+                    throw new IllegalArgumentException(String.format("non-ascending keys: %s -> %s", prevKey, cur));
+                }
+                prevKey = cur.detach();
+            }
+
             if(kv.isDeleted()) {
                 bw.append(kv.getKeyBytes(), tombstone);
             } else {
