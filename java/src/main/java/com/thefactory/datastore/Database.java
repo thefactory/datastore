@@ -4,15 +4,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.Closeable;
 import java.io.File;
-import java.util.Iterator;
-import java.util.Deque;
-import java.util.Collection;
+import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.NoSuchElementException;
-import java.util.Iterator;
-import java.util.TreeSet;
-import java.util.Comparator;
-import java.util.UUID;
 import java.lang.Override;
 import java.lang.Thread;
 import org.apache.commons.logging.Log; 
@@ -91,6 +84,16 @@ public class Database implements Closeable {
         Options options = new Options();
         options.deleteOnClose = true;
         return open(Utils.createTempDirectory("db-").toString(), options);
+    }
+
+    public static Database openTablets(final Iterable<File> tablets) throws IOException {
+        Database db = openTmp();
+        for(File tablet : tablets) {
+            String destTabletName = UUID.randomUUID().toString();
+            Utils.fileCopy(new File(db.fileManager.dir, destTabletName), tablet);
+            db.pushTablet(destTabletName);
+        }  
+        return db;
     }
 
     public void pushTablet(String name) throws IOException {

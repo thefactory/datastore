@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.io.IOException;
 import java.util.Random;
 import java.util.Date;
+import java.util.Arrays;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.BufferedReader;
@@ -520,6 +521,25 @@ public class DatabaseTest extends TestCase {
             count++;
         }
         assertEquals(count, 100);
+    }
+
+    public void testOpenTablets() throws Exception {
+        File[] tablets = new File[]{
+                                    new File("../test-data/ngrams1/ngrams1-Nblock-compressed.tab"),
+                                    new File("../test-data/ngrams2/ngrams.tab.0"),
+                                    new File("../test-data/ngrams2/ngrams.tab.1")
+                                    };
+
+        Database db = Database.openTablets(Arrays.asList(tablets));
+
+        Iterator<KV> kvs = db.find();
+
+        int count = 0;
+        while(kvs.hasNext()) {
+            KV kv = kvs.next();
+            count ++;
+        }
+        assertEquals(count, 40);
     }
 
     private Slice nextRandomSlice(int maxSize) {

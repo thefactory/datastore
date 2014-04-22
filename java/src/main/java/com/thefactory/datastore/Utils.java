@@ -2,6 +2,9 @@ package com.thefactory.datastore;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.nio.channels.FileChannel;
 
 public class Utils {
 
@@ -43,5 +46,27 @@ public class Utils {
             throw new IOException("Could not create temp directory: " + temp.getAbsolutePath());
         }
         return (temp);
+    }
+
+    public static void fileCopy(final File dest, final File src) throws IOException {
+        FileInputStream in = null;
+        FileOutputStream out = null;
+        try {
+            in = new FileInputStream(src);
+            out = new FileOutputStream(dest);
+            FileChannel fcin =  in.getChannel();
+            FileChannel fcout =  out.getChannel();
+            long bytes =  fcin.size();
+            while(bytes > 0L) {
+                bytes -= fcout.transferFrom(fcin, 0, bytes);
+            }
+        } finally {
+            if(in != null) {
+                in.close();
+            }
+            if(out != null) {
+                out.close();
+            }
+        }
     }
 }
