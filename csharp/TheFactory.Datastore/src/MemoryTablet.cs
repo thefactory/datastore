@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace TheFactory.Datastore {
 
-    class MemoryTablet : ITablet {
+    public class MemoryTablet : ITablet {
         private OurSortedDictionary<Slice, Slice> backing;
         private object backingLock;
 

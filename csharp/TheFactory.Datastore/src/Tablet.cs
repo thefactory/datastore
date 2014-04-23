@@ -19,7 +19,7 @@ namespace TheFactory.Datastore {
         public const int TabletFooterLength = 40;
     }
 
-    class FileTablet : ITablet {
+    public class FileTablet : ITablet {
         private TabletReaderOptions opts;
         private Stream stream;
         private TabletReader reader;
