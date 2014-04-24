@@ -55,6 +55,7 @@
     <Compile Include="src\BlockWriter.cs" />
     <Compile Include="src\BlockReader.cs" />
     <Compile Include="src\TabletReader.cs" />
+    <Compile Include="src\SliceExtensions.cs" />
   </ItemGroup>
   <ProjectExtensions>
     <MonoDevelop>

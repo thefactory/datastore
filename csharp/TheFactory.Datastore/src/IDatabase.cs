@@ -51,7 +51,7 @@ namespace TheFactory.Datastore {
                 return null;
             }
 
-            return Encoding.UTF8.GetString(slice.Array, slice.Offset, slice.Length);
+            return slice.GetString();
         }
 
         public static void Put(this IDatabase db, string key, Slice val) {
