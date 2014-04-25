@@ -36,7 +36,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\Helpers.cs" />
-    <Compile Include="src\Tablet.cs" />
     <Compile Include="src\AssemblyInfo.cs" />
     <Compile Include="src\Database.cs" />
     <Compile Include="src\IKeyValuePair.cs" />
@@ -56,6 +55,8 @@
     <Compile Include="src\BlockReader.cs" />
     <Compile Include="src\TabletReader.cs" />
     <Compile Include="src\SliceExtensions.cs" />
+    <Compile Include="src\FileTablet.cs" />
+    <Compile Include="src\StreamTablet.cs" />
   </ItemGroup>
   <ProjectExtensions>
     <MonoDevelop>

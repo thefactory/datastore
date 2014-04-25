@@ -27,6 +27,9 @@ namespace TheFactory.Datastore {
 
         public string Filename { get; private set; }
 
+        public FileTablet(string filename) : this(filename, new TabletReaderOptions()) {
+        }
+
         public FileTablet(string filename, TabletReaderOptions opts) : this(Locator.Current.GetService<IFileSystem>().GetStream(filename, FileMode.Open, FileAccess.Read), opts) {
             Filename = filename;
         }

@@ -119,6 +119,7 @@
     <Compile Include="src\Stats.cs" />
     <Compile Include="src\ScaleTests.cs" />
     <Compile Include="src\DatabaseEventsTests.cs" />
+    <Compile Include="src\StreamTabletTests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
