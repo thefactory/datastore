@@ -14,6 +14,7 @@ using TheFactory.FileSystem;
 namespace TheFactory.Datastore {
     public class Options {
         public bool CreateIfMissing { get; set; }
+        public bool DeleteOnClose { get; set; }
         public bool VerifyChecksums { get; set; }
         public int MaxMemoryTabletSize { get; set; }
         public TabletReaderOptions ReaderOptions { get; set; }
@@ -21,6 +22,7 @@ namespace TheFactory.Datastore {
 
         public Options() {
             CreateIfMissing = true;
+            DeleteOnClose = false;
             VerifyChecksums = false;
             MaxMemoryTabletSize = 1024 * 1024 * 4; /* 4MB default */
             ReaderOptions = new TabletReaderOptions();
@@ -29,11 +31,13 @@ namespace TheFactory.Datastore {
 
         public override string ToString() {
             return String.Format(
-                "VerifyChecksums = {0}\n" +
-                "MaxMemoryTabletSize = {1}\n" +
-                "ReaderOptions:\n{2}\n" +
-                "WriterOptions:\n{3}\n",
-                VerifyChecksums, MaxMemoryTabletSize,
+                "CreateIfMissing = {0}\n" +
+                "DeleteOnClose = {1}\n" +
+                "VerifyChecksums = {2}\n" +
+                "MaxMemoryTabletSize = {3}\n" +
+                "ReaderOptions:\n{4}\n" +
+                "WriterOptions:\n{5}\n",
+                CreateIfMissing, DeleteOnClose, VerifyChecksums, MaxMemoryTabletSize,
                 ReaderOptions.ToString(), WriterOptions.ToString());
         }
     }
@@ -161,6 +165,10 @@ namespace TheFactory.Datastore {
             if (fsLock != null) {
                 fsLock.Dispose();
                 fsLock = null;
+            }
+
+            if (opts.DeleteOnClose) {
+                fs.RemoveDirectory(fileManager.Dir);
             }
         }
 
