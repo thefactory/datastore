@@ -33,6 +33,7 @@
   </PropertyGroup>
   <ItemGroup />
   <ItemGroup>
+    <Compile Include="src\AsyncLock.cs" />
     <Compile Include="src\Helpers.cs" />
     <Compile Include="src\AssemblyInfo.cs" />
     <Compile Include="src\Database.cs" />
