@@ -1,9 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">iPhoneSimulator</Platform>
-    <ProductVersion>10.0.0</ProductVersion>
+    <ProductVersion>8.0.30703</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{D7C5315D-678C-46FB-AB15-E053E2A8EB1D}</ProjectGuid>
     <ProjectTypeGuids>{6BC8ED88-2882-458C-8E55-DFD12B67127B};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -121,7 +121,7 @@
     <Compile Include="src\DatabaseEventsTests.cs" />
     <Compile Include="src\StreamTabletTests.cs" />
   </ItemGroup>
-  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <Import Project="$(MSBuildExtensionsPath)\Xamarin\iOS\Xamarin.MonoTouch.CSharp.targets" />
   <ItemGroup>
     <ProjectReference Include="..\TheFactory.Datastore\TheFactory.Datastore.csproj">
       <Project>{7B0B8E22-7BA3-4882-A445-BB8F96B6578E}</Project>
@@ -130,14 +130,6 @@
     <ProjectReference Include="..\..\..\TheFactory.Snappy\TheFactory.Snappy\TheFactory.Snappy.csproj">
       <Project>{8C2CA69C-CFF2-4781-8800-2F08F5056893}</Project>
       <Name>TheFactory.Snappy</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\TheFactory.FileSystem\TheFactory.FileSystem\TheFactory.FileSystem.csproj">
-      <Project>{FDFDFB2D-254D-4A04-828F-D5292A495F4A}</Project>
-      <Name>TheFactory.FileSystem</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\TheFactory.FileSystem\TheFactory.FileSystem.IOS\TheFactory.FileSystem.IOS.csproj">
-      <Project>{68B4B74A-69AB-45DD-BAEF-975FAD88B445}</Project>
-      <Name>TheFactory.FileSystem.IOS</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
