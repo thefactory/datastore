@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using Splat;
-using TheFactory.FileSystem;
+using PCLStorage;
 
 namespace TheFactory.Datastore {
     public class Options {

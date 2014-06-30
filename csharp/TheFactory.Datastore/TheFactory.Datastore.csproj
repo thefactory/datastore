@@ -73,15 +73,17 @@
     <Reference Include="Splat">
       <HintPath>..\contrib\Splat.dll</HintPath>
     </Reference>
+    <Reference Include="PCLStorage.Abstractions">
+      <HintPath>..\contrib\PCLStorage.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="PCLStorage">
+      <HintPath>..\contrib\PCLStorage.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\TheFactory.Snappy\TheFactory.Snappy\TheFactory.Snappy.csproj">
       <Project>{8C2CA69C-CFF2-4781-8800-2F08F5056893}</Project>
       <Name>TheFactory.Snappy</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\TheFactory.FileSystem\TheFactory.FileSystem\TheFactory.FileSystem.csproj">
-      <Project>{FDFDFB2D-254D-4A04-828F-D5292A495F4A}</Project>
-      <Name>TheFactory.FileSystem</Name>
     </ProjectReference>
   </ItemGroup>
 </Project>

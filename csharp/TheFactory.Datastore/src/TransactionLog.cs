@@ -3,7 +3,6 @@ using System.IO;
 using TheFactory.Datastore.Helpers;
 using System.Collections.Generic;
 using Splat;
-using TheFactory.FileSystem;
 
 namespace TheFactory.Datastore {
     internal class TransactionLog {

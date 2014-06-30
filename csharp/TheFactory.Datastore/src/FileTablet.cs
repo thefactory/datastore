@@ -6,7 +6,6 @@ using System.Threading;
 using TheFactory.Snappy;
 using TheFactory.Datastore.Helpers;
 using Splat;
-using TheFactory.FileSystem;
 
 namespace TheFactory.Datastore {
 
