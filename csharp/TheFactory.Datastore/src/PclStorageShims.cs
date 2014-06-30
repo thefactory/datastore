@@ -29,5 +29,15 @@ namespace TheFactory.Datastore {
 
             return currentFolder;
         }
+
+        public static async Task<IDisposable> FileLock(this IFileSystem fs, string path)
+        {
+            var dir = Path.GetDirectoryName(path);
+            var folder = await fs.CreateDirectoryRecursive(dir);
+
+            // TODO: PCLStorage doesn't let you specify exclusivity
+            var fi = await folder.CreateFileAsync(Path.GetFileName(path), CreationCollisionOption.FailIfExists);
+            return await fi.OpenAsync(FileAccess.ReadAndWrite);
+        }
     }
 }

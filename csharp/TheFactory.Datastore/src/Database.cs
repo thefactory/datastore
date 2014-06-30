@@ -72,8 +72,8 @@ namespace TheFactory.Datastore {
 
         // memLock protects access to the mutable memory tablet. tabLock protects
         // access to the tablets list.
-        private object memLock = new object();
-        private object tabLock = new object();
+        private AsyncLock memLock = new AsyncLock();
+        private AsyncLock tabLock = new AsyncLock();
 
         private FileManager fileManager;
         private TransactionLogWriter writeLog;
@@ -88,31 +88,31 @@ namespace TheFactory.Datastore {
             this.fs = Locator.Current.GetService<IFileSystem>();
         }
 
-        public static IDatabase Open(string path) {
+        public static Task<IDatabase> Open(string path) {
             return Open(path, new Options());
         }
 
-        public static IDatabase Open(string path, Options opts) {
+        public static async Task<IDatabase> Open(string path, Options opts) {
             var db = new Database(path, opts);
-            db.Open();
+            await db.Open();
             return db;
         }
 
-        private void Open() {
-            if (!fs.Exists(fileManager.Dir)) {
-                if (!opts.CreateIfMissing) {
-                    throw new InvalidOperationException(String.Format("Directory `{0}` must exist", fileManager.Dir));
-                }
-                fs.CreateDirectory(fileManager.Dir);
+        private async Task Open() {
+            if (await fs.GetFolderFromPathAsync(fileManager.Dir) == null) {
+                await fs.CreateDirectoryRecursive(fileManager.Dir);
             }
 
-            fsLock = fs.FileLock(fileManager.GetLockFile());
+            fsLock = await fs.FileLock(fileManager.GetLockFile());
 
-            LoadMemoryTablets();
+            await LoadMemoryTablets();
 
             var tabletStack = fileManager.GetTabletStack();
-            if (fs.Exists(tabletStack)) {
-                using (var file = fs.GetStream(tabletStack, FileMode.Open, FileAccess.Read)) {
+            if (await fs.GetFileFromPathAsync(tabletStack) == null) {
+                var di = await fs.CreateDirectoryRecursive(Path.GetDirectoryName(tabletStack));
+                var fi = await di.GetFileAsync(Path.GetFileName(tabletStack));
+
+                using (var file = await fi.OpenAsync(FileAccess.Read)) {
                     var reader = new StreamReader(file);
                     while (!reader.EndOfStream) {
                         var filename = fileManager.DbFilename(reader.ReadLine());
@@ -122,38 +122,47 @@ namespace TheFactory.Datastore {
             }
         }
 
-        void LoadMemoryTablets() {
+        async Task LoadMemoryTablets() {
             var transLog = fileManager.GetTransactionLog();
             var immTransLog = fileManager.GetImmutableTransactionLog();
 
             mem = new MemoryTablet();
-            if (fs.Exists(transLog)) {
-                ReplayTransactions(mem, transLog);
+            if (await fs.GetFileFromPathAsync(transLog) != null) {
+                await ReplayTransactions(mem, transLog);
             }
 
             // If we crashed while freezing a memory tablet, freeze it again. Block
             // database loading until it completes.
-            if (fs.Exists(immTransLog)) {
+            var fi = default(IFile);
+            if ((fi = await fs.GetFileFromPathAsync(immTransLog)) != null) {
                 var tab = new MemoryTablet();
-                ReplayTransactions(tab, immTransLog);
+                await ReplayTransactions(tab, immTransLog);
 
                 // Block until the immutable memory tablet has been frozen.
-                Compact(tab);
-                fs.Remove(immTransLog);
+                await Compact(tab);
+
+                await fi.DeleteAsync();
             }
 
-            writeLog = new TransactionLogWriter(fs.GetStream(transLog, FileMode.Append, FileAccess.Write, FileShare.None));
+            fi = await fs.GetFileFromPathAsync(transLog);
+            var stream = await fi.OpenAsync(FileAccess.ReadAndWrite);
+            stream.Seek(0, SeekOrigin.End);
+
+            writeLog = new TransactionLogWriter(stream);
         }
 
-        void ReplayTransactions(MemoryTablet tablet, string path) {
-            using (var log = new TransactionLogReader(fs.GetStream(path, FileMode.Open, FileAccess.Read))) {
+        async Task ReplayTransactions(MemoryTablet tablet, string path) {
+            var fi = await fs.GetFileFromPathAsync(path);
+            var stream = await fi.OpenAsync(FileAccess.Read);
+
+            using (var log = new TransactionLogReader(stream)) {
                 foreach (var transaction in log.Transactions()) {
                     tablet.Apply(new Batch(transaction));
                 }
             }
         }
 
-        public void Close() {
+        public async Task Close() {
             if (writeLog != null) {
                 writeLog.Dispose();
                 writeLog = null;
@@ -168,12 +177,13 @@ namespace TheFactory.Datastore {
             }
 
             if (opts.DeleteOnClose) {
-                fs.RemoveDirectory(fileManager.Dir);
+                var di = await fs.GetFolderFromPathAsync(fileManager.Dir);
+                await di.DeleteAsync();
             }
         }
 
         public void Dispose() {
-            Close();
+            Close().Wait();
         }
 
         private bool EndOfBlocks(Stream stream) {
@@ -183,16 +193,20 @@ namespace TheFactory.Datastore {
             return peek == Constants.MetaIndexMagic;
         }
 
-        public void PushTablet(string filename) {
-            lock (tabLock) {
+        public async Task PushTablet(string filename) {
+            using (await tabLock.LockAsync()) {
                 tablets.Add(new FileTablet(filename, opts.ReaderOptions));
-                WriteLevel0List();
+                await WriteLevel0List();
             }
         }
 
-        void WriteLevel0List() {
+        async Task WriteLevel0List() {
+            var path = fileManager.GetTabletStack();
+            var di = await fs.CreateDirectoryRecursive(Path.GetDirectoryName(path));
+            var fi = await di.CreateFileAsync(Path.GetFileName(path), CreationCollisionOption.ReplaceExisting);
+
             // tabLock must be held to call WriteLevel0List
-            using (var stream = fs.GetStream(fileManager.GetTabletStack(), FileMode.Create, FileAccess.Write, FileShare.None)) {
+            using (var stream = await fi.OpenAsync(FileAccess.ReadAndWrite)) {
                 var writer = new StreamWriter(stream);
                 foreach (var t in tablets) {
                     writer.WriteLine(Path.GetFileName(t.Filename));
@@ -201,7 +215,7 @@ namespace TheFactory.Datastore {
             }
         }
 
-        void MaybeCompactMem() {
+        async Task MaybeCompactMem() {
             // This method locks the tablets briefly to determine whether mem is due for compaction.
             //
             // If mem is not due for compaction, it returns after that.
@@ -220,32 +234,37 @@ namespace TheFactory.Datastore {
             if (shouldCompact) {
                 canCompact.Wait();
 
-                lock(tabLock) {
+                using (await tabLock.LockAsync()) {
                     if (memFull()) {
                         canCompact.Reset();
-                        CompactMem();
+                        await CompactMem();
                     }
                 }
             }
         }
 
-        void CompactMem() {
+        async Task CompactMem() {
             var transLog = fileManager.GetTransactionLog();
             var immTransLog = fileManager.GetImmutableTransactionLog();
 
             // Move the current writable memory tablet to mem2.
-            lock (tabLock) {
+            using (await tabLock.LockAsync()) {
                 mem2 = mem;
                 mem = new MemoryTablet();
 
                 writeLog.Dispose();
-                fs.Move(transLog, immTransLog);
-                writeLog = new TransactionLogWriter(fs.GetStream(transLog, FileMode.Append, FileAccess.Write));
+                var src = await fs.GetFileFromPathAsync(transLog);
+                await src.MoveAsync(immTransLog);
 
-                Task.Run(() => {
+                var str = await src.OpenAsync(FileAccess.ReadAndWrite);
+                str.Seek(0, SeekOrigin.End);
+
+                writeLog = new TransactionLogWriter(str);
+
+                Task.Run(async () => {
                     try {
-                        Compact(mem2);
-                        fs.Remove(immTransLog);
+                        await Compact(mem2);
+                        await (await fs.GetFileFromPathAsync(immTransLog)).DeleteAsync();
                         mem2 = null;
                     } catch (Exception e) {
                         this.Log().ErrorException("Exception in tablet compaction", e);
@@ -258,16 +277,19 @@ namespace TheFactory.Datastore {
             }
         }
 
-        void Compact(MemoryTablet tab) {
+        async Task Compact(MemoryTablet tab) {
             var tabfile = fileManager.DbFilename(String.Format("{0}.tab", System.Guid.NewGuid().ToString()));
             var writer = new TabletWriter();
 
-            using (var stream = fs.GetStream(tabfile, FileMode.Create, FileAccess.Write))
+            var di = await fs.CreateDirectoryRecursive(Path.GetDirectoryName(tabfile));
+            var fi = await di.CreateFileAsync(Path.GetFileName(tabfile), CreationCollisionOption.ReplaceExisting);
+
+            using (var stream = await fi.OpenAsync(FileAccess.ReadAndWrite))
             using (var output = new BinaryWriter(stream)) {
                 writer.WriteTablet(output, tab.Find(Slice.Empty), opts.WriterOptions);
             }
 
-            PushTablet(tabfile);
+            await PushTablet(tabfile);
         }
 
         ITablet[] CurrentTablets() {
@@ -317,11 +339,11 @@ namespace TheFactory.Datastore {
             return null;
         }
 
-        internal void Apply(Batch batch) {
-            lock (memLock) {
+        internal async Task Apply(Batch batch) {
+            using (await memLock.LockAsync()) {
                 writeLog.EmitTransaction(batch.ToSlice());
                 mem.Apply(batch);
-                MaybeCompactMem();
+                await MaybeCompactMem();
             }
 
             if (KeyValueChangedEvent != null) {
@@ -331,16 +353,16 @@ namespace TheFactory.Datastore {
             }
         }
 
-        public void Put(Slice key, Slice val) {
+        public async Task Put(Slice key, Slice val) {
             var batch = new Batch();
             batch.Put(key, val);
-            Apply(batch);
+            await Apply(batch);
         }
 
-        public void Delete(Slice key) {
+        public async Task Delete(Slice key) {
             var batch = new Batch();
             batch.Delete(key);
-            Apply(batch);
+            await Apply(batch);
         }
 
         private class ParallelEnumerator: IEnumerator<IKeyValuePair> {
