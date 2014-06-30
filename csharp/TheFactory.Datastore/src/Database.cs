@@ -8,6 +8,7 @@ using System.Collections;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Linq;
 using Splat;
 using PCLStorage;
 
@@ -227,7 +228,7 @@ namespace TheFactory.Datastore {
             Func<bool> memFull = () => (mem.ApproxSize > opts.MaxMemoryTabletSize);
 
             bool shouldCompact;
-            lock (tabLock) {
+            using (await tabLock.LockAsync()) {
                 shouldCompact = memFull();
             }
 
@@ -286,17 +287,18 @@ namespace TheFactory.Datastore {
 
             using (var stream = await fi.OpenAsync(FileAccess.ReadAndWrite))
             using (var output = new BinaryWriter(stream)) {
-                writer.WriteTablet(output, tab.Find(Slice.Empty), opts.WriterOptions);
+                var toWrite = await tab.Find(Slice.Empty).ToArray();
+                writer.WriteTablet(output, toWrite, opts.WriterOptions);
             }
 
             await PushTablet(tabfile);
         }
 
-        ITablet[] CurrentTablets() {
+        async Task<ITablet[]> CurrentTablets() {
             // Return all a snapshot of current tablets in order of search priority.
             var all = new List<ITablet>(tablets.Count + 2);
 
-            lock(tabLock) {
+            using(await tabLock.LockAsync()) {
                 all.Add(mem);
                 if (mem2 != null) {
                     all.Add(mem2);
@@ -307,36 +309,21 @@ namespace TheFactory.Datastore {
                 }
             }
 
+            all.ToAsyncEnumerable();
             return all.ToArray();
         }
 
-        public IEnumerable<IKeyValuePair> Find(Slice term) {
-            var searches = CurrentTablets();
-            var iter = new ParallelEnumerator(searches.Count(), (i) => {
-                return searches[i].Find(term).GetEnumerator();
-            });
-
-            using (iter) {
-                while (iter.MoveNext()) {
-                    if (!iter.Current.IsDeleted) {
-                        yield return iter.Current;
-                    }
-                }
-            }
-
-            yield break;
+        public IAsyncEnumerable<IKeyValuePair> Find(Slice term) {
+            return AsyncEnumerableEx.Return(() => CurrentTablets())
+                .SelectMany(tablets => tablets.ToAsyncEnumerable()
+                    .SelectMany(x => x.Find(term)));
         }
 
-        public Slice Get(Slice key) {
-            foreach (var p in Find(key)) {
-                if (Slice.Compare(p.Key, key) == 0) {
-                    return p.Value.Detach();
-                } else {
-                    break;
-                }
-            }
+        public async Task<Slice> Get(Slice key) {
+            var ret = await Find(key)
+                .FirstOrDefault(x => Slice.Compare(x.Key, key) == 0);
 
-            return null;
+            return (ret != null ? ret.Value.Detach() : null);
         }
 
         internal async Task Apply(Batch batch) {
@@ -363,106 +350,6 @@ namespace TheFactory.Datastore {
             var batch = new Batch();
             batch.Delete(key);
             await Apply(batch);
-        }
-
-        private class ParallelEnumerator: IEnumerator<IKeyValuePair> {
-            SortedSet<QueuePair> queue;
-            List<IEnumerator<IKeyValuePair>> iters;
-            Pair current;
-
-            public ParallelEnumerator(int n, Func<int, IEnumerator<IKeyValuePair>> func) {
-                queue = new SortedSet<QueuePair>(new PriorityComparer());
-                iters = new List<IEnumerator<IKeyValuePair>>(n);
-
-                for (int i = 0; i < n; i++) {
-                    var iter = func(i);
-                    if (iter.MoveNext()) {
-                        queue.Add(new QueuePair(-i, iter.Current));
-                    }
-                    iters.Add(iter);
-                }
-
-                current = new Pair();
-            }
-
-            object IEnumerator.Current { get { return current; } }
-
-            public IKeyValuePair Current { get { return current; } }
-
-            public bool MoveNext() {
-                if (queue.Count == 0) {
-                    current = null;
-                    return false;
-                }
-
-                current = Pop();
-
-                while (queue.Count > 0 && current.Key.Equals(queue.Min.kv.Key)) {
-                    // skip any items in other iterators that have the same key
-                    Pop();
-                }
-
-                return true;
-            }
-
-            private Pair Pop() {
-                var cur = queue.Min;
-                queue.Remove(cur);
-
-                // set up new references to this item, since we're about to advance its iterator below
-                var ret = new Pair();
-                ret.Key = cur.kv.Key;
-                ret.Value = cur.kv.Value;
-                ret.IsDeleted = cur.kv.IsDeleted;
-
-                var iter = iters[-cur.Priority];
-                if (iter.MoveNext()) {
-                    queue.Add(new QueuePair(cur.Priority, iter.Current));
-                }
-
-                return ret;
-            }
-
-            public void Dispose() {
-                foreach (var iter in iters) {
-                    iter.Dispose();
-                }
-            }
-
-            // from IEnumerator: it's ok not to support this
-            public void Reset() {
-                throw new NotSupportedException();
-            }
-
-            private class QueuePair {
-                public int Priority { get; set; }
-
-                public IKeyValuePair kv { get; set; }
-
-                public QueuePair(int priority, IKeyValuePair kv) {
-                    this.Priority = priority;
-                    this.kv = kv;
-                }
-            }
-
-            private class PriorityComparer : IComparer<QueuePair>, IComparer {
-                public int Compare(Object x, Object y) {
-                    return this.Compare((QueuePair)x, (QueuePair)y);
-                }
-
-                public int Compare(QueuePair x, QueuePair y) {
-                    if (ReferenceEquals(x, y)) {
-                        return 0;
-                    }
-
-                    var cmp = Slice.Compare(x.kv.Key, y.kv.Key);
-                    if (cmp == 0) {
-                        // Key is the same, the higher priority pair wins
-                        return y.Priority - x.Priority;
-                    }
-                    return cmp;
-                }
-            }
         }
     }
 }

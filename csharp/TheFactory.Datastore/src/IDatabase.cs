@@ -22,7 +22,7 @@ namespace TheFactory.Datastore {
     internal interface ITablet {
         void Close();
 
-        IEnumerable<IKeyValuePair> Find(Slice term);
+        IAsyncEnumerable<IKeyValuePair> Find(Slice term);
 
         string Filename { get; }
     }
