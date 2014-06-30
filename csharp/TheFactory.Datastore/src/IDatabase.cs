@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace TheFactory.Datastore {
 
     public interface IDatabase : IDisposable {
-        Task<IEnumerable<IKeyValuePair>> Find(Slice term);
+        IAsyncEnumerable<IKeyValuePair> Find(Slice term);
 
         Task<Slice> Get(Slice key);
         Task Put(Slice key, Slice val);
@@ -29,13 +29,12 @@ namespace TheFactory.Datastore {
 
     public static class IDatabaseExtensions {
 
-        public static async Task<IEnumerable<IKeyValuePair>> FindByPrefix(this IDatabase db, Slice term) {
-            return (await db.Find(term)) 
-                .Where(x => Slice.IsPrefix(x.Key, term));
+        public static IAsyncEnumerable<IKeyValuePair> FindByPrefix(this IDatabase db, Slice term) {
+            return db.Find(term).Where(x => Slice.IsPrefix(x.Key, term));
         }
 
-        public static async Task<IEnumerable<IKeyValuePair>> FindByPrefix(this IDatabase db, string term) {
-            return await db.FindByPrefix((Slice)Encoding.UTF8.GetBytes(term));
+        public static IAsyncEnumerable<IKeyValuePair> FindByPrefix(this IDatabase db, string term) {
+            return db.FindByPrefix((Slice)Encoding.UTF8.GetBytes(term));
         }
 
         public static async Task<Slice> Get(this IDatabase db, string key) {
