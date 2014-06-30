@@ -1,12 +1,14 @@
 using System;
 using System.Threading;
+using System.Linq;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace TheFactory.Datastore {
 
     public class MemoryTablet : ITablet {
         private OurSortedDictionary<Slice, Slice> backing;
-        private object backingLock;
+        private AsyncLock backingLock = new AsyncLock();
 
         public int ApproxSize { get; private set; }
 
@@ -23,72 +25,74 @@ namespace TheFactory.Datastore {
 
         public MemoryTablet() {
             backing = new OurSortedDictionary<Slice, Slice>(new KeyComparer());
-            backingLock = new ReaderWriterLockSlim();
             ApproxSize = 0;
         }
 
-        public void Apply(Batch batch) {
+        public async Task Apply(Batch batch) {
             if (batch.IsEmpty()) {
                 return;
             }
 
             foreach (IKeyValuePair kv in batch.Pairs()) {
                 if (kv.IsDeleted) {
-                    Delete(kv.Key.Detach());
+                    await Delete(kv.Key.Detach());
                     ApproxSize += kv.Key.Length;
                 } else {
-                    Set(kv.Key.Detach(), kv.Value.Detach());
+                    await Set(kv.Key.Detach(), kv.Value.Detach());
                     ApproxSize += kv.Key.Length + kv.Value.Length;
                 }
             }
         }
 
-        public void Set(Slice key, Slice val) {
-            lock (backingLock) {
+        public async Task Set(Slice key, Slice val) {
+            using (await backingLock.LockAsync()) {
                 backing[key] = val;
             }
         }
 
-        public void Delete(Slice key) {
-            Set(key, Tombstone);
+        public async Task Delete(Slice key) {
+            await Set(key, Tombstone);
         }
 
         public void Close() {
             backing.Clear();
         }
 
-        public IEnumerable<IKeyValuePair> Find(Slice term) {
+        public IAsyncEnumerable<IKeyValuePair> Find(Slice term) {
             if (backing.Count == 0) {
-                yield break;
+                return AsyncEnumerable.Empty<IKeyValuePair>();
             }
 
-            lock (backingLock) {
-                IEnumerator<KeyValuePair<Slice, Slice>> items;
+            return AsyncEnumerableEx.Return(() => backingLock.LockAsync())
+                .SelectMany(l => {
+                    IEnumerator<KeyValuePair<Slice, Slice>> items;
 
-                if (term == null) {
-                    items = backing.GetEnumerator();
-                } else {
-                    // skip all elements less than term
-                    items = backing.GetSuffixEnumerator(term);
-                }
-
-                var ret = new Pair();
-                while (items.MoveNext()) {
-                    var kv = items.Current;
-
-                    ret.Reset();
-                    ret.Key = kv.Key;
-                    if (ReferenceEquals(kv.Value, Tombstone)) {
-                        ret.IsDeleted = true;
+                    if (term == null) {
+                        items = backing.GetEnumerator();
                     } else {
-                        ret.Value = kv.Value;
+                        // skip all elements less than term
+                        items = backing.GetSuffixEnumerator(term);
                     }
 
-                    yield return ret;
-                }
-            }
+                    return AsyncEnumerable.Generate(new Pair(), _ => {
+                        if (items.MoveNext()) return true;
 
-            yield break;
+                        l.Dispose();
+                        return false;
+                    }, ret => {
+                        var kv = items.Current;
+
+                        ret.Reset();
+                        ret.Key = kv.Key;
+                        if (ReferenceEquals(kv.Value, Tombstone)) {
+                            ret.IsDeleted = true;
+                        } else {
+                            ret.Value = kv.Value;
+                        }
+
+                        return ret;
+                    }, x => x);
+                });
         }
 
         private class KeyComparer : IComparer<Slice> {
